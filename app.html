@@ -527,9 +527,11 @@ function generateQR(code){
   const box=document.getElementById('qr-box');
   if(!box||typeof QRCode==='undefined')return;
   box.innerHTML='';
-  // Encode just the WJ2: code — no URL wrapper keeps QR simple and scannable
+  // URL in QR — native camera opens the app and auto-imports on tap
+  const base=window.location.href.split('?')[0];
+  const url=base+'?ho='+encodeURIComponent(code);
   const size=Math.min(220,window.innerWidth-100);
-  new QRCode(box,{text:code,width:size,height:size,colorDark:'#1a1f2e',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
+  new QRCode(box,{text:url,width:size,height:size,colorDark:'#1a1f2e',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
 }
 
 function selectCode(){
@@ -586,7 +588,7 @@ function renderRecvPanel(){
           <div class="scanner-corners-b"></div>
         </div>
       </div>
-      <div class="scanner-hint" id="scanner-hint">Point at the sender's QR code — imports automatically</div>
+      <div class="scanner-hint" id="scanner-hint">Tip: your phone's native camera app also works — just point and tap the notification</div>
       <button onclick="stopScanner()" style="width:100%;padding:13px;background:var(--surface2);border:none;border-radius:14px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer;margin-bottom:14px">Cancel scan</button>
     </div>
     <div id="scan-feedback"></div>
@@ -917,18 +919,17 @@ load();
 (function(){
   try{
     const params=new URLSearchParams(window.location.search);
-    const ho=params.get('ho');
+    const ho=params.get('ho'); // URLSearchParams already decodes the value
     if(!ho)return;
-    // Clean URL immediately so sharing the page doesn't re-import
     window.history.replaceState({},'',window.location.pathname);
-    const result=decodeHandover(decodeURIComponent(ho));
+    // try as-is first, then try decoding once more in case of double-encoding
+    const result=decodeHandover(ho)||decodeHandover(decodeURIComponent(ho));
     if(!result||!result.length)return;
     tasks=result.concat(tasks);
     save();
-    // Show a brief confirmation banner
     const banner=document.createElement('div');
     banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:#2d7a55;color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(45,122,85,0.3);font-family:DM Sans,sans-serif';
-    banner.textContent=result.length+' job'+(result.length!==1?'s':'')+' imported from QR code';
+    banner.textContent=result.length+' job'+(result.length!==1?'s':'')+' imported';
     document.body.appendChild(banner);
     setTimeout(()=>{banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(()=>banner.remove(),400)},2800);
   }catch(e){}
