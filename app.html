@@ -120,7 +120,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .cbody{flex:1;min-width:0;padding:9px 6px 9px 10px;display:flex;align-items:center;gap:8px}
 .cleft{flex:1;min-width:0}
 .cheader{display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap}
-.cpid{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;background:var(--surface2);padding:1px 6px;border-radius:20px;white-space:nowrap}
+.cpid{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em}
 .ctag{font-size:9px;font-weight:600;letter-spacing:0.04em;padding:1px 6px;border-radius:20px;white-space:nowrap}
 .card.i .ctag{color:var(--imm);background:var(--imm-bg)}.card.u .ctag{color:var(--urg);background:var(--urg-bg)}.card.r .ctag{color:var(--rtn);background:var(--rtn-bg)}
 .cdesc{font-size:14px;color:var(--text);line-height:1.3;word-break:break-word;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -874,11 +874,10 @@ function render(){
 
 function cardHtml(t){
   const cls=t.done?'done':t.urg;
-  const pid=t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'';
-  const tag='';
+  const pidPrefix=t.pid?'<span class="cpid">'+esc(t.pid)+'</span> ':'';
   const meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   const tick=t.done?'<svg class="chk-tick" viewBox="0 0 13 13"><polyline points="2,6.5 5.5,10 11,3"/></svg>':'<div class="chk-dot"></div>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cheader">'+pid+tag+'</div><div class="cdesc">'+esc(t.desc)+'</div><div class="cmeta">'+meta+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
+  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cdesc">'+pidPrefix+esc(t.desc)+'</div><div class="cmeta">'+meta+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
 /* ── Sheet drag-to-dismiss ── */
