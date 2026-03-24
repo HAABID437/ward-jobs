@@ -360,7 +360,6 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <script>
 let tasks=[],selUrg='r',curTab='active',hoTab='send';
 const ORD={i:0,u:1,r:2},LBL={i:'Immediate',u:'Urgent',r:'Routine'};
-const PREFIX='WJ2:';
 
 const SHIFT_MS=16*60*60*1000;
 function load(){
@@ -380,24 +379,52 @@ function fmt(ms){return new Date(ms).toLocaleTimeString('en-GB',{hour:'2-digit',
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
 /* ── Handover encode/decode ── */
+// Compact format: AX1:pid|desc|u~pid|desc|u~...
+// Much shorter than JSON+base64, produces a scannable QR even with 20+ jobs
+const PREFIX='WJ2:';
+const PREFIX2='AX1:'; // new compact format
+
 function encodeHandover(){
   const active=tasks.filter(x=>!x.done);
   if(!active.length)return null;
-  const payload=active.map(t=>({p:t.pid||'',d:t.desc,u:t.urg}));
-  return PREFIX+btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  // Sanitise: replace | and ~ in content so delimiters are safe
+  const parts=active.map(t=>{
+    const p=(t.pid||'').replace(/[|~]/g,' ');
+    const d=(t.desc||'').replace(/[|~]/g,' ');
+    return p+'|'+d+'|'+t.urg;
+  });
+  return PREFIX2+parts.join('~');
 }
+
 function decodeHandover(code){
   try{
-    const str=code.trim();
-    if(!str.startsWith(PREFIX))return null;
-    const json=decodeURIComponent(escape(atob(str.slice(PREFIX.length))));
-    const arr=JSON.parse(json);
-    if(!Array.isArray(arr))return null;
-    return arr.filter(x=>x.d&&['i','u','r'].includes(x.u)).map(x=>({
-      id:''+Date.now()+Math.random(),
-      pid:x.p||'',desc:x.d,urg:x.u,
-      added:Date.now(),done:false,completed:null
-    }));
+    const str=(code||'').trim();
+
+    // New compact format
+    if(str.startsWith(PREFIX2)){
+      const body=str.slice(PREFIX2.length);
+      if(!body)return null;
+      const items=body.split('~').filter(Boolean);
+      return items.map(item=>{
+        const parts=item.split('|');
+        if(parts.length<3)return null;
+        const urg=parts[2];
+        if(!['i','u','r'].includes(urg))return null;
+        return{id:''+Date.now()+Math.random(),pid:parts[0]||'',desc:parts[1]||'',urg,added:Date.now(),done:false,completed:null};
+      }).filter(Boolean);
+    }
+
+    // Legacy WJ2: format (backwards compatible)
+    if(str.startsWith(PREFIX)){
+      const json=decodeURIComponent(escape(atob(str.slice(PREFIX.length))));
+      const arr=JSON.parse(json);
+      if(!Array.isArray(arr))return null;
+      return arr.filter(x=>x.d&&['i','u','r'].includes(x.u)).map(x=>({
+        id:''+Date.now()+Math.random(),pid:x.p||'',desc:x.d,urg:x.u,added:Date.now(),done:false,completed:null
+      }));
+    }
+
+    return null;
   }catch(e){return null}
 }
 
