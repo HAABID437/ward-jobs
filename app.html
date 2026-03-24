@@ -575,21 +575,20 @@ let scanStream=null,scanRAF=null,scanCanvas=null,scanCtx=null;
 
 function renderRecvPanel(){
   document.getElementById('ho-recv-panel').innerHTML=`
-    <button class="scan-btn" onclick="startScanner()">
-      <svg viewBox="0 0 20 20"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="13" y="2" width="5" height="5" rx="1"/><rect x="2" y="13" width="5" height="5" rx="1"/><path d="M13 13h2v2h2v2h-2v-2h-2v2h-2v-4h2z"/><path d="M13 13v-2h2"/></svg>
-      Scan QR code
-    </button>
-    <div id="scanner-container" style="display:none">
-      <div class="scanner-wrap" id="scanner-wrap">
-        <video id="scanner-video" playsinline autoplay muted></video>
-        <div class="scanner-overlay">
-          <div class="scanner-finder"></div>
-          <div class="scanner-corners"></div>
-          <div class="scanner-corners-b"></div>
-        </div>
+    <div style="background:var(--surface2);border-radius:16px;padding:16px;margin-bottom:16px">
+      <div style="font-family:'DM Serif Display',serif;font-size:17px;font-weight:400;margin-bottom:10px;letter-spacing:-0.01em">How to receive jobs</div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Open your iPhone <strong>Camera app</strong></div>
       </div>
-      <div class="scanner-hint" id="scanner-hint">Tip: your phone's native camera app also works — just point and tap the notification</div>
-      <button onclick="stopScanner()" style="width:100%;padding:13px;background:var(--surface2);border:none;border-radius:14px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer;margin-bottom:14px">Cancel scan</button>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Point at the sender's QR code</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Tap the <strong>axonal.co.uk</strong> link — jobs import automatically</div>
+      </div>
     </div>
     <div id="scan-feedback"></div>
     <div class="divider-row"><span>or paste code manually</span></div>
@@ -605,7 +604,7 @@ function startScanner(){
     showScanError('Camera not available on this device or browser.');return;
   }
   document.getElementById('scanner-container').style.display='block';
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false})
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
     .then(stream=>{
       scanStream=stream;
       const video=document.getElementById('scanner-video');
@@ -613,68 +612,47 @@ function startScanner(){
       video.play();
       scanCanvas=document.createElement('canvas');
       scanCtx=scanCanvas.getContext('2d',{willReadFrequently:true});
-      video.addEventListener('loadedmetadata',()=>{
-        scanCanvas.width=video.videoWidth;
-        scanCanvas.height=video.videoHeight;
-        // Use native BarcodeDetector if available (iOS 17+, Android Chrome)
-        if(typeof BarcodeDetector!=='undefined'){
-          startNativeScanner(video);
-        } else {
-          scanLoop();
-        }
-      });
+      // Use setInterval — rAF is throttled on iOS Safari in web apps
+      nativeScanInterval=setInterval(()=>scanTick(video),400);
     })
-    .catch(err=>showScanError('Camera permission denied. Please allow camera access and try again.'));
+    .catch(()=>showScanError('Camera permission denied. Please allow camera access and try again.'));
 }
 
-// Native BarcodeDetector — most reliable on modern iOS/Android
 let nativeScanInterval=null;
-function startNativeScanner(video){
-  const detector=new BarcodeDetector({formats:['qr_code']});
-  nativeScanInterval=setInterval(async()=>{
-    if(!scanStream)return;
-    try{
-      const codes=await detector.detect(video);
-      if(codes&&codes.length>0){
-        const raw=codes[0].rawValue;
-        const parsed=tryDecode(raw);
-        if(parsed&&parsed.length){
-          clearInterval(nativeScanInterval);nativeScanInterval=null;
-          stopScanner();
-          handleScanSuccess(parsed);
-        } else {
-          const hint=document.getElementById('scanner-hint');
-          if(hint){hint.textContent='QR detected — hold steady…';hint.style.color='var(--urg)';}
-        }
-      }
-    }catch(e){}
-  },300);
-}
 
-function scanLoop(){
-  const video=document.getElementById('scanner-video');
-  if(!video||!scanStream)return;
-  if(video.readyState===video.HAVE_ENOUGH_DATA){
-    scanCanvas.width=video.videoWidth;
-    scanCanvas.height=video.videoHeight;
-    scanCtx.drawImage(video,0,0);
+function scanTick(video){
+  if(!scanStream||!video)return;
+  if(video.readyState<2)return; // not ready yet
+
+  // Method 1: native BarcodeDetector (fastest, most reliable)
+  if(typeof BarcodeDetector!=='undefined'){
+    const detector=new BarcodeDetector({formats:['qr_code']});
+    detector.detect(video).then(codes=>{
+      if(codes&&codes.length){
+        const parsed=tryDecode(codes[0].rawValue);
+        if(parsed&&parsed.length){stopScanner();handleScanSuccess(parsed);}
+      }
+    }).catch(()=>{});
+    return;
+  }
+
+  // Method 2: jsQR canvas fallback
+  if(typeof jsQR==='undefined')return;
+  try{
+    scanCanvas.width=video.videoWidth||640;
+    scanCanvas.height=video.videoHeight||480;
+    scanCtx.drawImage(video,0,0,scanCanvas.width,scanCanvas.height);
     const img=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
-    if(typeof jsQR!=='undefined'){
-      const result=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
-      if(result&&result.data){
-        const parsed=tryDecode(result.data);
-        if(parsed&&parsed.length){
-          stopScanner();
-          handleScanSuccess(parsed);
-          return;
-        } else {
-          const hint=document.getElementById('scanner-hint');
-          if(hint){hint.textContent='QR detected — hold steady…';hint.style.color='var(--urg)';}
-        }
+    const result=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
+    if(result&&result.data){
+      const parsed=tryDecode(result.data);
+      if(parsed&&parsed.length){stopScanner();handleScanSuccess(parsed);}
+      else{
+        const hint=document.getElementById('scanner-hint');
+        if(hint)hint.textContent='QR detected — use your camera app instead';
       }
     }
-  }
-  scanRAF=requestAnimationFrame(scanLoop);
+  }catch(e){}
 }
 
 function tryDecode(raw){
