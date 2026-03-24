@@ -76,8 +76,10 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 
 /* Card */
 .card-wrap{position:relative;margin-bottom:6px;border-radius:14px;overflow:hidden}
-.card-complete-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;padding-left:22px;background:var(--green);border-radius:14px;pointer-events:none}
+.card-complete-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;padding-left:22px;background:var(--green);border-radius:14px;pointer-events:none;opacity:0}
 .card-complete-bg svg{width:18px;height:18px;stroke:#fff;stroke-width:2.5;fill:none}
+.card-delete-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:22px;background:var(--imm);border-radius:14px;pointer-events:none;opacity:0}
+.card-delete-bg svg{width:16px;height:16px;stroke:#fff;stroke-width:2;fill:none}
 .card{display:flex;align-items:center;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);position:relative;z-index:1;touch-action:pan-y;transition:transform 0.25s ease;overflow:hidden;min-height:52px}
 .card::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px}
 .card.i::before{background:var(--imm)}.card.u::before{background:var(--urg)}.card.r::before{background:var(--rtn)}
@@ -85,6 +87,19 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .card.swiping{transition:none}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .card-new{animation:fadein 0.2s ease}
+
+/* Delete confirm */
+.del-confirm-bd{position:fixed;inset:0;background:rgba(28,18,10,0.4);z-index:70;display:none;align-items:flex-end}
+.del-confirm-bd.show{display:flex}
+.del-confirm-sheet{background:var(--surface);border-radius:28px 28px 0 0;padding:22px 20px calc(18px + var(--safe-bot));width:100%}
+.del-confirm-sheet h3{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-bottom:6px;letter-spacing:-0.02em}
+.del-confirm-sheet p{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:20px;font-weight:500}
+.del-confirm-btns{display:flex;gap:8px}
+.del-confirm-btns button{flex:1;padding:15px;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;min-height:52px}
+.del-dbtn-confirm{background:var(--imm);color:#fff}
+.del-dbtn-confirm:active{opacity:0.82}
+.del-dbtn-cancel{background:var(--surface2);color:var(--muted)}
+.del-dbtn-cancel:active{opacity:0.7}
 
 /* Checkbox */
 .chk-wrap{padding:0 4px 0 14px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;height:52px}
@@ -326,6 +341,18 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <div class="confirm-btns">
       <button class="dbtn dbtn-confirm" onclick="clearAll()">Clear all data</button>
       <button class="dbtn dbtn-cancel" onclick="hideConfirm()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete job confirm -->
+<div class="confirm-bd" id="del-confirm-bd">
+  <div class="confirm-sheet">
+    <h3>Delete this job?</h3>
+    <p>This will permanently remove the job. This cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="dbtn dbtn-confirm" onclick="confirmDelFinal()">Delete</button>
+      <button class="dbtn dbtn-cancel" onclick="cancelDel()">Cancel</button>
     </div>
   </div>
 </div>
@@ -575,12 +602,23 @@ function scanLoop(){
     scanCanvas.height=video.videoHeight;
     scanCtx.drawImage(video,0,0);
     const img=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
-    const result=typeof jsQR!=='undefined'?jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'}):null;
+    if(typeof jsQR==='undefined'){scanRAF=requestAnimationFrame(scanLoop);return;}
+    const result=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'})
+               ||jsQR(img.data,img.width,img.height,{inversionAttempts:'onlyInvert'});
     if(result&&result.data){
-      const url=result.data;
-      let code=url;
-      try{const u=new URL(url);code=decodeURIComponent(u.searchParams.get('ho')||url);}catch(e){}
-      const parsed=decodeHandover(code);
+      const raw=result.data;
+      let code=raw;
+      // try extracting ?ho= param from URL
+      try{
+        const u=new URL(raw);
+        const hoParam=u.searchParams.get('ho');
+        if(hoParam) code=decodeURIComponent(hoParam);
+      }catch(e){
+        // not a URL — try raw as code directly
+        code=raw;
+      }
+      // also try raw directly as WJ2: code
+      const parsed=decodeHandover(code)||decodeHandover(raw);
       if(parsed&&parsed.length){
         stopScanner();
         handleScanSuccess(parsed);
@@ -691,31 +729,68 @@ function showConfirm(){document.getElementById('confirm-bd').classList.add('show
 function hideConfirm(){document.getElementById('confirm-bd').classList.remove('show')}
 function clearAll(){tasks=[];save();hideConfirm();render()}
 document.getElementById('confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('confirm-bd'))hideConfirm()});
+document.getElementById('del-confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('del-confirm-bd'))cancelDel()});
 
-/* ── Swipe right to complete ── */
+/* ── Delete confirmation ── */
+let pendingDelId=null;
+function confirmDel(id){
+  pendingDelId=id;
+  document.getElementById('del-confirm-bd').classList.add('show');
+}
+function cancelDel(){
+  pendingDelId=null;
+  document.getElementById('del-confirm-bd').classList.remove('show');
+}
+function confirmDelFinal(){
+  if(pendingDelId) del(pendingDelId);
+  pendingDelId=null;
+  document.getElementById('del-confirm-bd').classList.remove('show');
+}
+
+/* ── Swipe right = complete, left = delete (with confirm) ── */
 function initSwipe(wrap,id){
   const card=wrap.querySelector('.card');
-  const bg=wrap.querySelector('.card-complete-bg');
-  let sx=0,dy_=0,dx=0,on=false,locked=false,horiz=false;
+  const completeBg=wrap.querySelector('.card-complete-bg');
+  const deleteBg=wrap.querySelector('.card-delete-bg');
+  let sx=0,sy=0,dx=0,on=false,locked=false,horiz=false;
   const THR=80;
-  card.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dy_=e.touches[0].clientY;dx=0;on=true;locked=false;horiz=false;card.classList.add('swiping')},{passive:true});
+  card.addEventListener('touchstart',e=>{
+    sx=e.touches[0].clientX;sy=e.touches[0].clientY;dx=0;
+    on=true;locked=false;horiz=false;
+    card.classList.add('swiping');
+  },{passive:true});
   card.addEventListener('touchmove',e=>{
     if(!on)return;
-    dx=e.touches[0].clientX-sx;const dy=e.touches[0].clientY-dy_;
+    dx=e.touches[0].clientX-sx;
+    const dy=e.touches[0].clientY-sy;
     if(!locked){locked=true;horiz=Math.abs(dx)>Math.abs(dy)*1.3}
-    if(!horiz){card.style.transform='';bg.style.opacity='0';return}
+    if(!horiz){card.style.transform='';completeBg.style.opacity='0';deleteBg.style.opacity='0';return}
     e.preventDefault();
-    const mv=Math.max(0,dx);
-    card.style.transform='translateX('+mv+'px)';
-    bg.style.opacity=Math.min(1,mv/(THR*0.75))+'';
+    card.style.transform='translateX('+dx+'px)';
+    if(dx>0){
+      completeBg.style.opacity=Math.min(1,dx/(THR*0.75))+'';
+      deleteBg.style.opacity='0';
+    } else {
+      deleteBg.style.opacity=Math.min(1,Math.abs(dx)/(THR*0.75))+'';
+      completeBg.style.opacity='0';
+    }
   },{passive:false});
   const end=()=>{
     if(!on)return;on=false;card.classList.remove('swiping');
     if(horiz&&dx>THR){
+      // swipe right — complete
       card.style.transition='transform 0.2s ease,opacity 0.2s ease';
-      card.style.transform='translateX(110%)';card.style.opacity='0';bg.style.opacity='0';
-      setTimeout(()=>{complete(id)},220);
-    } else {card.style.transform='';bg.style.opacity='0'}
+      card.style.transform='translateX(110%)';card.style.opacity='0';
+      completeBg.style.opacity='0';
+      setTimeout(()=>complete(id),220);
+    } else if(horiz&&dx<-THR){
+      // swipe left — confirm delete
+      card.style.transform='';deleteBg.style.opacity='0';
+      confirmDel(id);
+    } else {
+      card.style.transform='';
+      completeBg.style.opacity='0';deleteBg.style.opacity='0';
+    }
     dx=0;horiz=false;
   };
   card.addEventListener('touchend',end,{passive:true});
@@ -758,7 +833,7 @@ function cardHtml(t){
   const tag='<span class="ctag">'+LBL[t.urg]+'</span>';
   const meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   const tick=t.done?'<svg class="chk-tick" viewBox="0 0 13 13"><polyline points="2,6.5 5.5,10 11,3"/></svg>':'<div class="chk-dot"></div>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cheader">'+pid+tag+'</div><div class="cdesc">'+esc(t.desc)+'</div><div class="cmeta">'+meta+'</div></div></div><div class="del-wrap"><button class="del" onclick="del(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
+  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cheader">'+pid+tag+'</div><div class="cdesc">'+esc(t.desc)+'</div><div class="cmeta">'+meta+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
 /* ── Sheet drag-to-dismiss ── */
