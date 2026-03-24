@@ -500,10 +500,9 @@ function generateQR(code){
   const box=document.getElementById('qr-box');
   if(!box||typeof QRCode==='undefined')return;
   box.innerHTML='';
-  const base=window.location.href.split('?')[0];
-  const url=base+'?ho='+encodeURIComponent(code);
+  // Encode just the WJ2: code — no URL wrapper keeps QR simple and scannable
   const size=Math.min(220,window.innerWidth-100);
-  new QRCode(box,{text:url,width:size,height:size,colorDark:'#1a1f2e',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  new QRCode(box,{text:code,width:size,height:size,colorDark:'#1a1f2e',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
 }
 
 function selectCode(){
@@ -560,7 +559,7 @@ function renderRecvPanel(){
           <div class="scanner-corners-b"></div>
         </div>
       </div>
-      <div class="scanner-hint">Point at the sender's QR code — imports automatically</div>
+      <div class="scanner-hint" id="scanner-hint">Point at the sender's QR code — imports automatically</div>
       <button onclick="stopScanner()" style="width:100%;padding:13px;background:var(--surface2);border:none;border-radius:14px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer;margin-bottom:14px">Cancel scan</button>
     </div>
     <div id="scan-feedback"></div>
@@ -603,26 +602,23 @@ function scanLoop(){
     scanCtx.drawImage(video,0,0);
     const img=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
     if(typeof jsQR==='undefined'){scanRAF=requestAnimationFrame(scanLoop);return;}
-    const result=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'})
-               ||jsQR(img.data,img.width,img.height,{inversionAttempts:'onlyInvert'});
+    const result=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
     if(result&&result.data){
       const raw=result.data;
-      let code=raw;
-      // try extracting ?ho= param from URL
-      try{
-        const u=new URL(raw);
-        const hoParam=u.searchParams.get('ho');
-        if(hoParam) code=decodeURIComponent(hoParam);
-      }catch(e){
-        // not a URL — try raw as code directly
-        code=raw;
-      }
-      // also try raw directly as WJ2: code
-      const parsed=decodeHandover(code)||decodeHandover(raw);
+      let parsed=null;
+      // Try 1: raw is WJ2: code directly
+      parsed=decodeHandover(raw);
+      // Try 2: extract ?ho= from URL
+      if(!parsed){try{const u=new URL(raw);const p=u.searchParams.get('ho');if(p)parsed=decodeHandover(decodeURIComponent(p));}catch(e){}}
+      // Try 3: URL-encoded code
+      if(!parsed){try{parsed=decodeHandover(decodeURIComponent(raw))}catch(e){}}
       if(parsed&&parsed.length){
         stopScanner();
         handleScanSuccess(parsed);
         return;
+      } else {
+        const hint=document.getElementById('scanner-hint');
+        if(hint){hint.textContent='QR detected — hold steady…';hint.style.color='var(--urg)';}
       }
     }
   }
