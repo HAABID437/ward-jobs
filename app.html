@@ -76,8 +76,8 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 
 /* Card */
 .card-wrap{position:relative;margin-bottom:6px;border-radius:14px;overflow:hidden}
-.card-del-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-end;padding-right:20px;background:var(--imm);border-radius:14px;pointer-events:none}
-.card-del-bg svg{width:16px;height:16px;stroke:#fff;stroke-width:2;fill:none}
+.card-complete-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;padding-left:22px;background:var(--green);border-radius:14px;pointer-events:none}
+.card-complete-bg svg{width:18px;height:18px;stroke:#fff;stroke-width:2.5;fill:none}
 .card{display:flex;align-items:center;border-radius:14px;background:var(--surface);box-shadow:var(--shadow);position:relative;z-index:1;touch-action:pan-y;transition:transform 0.25s ease;overflow:hidden;min-height:52px}
 .card::before{content:'';position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px}
 .card.i::before{background:var(--imm)}.card.u::before{background:var(--urg)}.card.r::before{background:var(--rtn)}
@@ -692,10 +692,10 @@ function hideConfirm(){document.getElementById('confirm-bd').classList.remove('s
 function clearAll(){tasks=[];save();hideConfirm();render()}
 document.getElementById('confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('confirm-bd'))hideConfirm()});
 
-/* ── Swipe to delete ── */
+/* ── Swipe right to complete ── */
 function initSwipe(wrap,id){
   const card=wrap.querySelector('.card');
-  const bg=wrap.querySelector('.card-del-bg');
+  const bg=wrap.querySelector('.card-complete-bg');
   let sx=0,dy_=0,dx=0,on=false,locked=false,horiz=false;
   const THR=80;
   card.addEventListener('touchstart',e=>{sx=e.touches[0].clientX;dy_=e.touches[0].clientY;dx=0;on=true;locked=false;horiz=false;card.classList.add('swiping')},{passive:true});
@@ -705,16 +705,16 @@ function initSwipe(wrap,id){
     if(!locked){locked=true;horiz=Math.abs(dx)>Math.abs(dy)*1.3}
     if(!horiz){card.style.transform='';bg.style.opacity='0';return}
     e.preventDefault();
-    const mv=Math.min(0,dx);
+    const mv=Math.max(0,dx);
     card.style.transform='translateX('+mv+'px)';
-    bg.style.opacity=Math.min(1,Math.abs(mv)/(THR*0.75))+'';
+    bg.style.opacity=Math.min(1,mv/(THR*0.75))+'';
   },{passive:false});
   const end=()=>{
     if(!on)return;on=false;card.classList.remove('swiping');
-    if(horiz&&dx<-THR){
+    if(horiz&&dx>THR){
       card.style.transition='transform 0.2s ease,opacity 0.2s ease';
-      card.style.transform='translateX(-110%)';card.style.opacity='0';bg.style.opacity='0';
-      setTimeout(()=>{tasks=tasks.filter(x=>x.id!==id);save();render()},220);
+      card.style.transform='translateX(110%)';card.style.opacity='0';bg.style.opacity='0';
+      setTimeout(()=>{complete(id)},220);
     } else {card.style.transform='';bg.style.opacity='0'}
     dx=0;horiz=false;
   };
@@ -758,7 +758,7 @@ function cardHtml(t){
   const tag='<span class="ctag">'+LBL[t.urg]+'</span>';
   const meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   const tick=t.done?'<svg class="chk-tick" viewBox="0 0 13 13"><polyline points="2,6.5 5.5,10 11,3"/></svg>':'<div class="chk-dot"></div>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-del-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cheader">'+pid+tag+'</div><div class="cdesc">'+esc(t.desc)+'</div><div class="cmeta">'+meta+'</div></div></div><div class="del-wrap"><button class="del" onclick="del(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
+  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cheader">'+pid+tag+'</div><div class="cdesc">'+esc(t.desc)+'</div><div class="cmeta">'+meta+'</div></div></div><div class="del-wrap"><button class="del" onclick="del(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
 /* ── Sheet drag-to-dismiss ── */
