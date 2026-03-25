@@ -852,7 +852,11 @@ function del(id){
 }
 function showConfirm(){document.getElementById('confirm-bd').classList.add('show')}
 function hideConfirm(){document.getElementById('confirm-bd').classList.remove('show')}
-function clearAll(){tasks=[];save();hideConfirm();render()}
+function clearAll(){
+  tasks=[];save();
+  localStorage.setItem('wj_start',''+Date.now());
+  hideConfirm();render();updateSessionBar();
+}
 document.getElementById('confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('confirm-bd'))hideConfirm()});
 document.getElementById('del-confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('del-confirm-bd'))cancelDel()});
 
