@@ -92,6 +92,15 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .card-new{animation:fadein 0.2s ease}
 
+/* Session countdown bar */
+.session-bar-wrap{padding:0 14px 8px}
+.session-bar-track{height:3px;background:var(--border-mid);border-radius:2px;overflow:hidden}
+.session-bar-fill{height:100%;border-radius:2px;transition:width 60s linear,background 1s ease;background:var(--rtn)}
+.detail-desc{font-size:16px;color:var(--text);line-height:1.6;font-weight:500;background:var(--surface2);border-radius:14px;padding:14px 16px;margin-bottom:14px;white-space:pre-wrap;word-break:break-word}
+.detail-row{display:flex;gap:8px;margin-bottom:14px}
+.detail-row .ub{flex:1}
+.edit-actions{display:flex;flex-direction:column;gap:8px}
+
 /* Delete confirm */
 .del-confirm-bd{position:fixed;inset:0;background:rgba(28,18,10,0.4);z-index:70;display:none;align-items:flex-end}
 .del-confirm-bd.show{display:flex}
@@ -256,9 +265,10 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <div id="shell">
   <div class="hdr">
     <div class="hdr-row">
-      <div class="brand">
+      <div class="brand" onclick="openAbout()" style="cursor:pointer">
         <div style="display:flex;align-items:center;gap:9px;margin-bottom:3px">
           <div class="brand-name">Axonal</div>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="opacity:0.3;flex-shrink:0;margin-top:4px"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><line x1="7" y1="6" x2="7" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="4" r="0.7" fill="currentColor"/></svg>
         </div>
         <div class="brand-sub">Shift task manager</div>
       </div>
@@ -275,12 +285,17 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <div class="sub-hdr">
       <div class="notice">
         <div class="notice-dot"></div>
-        <p>16hr auto-clear · session safe</p>
+        <p id="session-label">16hr auto-clear · session safe</p>
       </div>
       <div class="pills">
         <span class="pill i"><span class="pn" id="s-imm">0</span>&nbsp;Imm</span>
         <span class="pill u"><span class="pn" id="s-urg">0</span>&nbsp;Urg</span>
         <span class="pill r"><span class="pn" id="s-rtn">0</span>&nbsp;Rtn</span>
+      </div>
+    </div>
+    <div class="session-bar-wrap">
+      <div class="session-bar-track">
+        <div class="session-bar-fill" id="session-bar"></div>
       </div>
     </div>
     <div class="list" id="list"></div>
@@ -332,13 +347,76 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <div class="sheet" id="ho-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title">Handover</div>
-  <div class="sheet-sub">Share active jobs with the incoming team — no internet required.</div>
+  <div class="sheet-sub">Share active jobs with the incoming team.</div>
   <div class="ho-tabs">
     <div class="ho-tab on" id="ho-tab-send" onclick="hoSetTab('send')">Send jobs</div>
     <div class="ho-tab" id="ho-tab-recv" onclick="hoSetTab('recv')">Receive jobs</div>
   </div>
   <div id="ho-send-panel"></div>
   <div id="ho-recv-panel" style="display:none"></div>
+</div>
+
+<!-- Task detail / edit sheet -->
+<div class="sheet" id="detail-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="detail-title">Job detail</div>
+  <div class="sheet-sub" id="detail-meta"></div>
+  <div class="f-label" style="margin-bottom:8px" id="detail-pid-label"></div>
+  <div class="f-group" id="detail-pid-group" style="display:none">
+    <div class="f-label">Patient identifier</div>
+    <input type="text" id="edit-pid" class="pid-input" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+  </div>
+  <div class="f-group">
+    <div class="f-label">Job description</div>
+    <textarea id="edit-desc" rows="4" style="resize:none" maxlength="200" autocomplete="off"></textarea>
+  </div>
+  <div class="f-label" style="margin-bottom:8px">Urgency</div>
+  <div class="detail-row">
+    <button class="ub" id="eub-i" onclick="setEditUrg('i')"><span class="ub-icon imm"></span>Immediate</button>
+    <button class="ub" id="eub-u" onclick="setEditUrg('u')"><span class="ub-icon urg"></span>Urgent</button>
+    <button class="ub sel-r" id="eub-r" onclick="setEditUrg('r')"><span class="ub-icon rtn"></span>Routine</button>
+  </div>
+  <div class="edit-actions">
+    <button class="submit-btn" onclick="saveEdit()">Save changes</button>
+    <button style="width:100%;padding:15px;background:none;border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer" onclick="closeSheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- About / IG sheet -->
+<div class="sheet" id="about-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">About Axonal</div>
+  <div class="sheet-sub">Shift task manager for clinicians</div>
+
+  <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px">
+
+    <div style="background:var(--surface2);border-radius:16px;padding:16px">
+      <div style="font-family:'DM Serif Display',serif;font-size:15px;font-weight:400;margin-bottom:8px;letter-spacing:-0.01em">What is Axonal?</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;font-weight:500">Axonal is a lightweight shift task manager designed for resident doctors. It helps you track patient jobs by urgency, manage your workload during a busy ward shift, and hand over outstanding tasks to incoming colleagues quickly and safely.</div>
+    </div>
+
+    <div style="background:var(--rtn-bg);border-radius:16px;padding:16px">
+      <div style="font-family:'DM Serif Display',serif;font-size:15px;font-weight:400;margin-bottom:8px;color:var(--rtn);letter-spacing:-0.01em">Information governance</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;font-weight:500">
+        <div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:var(--rtn);font-size:15px;flex-shrink:0">✓</span><span><strong style="color:var(--text)">No data ever leaves your device.</strong> Axonal stores all task data locally in your browser only. Nothing is transmitted to any server.</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:var(--rtn);font-size:15px;flex-shrink:0">✓</span><span><strong style="color:var(--text)">No patient identifiable information required.</strong> Use only bed numbers, ward locations, or partial identifiers — never full names or NHS numbers.</span></div>
+        <div style="display:flex;gap:8px;margin-bottom:8px"><span style="color:var(--rtn);font-size:15px;flex-shrink:0">✓</span><span><strong style="color:var(--text)">Automatic 16-hour data wipe.</strong> All data is deleted automatically at the end of your shift window. No residual patient information persists beyond the shift.</span></div>
+        <div style="display:flex;gap:8px"><span style="color:var(--rtn);font-size:15px;flex-shrink:0">✓</span><span><strong style="color:var(--text)">QR handover is peer-to-peer.</strong> Handover codes are generated on your device and shared directly. No data passes through third-party servers.</span></div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface2);border-radius:16px;padding:16px">
+      <div style="font-family:'DM Serif Display',serif;font-size:15px;font-weight:400;margin-bottom:8px;letter-spacing:-0.01em">Best practice reminders</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;font-weight:500">Use minimum necessary identifiers (e.g. Bed 7, Ward 12) rather than patient names. Do not record sensitive clinical details beyond what is needed to action the job. If your device is shared, use the <em>End shift</em> button to clear all data before handing over the device.</div>
+    </div>
+
+    <div style="background:var(--surface2);border-radius:16px;padding:14px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:12px;color:var(--dim);font-weight:500">Version 1.0 · axonal.co.uk</div>
+      <div style="font-size:12px;color:var(--dim);font-weight:500">© 2026 Axonal</div>
+    </div>
+
+  </div>
+  <button class="submit-btn" onclick="closeSheet()">Close</button>
 </div>
 
 <!-- Confirm dialog -->
@@ -778,7 +856,36 @@ function clearAll(){tasks=[];save();hideConfirm();render()}
 document.getElementById('confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('confirm-bd'))hideConfirm()});
 document.getElementById('del-confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('del-confirm-bd'))cancelDel()});
 
-/* ── Delete confirmation ── */
+function openAbout(){openSheet('about-sheet');}
+
+let editId=null,editUrg='r';
+function openDetail(id){
+  const t=tasks.find(x=>x.id===id);
+  if(!t)return;
+  editId=id;editUrg=t.urg;
+  document.getElementById('detail-title').textContent=t.pid||'Job detail';
+  document.getElementById('detail-meta').textContent='Added '+fmt(t.added)+(t.done?' · Completed '+fmt(t.completed):'');
+  const pidGroup=document.getElementById('detail-pid-group');
+  pidGroup.style.display='block';
+  document.getElementById('edit-pid').value=t.pid||'';
+  document.getElementById('edit-desc').value=t.desc;
+  ['i','u','r'].forEach(x=>document.getElementById('eub-'+x).className='ub'+(x===editUrg?' sel-'+x:''));
+  openSheet('detail-sheet');
+  setTimeout(()=>document.getElementById('edit-desc').focus(),320);
+}
+function setEditUrg(u){
+  editUrg=u;
+  ['i','u','r'].forEach(x=>document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:''));
+}
+function saveEdit(){
+  const t=tasks.find(x=>x.id===editId);
+  if(!t)return;
+  const newDesc=document.getElementById('edit-desc').value.trim();
+  const newPid=document.getElementById('edit-pid').value.trim();
+  if(!newDesc)return;
+  t.desc=newDesc;t.pid=newPid;t.urg=editUrg;
+  save();closeSheet();render();
+}
 let pendingDelId=null;
 function confirmDel(id){
   pendingDelId=id;
@@ -879,11 +986,11 @@ function cardHtml(t){
   const meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   const pidMeta='<span style="flex:1;min-width:0">'+(t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'&nbsp;')+'</span><span class="cmeta-time">'+meta+'</span>';
   const tick=t.done?'<svg class="chk-tick" viewBox="0 0 13 13"><polyline points="2,6.5 5.5,10 11,3"/></svg>':'<div class="chk-dot"></div>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
+  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
 /* ── Sheet drag-to-dismiss ── */
-['add-sheet','ho-sheet'].forEach(sid=>{
+['add-sheet','ho-sheet','detail-sheet','about-sheet'].forEach(sid=>{
   const sheet=document.getElementById(sid);
   let sy=0,dy=0,on=false;
   sheet.addEventListener('touchstart',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.tagName==='TEXTAREA')return;sy=e.touches[0].clientY;dy=0;on=true},{passive:true});
@@ -897,6 +1004,31 @@ document.getElementById('f-desc').addEventListener('keydown',e=>{if(e.key==='Ent
 function tick(){
   const n=new Date();
   document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  updateSessionBar();
+}
+
+function updateSessionBar(){
+  try{
+    const start=parseInt(localStorage.getItem('wj_start')||'0');
+    if(!start)return;
+    const elapsed=Date.now()-start;
+    const remaining=Math.max(0,SHIFT_MS-elapsed);
+    const pct=(remaining/SHIFT_MS)*100;
+    const bar=document.getElementById('session-bar');
+    const label=document.getElementById('session-label');
+    if(!bar||!label)return;
+    bar.style.width=pct.toFixed(1)+'%';
+    // Colour: green > 50%, amber 25-50%, red < 25%
+    if(pct>50){bar.style.background='var(--rtn)'}
+    else if(pct>25){bar.style.background='var(--urg)'}
+    else{bar.style.background='var(--imm)'}
+    // Label: show time remaining
+    const hrs=Math.floor(remaining/3600000);
+    const mins=Math.floor((remaining%3600000)/60000);
+    if(remaining<=0){label.textContent='Session expired — refreshing…';}
+    else if(hrs>0){label.textContent='Session clears in '+hrs+'h '+mins+'m';}
+    else{label.textContent='Session clears in '+mins+' min'+(mins!==1?'s':'');}
+  }catch(e){}
 }
 load();
 
