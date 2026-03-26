@@ -7,12 +7,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f5ece0">
-  
-<link rel="icon" type="image/x-icon" href="/favicon.ico">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  
 <title>Axonal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -157,6 +151,38 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .icon-btn svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none}
 .icon-btn.handover-btn:active{background:var(--accent-bg);color:var(--accent)}
 .icon-btn.end-btn:active{background:var(--imm-bg);color:var(--imm)}
+/* Handover chasing outline */
+.icon-btn.handover-btn{position:relative}
+.icon-btn.handover-btn::after{
+  content:'';
+  position:absolute;
+  inset:-1.5px;
+  border-radius:20px;
+  border:1px solid transparent;
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,
+             linear-gradient(90deg,transparent 0%,rgba(140,110,180,0.5) 50%,transparent 100%) border-box;
+  background-size:300% 100%;
+  background-position:300% 0;
+  opacity:0;
+  animation:chase-outline 5s ease-in-out infinite;
+  z-index:-1;
+  pointer-events:none;
+}
+@keyframes chase-outline{
+  0%,55%{opacity:0;background-position:300% 0}
+  60%{opacity:1;background-position:300% 0}
+  88%{opacity:0.8;background-position:-50% 0}
+  95%,100%{opacity:0;background-position:-50% 0}
+}
+/* Swipe hint animation */
+@keyframes swipe-hint{
+  0%{transform:translateX(0);opacity:1}
+  30%{transform:translateX(52px);opacity:1}
+  55%{transform:translateX(52px);opacity:0.7}
+  80%{transform:translateX(0);opacity:1}
+  100%{transform:translateX(0);opacity:1}
+}
+.swipe-hint{animation:swipe-hint 1.6s cubic-bezier(0.4,0,0.2,1) 1.2s 1 forwards}
 
 /* Sheets */
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:40;pointer-events:none;transition:background 0.28s}
@@ -988,6 +1014,17 @@ function render(){
   list.innerHTML=html;
   if(curTab==='active'){
     active.forEach(t=>{const w=list.querySelector('[data-wrap="'+t.id+'"]');if(w)initSwipe(w,t.id)});
+    // Swipe hint — shows once on first load when there are tasks
+    if(!localStorage.getItem('wj_hint_seen')&&active.length){
+      const firstCard=list.querySelector('.card');
+      if(firstCard){
+        firstCard.classList.add('swipe-hint');
+        firstCard.addEventListener('animationend',()=>{
+          firstCard.classList.remove('swipe-hint');
+          localStorage.setItem('wj_hint_seen','1');
+        },{once:true});
+      }
+    }
   }
 }
 
@@ -1053,7 +1090,7 @@ load();
     if(!result||!result.length)return;
     // Re-read localStorage fresh — another tab may have already saved jobs
     try{const fresh=JSON.parse(localStorage.getItem('wj')||'[]');if(fresh.length>tasks.length)tasks=fresh;}catch(e){}
-    // Deduplicate — avoid double-importing the same job
+    // Deduplicate by description+pid to avoid double-importing same job
     const existingKeys=new Set(tasks.map(t=>t.urg+'|'+t.pid+'|'+t.desc));
     const newJobs=result.filter(t=>!existingKeys.has(t.urg+'|'+t.pid+'|'+t.desc));
     if(!newJobs.length)return;
@@ -1061,7 +1098,7 @@ load();
     save();
     const total=tasks.filter(x=>!x.done).length;
     const banner=document.createElement('div');
-    banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:#2d7a55;color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(45,122,85,0.3);font-family:DM Sans,sans-serif';
+    banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:#2d7a55;color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(45,122,85,0.3);font-family:DM Sans,sans-serif;text-align:center';
     banner.textContent=newJobs.length+' job'+(newJobs.length!==1?'s':'')+' added · '+total+' total';
     document.body.appendChild(banner);
     setTimeout(()=>{banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(()=>banner.remove(),400)},4000);
