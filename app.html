@@ -1046,19 +1046,25 @@ load();
 (function(){
   try{
     const params=new URLSearchParams(window.location.search);
-    const ho=params.get('ho'); // URLSearchParams already decodes the value
+    const ho=params.get('ho');
     if(!ho)return;
     window.history.replaceState({},'',window.location.pathname);
-    // try as-is first, then try decoding once more in case of double-encoding
     const result=decodeHandover(ho)||decodeHandover(decodeURIComponent(ho));
     if(!result||!result.length)return;
-    tasks=result.concat(tasks);
+    // Re-read localStorage fresh — another tab may have already saved jobs
+    try{const fresh=JSON.parse(localStorage.getItem('wj')||'[]');if(fresh.length>tasks.length)tasks=fresh;}catch(e){}
+    // Deduplicate — avoid double-importing the same job
+    const existingKeys=new Set(tasks.map(t=>t.urg+'|'+t.pid+'|'+t.desc));
+    const newJobs=result.filter(t=>!existingKeys.has(t.urg+'|'+t.pid+'|'+t.desc));
+    if(!newJobs.length)return;
+    tasks=newJobs.concat(tasks);
     save();
+    const total=tasks.filter(x=>!x.done).length;
     const banner=document.createElement('div');
     banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:#2d7a55;color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(45,122,85,0.3);font-family:DM Sans,sans-serif';
-    banner.textContent=result.length+' job'+(result.length!==1?'s':'')+' imported';
+    banner.textContent=newJobs.length+' job'+(newJobs.length!==1?'s':'')+' added · '+total+' total';
     document.body.appendChild(banner);
-    setTimeout(()=>{banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(()=>banner.remove(),400)},2800);
+    setTimeout(()=>{banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(()=>banner.remove(),400)},4000);
   }catch(e){}
 })();
 
