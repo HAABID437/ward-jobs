@@ -152,7 +152,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .icon-btn.handover-btn:active{background:var(--accent-bg);color:var(--accent)}
 .icon-btn.end-btn:active{background:var(--imm-bg);color:var(--imm)}
 /* Handover chasing outline */
-.icon-btn.handover-btn{position:relative}
+.icon-btn.handover-btn{position:relative;animation:handover-text-pulse 5s ease-in-out infinite}
 .icon-btn.handover-btn::after{
   content:'';
   position:absolute;
@@ -160,7 +160,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
   border-radius:20px;
   border:1px solid transparent;
   background:linear-gradient(var(--surface),var(--surface)) padding-box,
-             linear-gradient(90deg,transparent 0%,rgba(140,110,180,0.5) 50%,transparent 100%) border-box;
+             linear-gradient(90deg,transparent 0%,rgba(60,140,100,0.55) 50%,transparent 100%) border-box;
   background-size:300% 100%;
   background-position:300% 0;
   opacity:0;
@@ -174,15 +174,12 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
   88%{opacity:0.8;background-position:-50% 0}
   95%,100%{opacity:0;background-position:-50% 0}
 }
-/* Swipe hint animation */
-@keyframes swipe-hint{
-  0%{transform:translateX(0);opacity:1}
-  30%{transform:translateX(52px);opacity:1}
-  55%{transform:translateX(52px);opacity:0.7}
-  80%{transform:translateX(0);opacity:1}
-  100%{transform:translateX(0);opacity:1}
+@keyframes handover-text-pulse{
+  0%,55%{color:var(--muted)}
+  65%{color:rgba(60,140,100,0.9)}
+  88%{color:rgba(60,140,100,0.9)}
+  95%,100%{color:var(--muted)}
 }
-.swipe-hint{animation:swipe-hint 1.6s cubic-bezier(0.4,0,0.2,1) 1.2s 1 forwards}
 
 /* Sheets */
 .backdrop{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:40;pointer-events:none;transition:background 0.28s}
@@ -1016,13 +1013,31 @@ function render(){
     active.forEach(t=>{const w=list.querySelector('[data-wrap="'+t.id+'"]');if(w)initSwipe(w,t.id)});
     // Swipe hint — shows once on first load when there are tasks
     if(!localStorage.getItem('wj_hint_seen')&&active.length){
+      const firstWrap=list.querySelector('.card-wrap');
       const firstCard=list.querySelector('.card');
-      if(firstCard){
-        firstCard.classList.add('swipe-hint');
-        firstCard.addEventListener('animationend',()=>{
-          firstCard.classList.remove('swipe-hint');
-          localStorage.setItem('wj_hint_seen','1');
-        },{once:true});
+      const completeBg=firstWrap?firstWrap.querySelector('.card-complete-bg'):null;
+      if(firstCard&&completeBg){
+        // Delay so card has rendered
+        setTimeout(()=>{
+          firstCard.style.transition='transform 0.5s cubic-bezier(0.4,0,0.2,1)';
+          completeBg.style.transition='opacity 0.3s ease';
+          // Slide right + reveal green
+          setTimeout(()=>{
+            firstCard.style.transform='translateX(52px)';
+            completeBg.style.opacity='1';
+          },100);
+          // Slide back + hide green
+          setTimeout(()=>{
+            firstCard.style.transform='';
+            completeBg.style.opacity='0';
+          },900);
+          // Clean up
+          setTimeout(()=>{
+            firstCard.style.transition='';
+            completeBg.style.transition='';
+            localStorage.setItem('wj_hint_seen','1');
+          },1500);
+        },1200);
       }
     }
   }
