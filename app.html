@@ -115,15 +115,12 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .del-dbtn-cancel:active{opacity:0.7}
 
 /* Checkbox */
-.chk-wrap{padding:0 4px 0 14px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;height:52px}
-.chk{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--dim);background:transparent;display:flex;align-items:center;justify-content:center;transition:all 0.15s;pointer-events:none}
-.card.i .chk{border-color:var(--imm)}.card.u .chk{border-color:var(--urg)}.card.r .chk{border-color:var(--rtn)}
-.card.done .chk{border-color:var(--dim);background:var(--surface2)}
-.chk-dot{width:8px;height:8px;border-radius:50%}
-.card.i:not(.done) .chk-dot{background:var(--imm)}.card.u:not(.done) .chk-dot{background:var(--urg)}.card.r:not(.done) .chk-dot{background:var(--rtn)}
-.card.done .chk-dot{display:none}
-.chk-tick{display:none;width:11px;height:11px;stroke:var(--dim);stroke-width:2;fill:none}
-.card.done .chk-tick{display:block}
+.chk-wrap{padding:0 4px 0 12px;cursor:pointer;display:flex;align-items:center;flex-shrink:0;height:52px}
+.chk{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:all 0.18s;pointer-events:none;flex-shrink:0;background:transparent}
+.card.i .chk svg{stroke:var(--imm);opacity:0.35}.card.u .chk svg{stroke:var(--urg);opacity:0.35}.card.r .chk svg{stroke:var(--rtn);opacity:0.35}
+.card.done .chk{background:var(--rtn)}
+.card.done .chk svg{stroke:#fff;opacity:1}
+.chk svg{width:17px;height:17px;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;transition:all 0.18s}
 
 /* Card body */
 .cbody{flex:1;min-width:0;padding:9px 6px 9px 10px;display:flex;align-items:center;gap:8px}
@@ -884,6 +881,7 @@ function hideConfirm(){document.getElementById('confirm-bd').classList.remove('s
 function clearAll(){
   tasks=[];save();
   localStorage.setItem('wj_start',''+Date.now());
+  localStorage.removeItem('wj_hint_seen');
   hideConfirm();render();updateSessionBar();
 }
 document.getElementById('confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('confirm-bd'))hideConfirm()});
@@ -1011,35 +1009,6 @@ function render(){
   list.innerHTML=html;
   if(curTab==='active'){
     active.forEach(t=>{const w=list.querySelector('[data-wrap="'+t.id+'"]');if(w)initSwipe(w,t.id)});
-    // Swipe hint — shows once on first load when there are tasks
-    if(!localStorage.getItem('wj_hint_seen')&&active.length){
-      const firstWrap=list.querySelector('.card-wrap');
-      const firstCard=list.querySelector('.card');
-      const completeBg=firstWrap?firstWrap.querySelector('.card-complete-bg'):null;
-      if(firstCard&&completeBg){
-        // Delay so card has rendered
-        setTimeout(()=>{
-          firstCard.style.transition='transform 0.5s cubic-bezier(0.4,0,0.2,1)';
-          completeBg.style.transition='opacity 0.3s ease';
-          // Slide right + reveal green
-          setTimeout(()=>{
-            firstCard.style.transform='translateX(52px)';
-            completeBg.style.opacity='1';
-          },100);
-          // Slide back + hide green
-          setTimeout(()=>{
-            firstCard.style.transform='';
-            completeBg.style.opacity='0';
-          },900);
-          // Clean up
-          setTimeout(()=>{
-            firstCard.style.transition='';
-            completeBg.style.transition='';
-            localStorage.setItem('wj_hint_seen','1');
-          },1500);
-        },1200);
-      }
-    }
   }
 }
 
@@ -1047,7 +1016,7 @@ function cardHtml(t){
   const cls=t.done?'done':t.urg;
   const meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   const pidMeta='<span style="flex:1;min-width:0">'+(t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'&nbsp;')+'</span><span class="cmeta-time">'+meta+'</span>';
-  const tick=t.done?'<svg class="chk-tick" viewBox="0 0 13 13"><polyline points="2,6.5 5.5,10 11,3"/></svg>':'<div class="chk-dot"></div>';
+  const tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
   return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
