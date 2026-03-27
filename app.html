@@ -679,9 +679,13 @@ document.getElementById('backdrop').addEventListener('click',closeSheet);
 /* Tabs */
 function setTab(t){
   curTab=t;
+  // Clear list immediately so stale content never shows during transition
+  var list=document.getElementById('list');
+  if(list)list.innerHTML='';
   ['active','done','team'].forEach(function(x){
     document.getElementById('tab-'+x).className='tab'+(t===x?' on':'');
   });
+  updateSessionBar();
   if(t==='team')renderTeamTab();else render();
 }
 
@@ -954,33 +958,38 @@ function initSwipe(wrap,id){
 }
 
 /* Render */
-function render(){
-  var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
-  var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
+function updateCounts(){
+  var active=tasks.filter(function(x){return!x.done;});
+  var done=tasks.filter(function(x){return x.done;});
   var teamActive=Object.values(teamJobs).filter(function(j){return!j.done;});
-  // Update Active tab
   document.getElementById('tc-active').textContent=active.length;
   document.getElementById('tc-done').textContent=done.length;
-  var tc=document.getElementById('tc-team');
-  if(tc)tc.textContent=teamActive.length||'';
-  // Update Active tab urgency pills
+  var tc=document.getElementById('tc-team');if(tc)tc.textContent=teamActive.length||'';
   var ai=active.filter(function(x){return x.urg==='i';}).length;
   var au=active.filter(function(x){return x.urg==='u';}).length;
   var ar=active.filter(function(x){return x.urg==='r';}).length;
   var eli=document.getElementById('tp-imm'),elu=document.getElementById('tp-urg'),elr=document.getElementById('tp-rtn');
-  if(eli)eli.textContent=ai+' Imm';if(elu)elu.textContent=au+' Urg';if(elr)elr.textContent=ar+' Rtn';
-  if(eli)eli.style.display=ai?'':'none';if(elu)elu.style.display=au?'':'none';if(elr)elr.style.display=ar?'':'none';
-  // Update Team tab urgency pills
+  if(eli){eli.textContent=ai+' Imm';eli.style.display=ai?'':'none';}
+  if(elu){elu.textContent=au+' Urg';elu.style.display=au?'':'none';}
+  if(elr){elr.textContent=ar+' Rtn';elr.style.display=ar?'':'none';}
   var ti=teamActive.filter(function(j){return j.urg==='i';}).length;
   var tu=teamActive.filter(function(j){return j.urg==='u';}).length;
   var tr=teamActive.filter(function(j){return j.urg==='r';}).length;
-  var etti=document.getElementById('tp-team-imm'),ettu=document.getElementById('tp-team-urg'),ettr=document.getElementById('tp-team-rtn');
   var tpp=document.getElementById('tab-team-pills');
   if(tpp)tpp.style.display=teamSession&&teamActive.length?'flex':'none';
-  if(etti)etti.textContent=ti+' Imm';if(ettu)ettu.textContent=tu+' Urg';if(ettr)ettr.textContent=tr+' Rtn';
-  if(etti)etti.style.display=ti?'':'none';if(ettu)ettu.style.display=tu?'':'none';if(ettr)ettr.style.display=tr?'':'none';
+  var etti=document.getElementById('tp-team-imm'),ettu=document.getElementById('tp-team-urg'),ettr=document.getElementById('tp-team-rtn');
+  if(etti){etti.textContent=ti+' Imm';etti.style.display=ti?'':'none';}
+  if(ettu){ettu.textContent=tu+' Urg';ettu.style.display=tu?'':'none';}
+  if(ettr){ettr.textContent=tr+' Rtn';ettr.style.display=tr?'':'none';}
   updateSessionBar();
-  if(curTab==='team'){renderTeamTab();return;}
+}
+
+function render(){
+  var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
+  var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
+  updateCounts();
+  // Don't touch the list if we're on the team tab
+  if(curTab==='team')return;
   var show=curTab==='active'?active:done;
   var list=document.getElementById('list');
   if(!show.length){
@@ -1093,7 +1102,9 @@ function fetchTeamData(){
     teamJobs=data.jobs||{};teamMembers=data.members||{};
     teamCreatorId=data.createdBy||teamCreatorId;
     if(data.created)window.teamSessionCreated=data.created;
-    if(curTab==='team')renderTeamTab();render();
+    // Only re-render the list if we're on the team tab; always update counts
+    if(curTab==='team')renderTeamTab();
+    updateCounts();
   }).catch(function(){});
 }
 
