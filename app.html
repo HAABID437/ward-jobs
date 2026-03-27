@@ -607,7 +607,17 @@ function load(){
   try{
     var start=parseInt(localStorage.getItem('wj_start')||'0');
     if(!start){localStorage.setItem('wj_start',''+Date.now());tasks=[];return;}
-    if(Date.now()-start>SHIFT_MS){localStorage.removeItem('wj');localStorage.setItem('wj_start',''+Date.now());tasks=[];return;}
+    if(Date.now()-start>SHIFT_MS){
+      // Unassign any team jobs before clearing
+      var expiredTasks=[];try{expiredTasks=JSON.parse(localStorage.getItem('wj')||'[]');}catch(e){}
+      var savedCode=localStorage.getItem('wj_team');
+      if(savedCode){
+        expiredTasks.filter(function(t){return t.teamJobId&&!t.done;}).forEach(function(t){
+          fetch(DB+'/sessions/'+savedCode+'/jobs/'+t.teamJobId+'.json',{method:'PATCH',body:JSON.stringify({assignedTo:null,assignedToName:null,assignedColor:null}),headers:{'Content-Type':'application/json'}});
+        });
+      }
+      localStorage.removeItem('wj');localStorage.setItem('wj_start',''+Date.now());tasks=[];return;
+    }
     tasks=JSON.parse(localStorage.getItem('wj')||'[]');
   }catch(e){tasks=[];}
 }
@@ -858,7 +868,19 @@ function del(id){
 }
 function showConfirm(){document.getElementById('confirm-bd').classList.add('show');}
 function hideConfirm(){document.getElementById('confirm-bd').classList.remove('show');}
-function clearAll(){tasks=[];save();localStorage.setItem('wj_start',''+Date.now());localStorage.removeItem('wj_hint_seen');hideConfirm();render();updateSessionBar();}
+function unassignMyTeamJobs(){
+  // Find all personal tasks linked to team jobs and unassign them in Firebase
+  var myTeamTasks=tasks.filter(function(t){return t.teamJobId&&!t.done;});
+  myTeamTasks.forEach(function(t){
+    if(teamSession&&teamJobs[t.teamJobId]&&teamJobs[t.teamJobId].assignedTo===myId){
+      dbUpdate('/sessions/'+teamSession+'/jobs/'+t.teamJobId,{
+        assignedTo:null,assignedToName:null,assignedColor:null
+      });
+    }
+  });
+}
+
+function clearAll(){unassignMyTeamJobs();tasks=[];save();localStorage.setItem('wj_start',''+Date.now());localStorage.removeItem('wj_hint_seen');hideConfirm();render();updateSessionBar();}
 document.getElementById('confirm-bd').addEventListener('click',function(e){if(e.target===document.getElementById('confirm-bd'))hideConfirm();});
 document.getElementById('del-confirm-bd').addEventListener('click',function(e){if(e.target===document.getElementById('del-confirm-bd'))cancelDel();});
 
@@ -1060,9 +1082,12 @@ function fetchTeamData(){
   dbGet('/sessions/'+teamSession).then(function(data){
     if(!data){stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');if(curTab==='team')renderTeamTab();render();return;}
     if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
+      // Unassign my jobs before session deletes
+      tasks=tasks.filter(function(t){return!t.teamJobId;});save();
       dbRemove('/sessions/'+teamSession);stopTeamPoll();
       teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
-      if(curTab==='team')renderTeamTab();render();showBanner('Team session expired','#c0392b');return;
+      var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+      if(curTab==='team')renderTeamTab();render();showBanner('Team session expired — jobs returned to pool','#c0392b');return;
     }
     teamJobs=data.jobs||{};teamMembers=data.members||{};
     teamCreatorId=data.createdBy||teamCreatorId;
