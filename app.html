@@ -102,8 +102,8 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .edit-actions{display:flex;flex-direction:column;gap:8px}
 
 /* Team badge on cards */
-.team-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;letter-spacing:0.04em;color:var(--team);background:var(--team-bg);border-radius:20px;padding:1px 6px;margin-top:3px}
-.team-assignee{font-size:10px;color:var(--team);font-weight:600;margin-top:2px}
+.team-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;letter-spacing:0.04em;color:var(--team);background:var(--team-bg);border-radius:20px;padding:1px 6px;margin-top:3px;border:1px solid var(--team-bd)}
+.card.team-assigned{border-left:3px solid var(--team)}
 
 /* Team panel */
 .team-code-box{background:var(--text);color:#fff;border-radius:20px;padding:20px;text-align:center;margin-bottom:16px}
@@ -380,7 +380,12 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <div class="sheet" id="add-sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-title">New job</div>
-  <div class="sheet-sub" style="margin-bottom:14px;display:none"></div>
+  <div id="add-sheet-team-toggle" style="display:none;margin-bottom:16px">
+    <div style="background:var(--surface2);border-radius:14px;padding:4px;display:flex;gap:4px">
+      <button id="dest-my" onclick="setAddDest('my')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:#fff;transition:all 0.15s">My list</button>
+      <button id="dest-team" onclick="setAddDest('team')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
+    </div>
+  </div>
   <div class="f-group">
     <div class="f-label">Patient identifier</div>
     <input type="text" id="f-pid" class="pid-input" placeholder="Bed / ward / hospital number" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
@@ -395,7 +400,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <button class="ub" id="ub-u" onclick="setUrg('u')"><span class="ub-icon urg"></span>Urgent</button>
     <button class="ub sel-r" id="ub-r" onclick="setUrg('r')"><span class="ub-icon rtn"></span>Routine</button>
   </div>
-  <button class="submit-btn" onclick="addTask()">Add job</button>
+  <button class="submit-btn" id="add-sheet-submit" onclick="addTask()">Add job</button>
 </div>
 
 <!-- Handover sheet -->
@@ -433,6 +438,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   </div>
   <div class="edit-actions">
     <button class="submit-btn" onclick="saveEdit()">Save changes</button>
+    <button id="move-to-team-btn" onclick="moveToTeam()" style="display:none;width:100%;padding:15px;background:var(--team-bg);color:var(--team);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Move to team list</button>
     <button style="width:100%;padding:15px;background:none;border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer" onclick="closeSheet()">Cancel</button>
   </div>
 </div>
@@ -538,20 +544,47 @@ function dbRemove(path){
 
 // Polling-based real-time (every 3s when on team tab)
 var teamPollInterval=null;
+var teamMembers={};
+var TEAM_SESSION_MS=12*60*60*1000; // 12 hour team session limit
+
 function startTeamPoll(){
   stopTeamPoll();
-  teamPollInterval=setInterval(function(){
-    if(!teamSession)return;
-    dbGet('/sessions/'+teamSession+'/jobs').then(function(data){
-      var prev=JSON.stringify(teamJobs);
-      teamJobs=data||{};
-      if(JSON.stringify(teamJobs)!==prev){
-        if(curTab==='team')renderTeamTab();
-        render();
-      }
-    }).catch(function(){});
-  },3000);
+  // Immediate fetch on start
+  fetchTeamData();
+  // Then poll every 4s
+  teamPollInterval=setInterval(fetchTeamData,4000);
 }
+
+function fetchTeamData(){
+  if(!teamSession)return;
+  dbGet('/sessions/'+teamSession).then(function(data){
+    if(!data){
+      // Session deleted or expired
+      stopTeamPoll();
+      teamSession=null;teamJobs={};teamMembers={};
+      localStorage.removeItem('wj_team');
+      if(curTab==='team')renderTeamTab();
+      render();
+      return;
+    }
+    // Check session expiry
+    if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
+      dbRemove('/sessions/'+teamSession);
+      stopTeamPoll();
+      teamSession=null;teamJobs={};teamMembers={};
+      localStorage.removeItem('wj_team');
+      if(curTab==='team')renderTeamTab();
+      render();
+      showBanner('Team session expired after 12 hours','var(--imm)');
+      return;
+    }
+    teamJobs=data.jobs||{};
+    teamMembers=data.members||{};
+    if(curTab==='team')renderTeamTab();
+    render();
+  }).catch(function(){});
+}
+
 function stopTeamPoll(){
   if(teamPollInterval){clearInterval(teamPollInterval);teamPollInterval=null;}
 }
@@ -684,9 +717,33 @@ function closeSheet(){
 }
 document.getElementById('backdrop').addEventListener('click',closeSheet);
 
+var addDest='my'; // 'my' or 'team'
+function setAddDest(dest){
+  addDest=dest;
+  var myBtn=document.getElementById('dest-my');
+  var teamBtn=document.getElementById('dest-team');
+  if(dest==='my'){
+    myBtn.style.background='var(--text)';myBtn.style.color='#fff';
+    teamBtn.style.background='transparent';teamBtn.style.color='var(--muted)';
+  }else{
+    teamBtn.style.background='var(--team)';teamBtn.style.color='#fff';
+    myBtn.style.background='transparent';myBtn.style.color='var(--muted)';
+  }
+}
 function openAddSheet(){
+  addDest='my';
+  var toggle=document.getElementById('add-sheet-team-toggle');
+  if(toggle)toggle.style.display=teamSession?'block':'none';
+  // Reset toggle state
+  var myBtn=document.getElementById('dest-my');
+  var teamBtn=document.getElementById('dest-team');
+  if(myBtn){myBtn.style.background='var(--text)';myBtn.style.color='#fff';}
+  if(teamBtn){teamBtn.style.background='transparent';teamBtn.style.color='var(--muted)';}
+  // Reset submit button
+  var sub=document.getElementById('add-sheet-submit');
+  if(sub){sub.onclick=addTask;sub.textContent='Add job';}
   openSheet('add-sheet');
-  setTimeout(()=>document.getElementById('f-desc').focus(),320);
+  setTimeout(function(){document.getElementById('f-desc').focus();},320);
 }
 function openHandover(){
   hoTab='send';
@@ -975,25 +1032,35 @@ function setTab(t){
   if(t==='team')renderTeamTab();else render();
 }
 function addTask(){
-  const pid=document.getElementById('f-pid').value.trim();
-  const desc=document.getElementById('f-desc').value.trim();
-  
+  var pid=document.getElementById('f-pid').value.trim();
+  var desc=document.getElementById('f-desc').value.trim();
   if(!desc){
-    const el=document.getElementById('f-desc');
-    el.style.borderColor='var(--imm)';setTimeout(()=>{el.style.borderColor=''},700);
+    var el=document.getElementById('f-desc');
+    el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);
     el.focus();return;
   }
-  tasks.unshift({id:''+Date.now()+Math.random(),pid,desc,urg:selUrg,added:Date.now(),done:false,completed:null});
+  if(addDest==='team'&&teamSession){
+    addTeamJob(pid,desc,selUrg);
+    document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
+    closeSheet();setTab('team');return;
+  }
+  tasks.unshift({id:''+Date.now()+Math.random(),pid:pid,desc:desc,urg:selUrg,added:Date.now(),done:false,completed:null});
   save();
   document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
   closeSheet();
   if(curTab!=='active')setTab('active');else render();
 }
 function complete(id){
-  const t=tasks.find(x=>x.id===id);
+  var t=tasks.find(function(x){return x.id===id;});
   if(!t)return;
   t.done=!t.done;t.completed=t.done?Date.now():null;
   save();render();
+  if(t.teamJobId&&teamSession){
+    var update={done:t.done,doneBy:t.done?myId:null,doneByName:t.done?myName:null,completedAt:t.done?t.completed:null};
+    dbUpdate('/sessions/'+teamSession+'/jobs/'+t.teamJobId,update).then(function(){
+      if(teamJobs[t.teamJobId])teamJobs[t.teamJobId]=Object.assign({},teamJobs[t.teamJobId],update);
+    });
+  }
 }
 function del(id){
   const wrap=document.querySelector('[data-wrap="'+id+'"]');
@@ -1019,31 +1086,48 @@ function openAbout(){openSheet('about-sheet');}
 
 let editId=null,editUrg='r';
 function openDetail(id){
-  const t=tasks.find(x=>x.id===id);
+  var t=tasks.find(function(x){return x.id===id;});
   if(!t)return;
   editId=id;editUrg=t.urg;
   document.getElementById('detail-title').textContent=t.pid||'Job detail';
   document.getElementById('detail-meta').textContent='Added '+fmt(t.added)+(t.done?' · Completed '+fmt(t.completed):'');
-  const pidGroup=document.getElementById('detail-pid-group');
-  pidGroup.style.display='block';
+  document.getElementById('detail-pid-group').style.display='block';
   document.getElementById('edit-pid').value=t.pid||'';
   document.getElementById('edit-desc').value=t.desc;
-  ['i','u','r'].forEach(x=>document.getElementById('eub-'+x).className='ub'+(x===editUrg?' sel-'+x:''));
+  ['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===editUrg?' sel-'+x:'');});
+  // Show "Move to team" only if in a session and not already a team job and not done
+  var moveBtn=document.getElementById('move-to-team-btn');
+  if(moveBtn)moveBtn.style.display=(teamSession&&!t.teamJobId&&!t.done)?'block':'none';
   openSheet('detail-sheet');
-  setTimeout(()=>document.getElementById('edit-desc').focus(),320);
+  setTimeout(function(){document.getElementById('edit-desc').focus();},320);
 }
 function setEditUrg(u){
   editUrg=u;
-  ['i','u','r'].forEach(x=>document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:''));
+  ['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:'');});
 }
 function saveEdit(){
-  const t=tasks.find(x=>x.id===editId);
+  var t=tasks.find(function(x){return x.id===editId;});
   if(!t)return;
-  const newDesc=document.getElementById('edit-desc').value.trim();
-  const newPid=document.getElementById('edit-pid').value.trim();
+  var newDesc=document.getElementById('edit-desc').value.trim();
+  var newPid=document.getElementById('edit-pid').value.trim();
   if(!newDesc)return;
   t.desc=newDesc;t.pid=newPid;t.urg=editUrg;
   save();closeSheet();render();
+}
+function moveToTeam(){
+  var t=tasks.find(function(x){return x.id===editId;});
+  if(!t||!teamSession)return;
+  var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
+  var jobData={};
+  jobData[jobId]={id:jobId,pid:t.pid,desc:t.desc,urg:t.urg,addedBy:myId,addedByName:myName,assignedTo:myId,assignedToName:myName,done:false,doneBy:null,doneByName:null,created:Date.now()};
+  dbUpdate('/sessions/'+teamSession+'/jobs',jobData).then(function(){
+    // Link the local task to the team job so it shows the badge
+    t.teamJobId=jobId;
+    save();
+    dbGet('/sessions/'+teamSession+'/jobs').then(function(data){teamJobs=data||{};render();});
+  });
+  closeSheet();
+  showBanner('Moved to team list','var(--team)');
 }
 let pendingDelId=null;
 function confirmDel(id){
@@ -1143,11 +1227,16 @@ function render(){
 }
 
 function cardHtml(t){
-  const cls=t.done?'done':t.urg;
-  const meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
-  const pidMeta='<span style="flex:1;min-width:0">'+(t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'&nbsp;')+'</span><span class="cmeta-time">'+meta+'</span>';
-  const tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
+  var cls=t.done?'done':t.urg;
+  var isTeamJob=t.teamJobId&&teamSession;
+  var teamJob=isTeamJob?teamJobs[t.teamJobId]:null;
+  var assignedToOther=teamJob&&teamJob.assignedTo&&teamJob.assignedTo!==myId;
+  if(isTeamJob)cls+=' team-assigned';
+  var meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
+  var pidMeta='<span style="flex:1;min-width:0">'+(t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'&nbsp;')+'</span><span class="cmeta-time">'+meta+'</span>';
+  var teamBadge=isTeamJob?'<div class="team-badge">\u{1F465} Team'+(assignedToOther?' · '+esc(teamJob.assignedToName||''):'')+'</div>':'';
+  var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
+  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div>'+teamBadge+'</div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
 /* - Sheet drag-to-dismiss - */
@@ -1283,13 +1372,13 @@ function joinSessionByCode(code,name){
   teamSession=code;
   localStorage.setItem('wj_team',code);
   localStorage.setItem('wj_name',name);
-  // Initial fetch then poll every 3s
-  dbGet('/sessions/'+code+'/jobs').then(function(data){
-    teamJobs=data||{};
+  dbGet('/sessions/'+code).then(function(data){
+    teamJobs=(data&&data.jobs)||{};
+    teamMembers=(data&&data.members)||{};
     setTab('team');
     startTeamPoll();
   });
-  showBanner('Joined team session '+code,'var(--team)');
+  showBanner('Joined session '+code,'var(--team)');
 }
 
 function leaveSession(){
@@ -1316,12 +1405,22 @@ function assignTeamJob(jobId){
   var job=teamJobs[jobId];if(!job)return;
   var update={};
   if(job.assignedTo===myId){
+    // Unassign — remove from personal list too
     update.assignedTo=null;update.assignedToName=null;
+    tasks=tasks.filter(function(t){return t.teamJobId!==jobId;});
+    save();
   }else{
+    // Assign to self — add to personal active list with team badge
     update.assignedTo=myId;update.assignedToName=myName;
+    var alreadyInList=tasks.find(function(t){return t.teamJobId===jobId;});
+    if(!alreadyInList){
+      tasks.unshift({id:'t'+jobId,pid:job.pid,desc:job.desc,urg:job.urg,added:Date.now(),done:false,completed:null,teamJobId:jobId});
+      save();
+    }
   }
   dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,update).then(function(){
-    teamJobs[jobId]=Object.assign({},job,update);renderTeamTab();
+    teamJobs[jobId]=Object.assign({},job,update);
+    renderTeamTab();render();
   });
 }
 
@@ -1330,7 +1429,11 @@ function completeTeamJob(jobId){
   var job=teamJobs[jobId];if(!job)return;
   var update={done:!job.done,doneBy:job.done?null:myId,doneByName:job.done?null:myName,completedAt:job.done?null:Date.now()};
   dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,update).then(function(){
-    teamJobs[jobId]=Object.assign({},job,update);renderTeamTab();render();
+    teamJobs[jobId]=Object.assign({},job,update);
+    // Sync personal task if exists
+    var localTask=tasks.find(function(t){return t.teamJobId===jobId;});
+    if(localTask){localTask.done=update.done;localTask.completed=update.completedAt||null;save();}
+    renderTeamTab();render();
   });
 }
 
@@ -1340,38 +1443,86 @@ function renderTeamTab(){
     list.innerHTML='<div style="padding:24px 6px"><div style="background:var(--team-bg);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px"><div style="font-family:\'DM Serif Display\',serif;font-size:22px;font-weight:400;color:var(--team);margin-bottom:8px;letter-spacing:-0.02em">Team jobs</div><div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;font-weight:500">Create or join a shared session to see and manage jobs with your ward team in real time.</div><button onclick="openTeamSetup()" style="background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;width:100%">Join or create session</button></div></div>';
     return;
   }
+
   var jobs=Object.values(teamJobs).sort(function(a,b){
     if(a.done!==b.done)return a.done?1:-1;
     var ord={i:0,u:1,r:2};return ord[a.urg]-ord[b.urg];
   });
   var active=jobs.filter(function(j){return!j.done;});
   var done=jobs.filter(function(j){return j.done;});
+  var members=Object.values(teamMembers);
+
   var html='<div style="padding:8px 6px 160px">';
-  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
-  html+='<div style="display:flex;align-items:center;gap:8px"><div class="team-status-dot"></div><span style="font-size:12px;font-weight:600;color:var(--team)">Session '+teamSession+'</span></div>';
+
+  // Header row — session code + actions
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
+  html+='<div style="display:flex;align-items:center;gap:7px"><div class="team-status-dot"></div><span style="font-size:12px;font-weight:700;color:var(--team);letter-spacing:0.06em">'+teamSession+'</span></div>';
   html+='<div style="display:flex;gap:6px"><button onclick="openAddTeamJobSheet()" style="padding:6px 12px;background:var(--team-bg);color:var(--team);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">+ Add job</button><button onclick="leaveSession()" style="padding:6px 12px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">Leave</button></div>';
   html+='</div>';
-  if(!jobs.length){
-    html+='<div class="team-empty">No jobs yet.<br>Tap <strong>+ Add job</strong> to get started.</div>';
-  }else{
-    html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:12px">';
-    active.forEach(function(j){
-      var isMe=j.assignedTo===myId;
-      var assignLabel=j.assignedTo?(isMe?'Mine \u2713':esc(j.assignedToName||'')):'Assign';
-      html+='<div class="team-job-row">';
-      html+='<div class="team-job-dot '+j.urg+'"></div>';
-      html+='<div class="team-job-body"><div class="team-job-desc">'+esc(j.desc)+(j.pid?'<span style="color:var(--muted);font-size:11px;font-weight:700;margin-left:6px;text-transform:uppercase">'+esc(j.pid)+'</span>':'')+'</div>';
-      html+='<div class="team-job-meta">'+esc(j.addedByName||'Unknown')+(j.assignedToName&&j.assignedTo!==myId?' &middot; <span style="color:var(--team)">'+esc(j.assignedToName)+'</span>':'')+'</div></div>';
-      html+='<div class="team-job-actions"><button class="tja tja-assign'+(isMe?' mine':'')+'" onclick="assignTeamJob(\''+j.id+'\')">'+assignLabel+'</button><button class="tja tja-done" onclick="completeTeamJob(\''+j.id+'\')">Done</button></div>';
+
+  // Members row
+  if(members.length){
+    html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+    members.forEach(function(m){
+      var isMe=m.name===myName;
+      var initials=m.name.split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
+      html+='<div style="display:flex;align-items:center;gap:5px;background:'+(isMe?'var(--team)':'var(--team-bg)')+';color:'+(isMe?'#fff':'var(--team)')+';border-radius:20px;padding:4px 10px 4px 4px">';
+      html+='<div style="width:20px;height:20px;border-radius:50%;background:'+(isMe?'rgba(255,255,255,0.25)':'var(--team)')+';color:'+(isMe?'#fff':'#fff')+';font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">'+initials+'</div>';
+      html+='<span style="font-size:11px;font-weight:600">'+esc(m.name)+(isMe?' (you)':'')+'</span>';
       html+='</div>';
-    });
-    done.forEach(function(j){
-      html+='<div class="team-job-row" style="opacity:0.45"><div class="team-job-dot '+j.urg+'"></div><div class="team-job-body"><div class="team-job-desc" style="text-decoration:line-through">'+esc(j.desc)+'</div><div class="team-job-meta">Done by '+esc(j.doneByName||'Unknown')+'</div></div><div class="team-job-actions"><button class="tja tja-done is-done" onclick="completeTeamJob(\''+j.id+'\')">Undo</button></div></div>';
     });
     html+='</div>';
   }
+
+  // Jobs
+  if(!jobs.length){
+    html+='<div class="team-empty">No jobs yet.<br>Tap <strong>+ Add job</strong> to get started.</div>';
+  }else{
+    if(active.length){
+      html+='<div style="font-family:\'DM Serif Display\',serif;font-size:13px;font-style:italic;color:var(--team);padding:4px 4px 6px;display:flex;align-items:center;gap:8px">Unassigned<span style="flex:1;height:1px;background:var(--team-bd)"></span></div>';
+      var unassigned=active.filter(function(j){return!j.assignedTo;});
+      var assigned=active.filter(function(j){return j.assignedTo;});
+      if(unassigned.length){
+        html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px">';
+        unassigned.forEach(function(j){
+          html+=teamJobRow(j);
+        });
+        html+='</div>';
+      }else{
+        html+='<div style="font-size:12px;color:var(--dim);padding:4px 4px 10px;font-weight:500">All jobs assigned</div>';
+      }
+      if(assigned.length){
+        html+='<div style="font-family:\'DM Serif Display\',serif;font-size:13px;font-style:italic;color:var(--team);padding:4px 4px 6px;display:flex;align-items:center;gap:8px">Assigned<span style="flex:1;height:1px;background:var(--team-bd)"></span></div>';
+        html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px">';
+        assigned.forEach(function(j){
+          html+=teamJobRow(j);
+        });
+        html+='</div>';
+      }
+    }
+    if(done.length){
+      html+='<div style="font-family:\'DM Serif Display\',serif;font-size:13px;font-style:italic;color:var(--dim);padding:4px 4px 6px;display:flex;align-items:center;gap:8px">Completed<span style="flex:1;height:1px;background:var(--border-mid)"></span></div>';
+      html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px">';
+      done.forEach(function(j){
+        html+='<div class="team-job-row" style="opacity:0.45"><div class="team-job-dot '+j.urg+'"></div><div class="team-job-body"><div class="team-job-desc" style="text-decoration:line-through">'+esc(j.desc)+'</div><div class="team-job-meta">Done by '+esc(j.doneByName||'Unknown')+'</div></div><div class="team-job-actions"><button class="tja tja-done is-done" onclick="completeTeamJob(\''+j.id+'\')">Undo</button></div></div>';
+      });
+      html+='</div>';
+    }
+  }
   html+='</div>';
   list.innerHTML=html;
+}
+
+function teamJobRow(j){
+  var isMe=j.assignedTo===myId;
+  var assignLabel=j.assignedTo?(isMe?'Mine \u2713':esc(j.assignedToName||'')):'Assign';
+  var h='<div class="team-job-row'+(j.assignedTo?' assigned':'')+'">'; 
+  h+='<div class="team-job-dot '+j.urg+'"></div>';
+  h+='<div class="team-job-body"><div class="team-job-desc">'+esc(j.desc)+(j.pid?'<span style="color:var(--muted);font-size:11px;font-weight:700;margin-left:6px;text-transform:uppercase">'+esc(j.pid)+'</span>':'')+'</div>';
+  h+='<div class="team-job-meta">'+esc(j.addedByName||'Unknown')+(j.assignedTo&&!isMe?' &middot; <span style="color:var(--team)">'+esc(j.assignedToName)+'</span>':'')+'</div></div>';
+  h+='<div class="team-job-actions"><button class="tja tja-assign'+(isMe?' mine':'')+'" onclick="assignTeamJob(\''+j.id+'\')">'+assignLabel+'</button><button class="tja tja-done" onclick="completeTeamJob(\''+j.id+'\')">Done</button></div>';
+  h+='</div>';
+  return h;
 }
 
 function openAddTeamJobSheet(){
