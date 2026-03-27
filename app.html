@@ -27,7 +27,7 @@
   --imm:#c0392b;--imm-bg:#fdf2f1;--imm-bd:#f5c5c0;
   --urg:#92620a;--urg-bg:#fdf7ee;--urg-bd:#f0dbb0;
   --rtn:#2d7a55;--rtn-bg:#f0f9f4;--rtn-bd:#a8dfc0;
-  --accent:#c0555a;--accent-bg:#fdf2f2;--accent-bd:#f0c0c2;
+  --team:#6c63ff;--team-bg:#f0efff;--team-bd:#c8c5ff;
   --green:#2d7a55;--green-bg:#f0f9f4;--green-bd:#a8dfc0;
   --rose:#e8909a;
   --shadow:0 1px 8px rgba(60,30,10,0.07),0 2px 4px rgba(60,30,10,0.04);
@@ -100,6 +100,34 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .detail-row{display:flex;gap:8px;margin-bottom:14px}
 .detail-row .ub{flex:1}
 .edit-actions{display:flex;flex-direction:column;gap:8px}
+
+/* Team badge on cards */
+.team-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;letter-spacing:0.04em;color:var(--team);background:var(--team-bg);border-radius:20px;padding:1px 6px;margin-top:3px}
+.team-assignee{font-size:10px;color:var(--team);font-weight:600;margin-top:2px}
+
+/* Team panel */
+.team-code-box{background:var(--text);color:#fff;border-radius:20px;padding:20px;text-align:center;margin-bottom:16px}
+.team-code{font-family:'DM Serif Display',serif;font-size:38px;letter-spacing:0.12em;font-weight:400;margin-bottom:4px}
+.team-code-label{font-size:11px;opacity:0.6;font-weight:500;text-transform:uppercase;letter-spacing:0.08em}
+.team-member-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.team-member-row:last-child{border-bottom:none}
+.team-avatar{width:32px;height:32px;border-radius:50%;background:var(--team-bg);color:var(--team);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.team-job-row{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.team-job-row:last-child{border-bottom:none}
+.team-job-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.team-job-dot.i{background:var(--imm)}.team-job-dot.u{background:var(--urg)}.team-job-dot.r{background:var(--rtn)}
+.team-job-body{flex:1;min-width:0}
+.team-job-desc{font-size:14px;font-weight:500;color:var(--text);line-height:1.3}
+.team-job-meta{font-size:11px;color:var(--muted);margin-top:3px}
+.team-job-actions{display:flex;gap:6px;flex-shrink:0}
+.tja{padding:5px 10px;border-radius:12px;font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s}
+.tja-assign{background:var(--team-bg);color:var(--team)}
+.tja-assign.mine{background:var(--team);color:#fff}
+.tja-done{background:var(--green-bg);color:var(--green)}
+.tja-done.is-done{background:var(--green);color:#fff;text-decoration:line-through}
+.team-empty{text-align:center;padding:48px 24px;color:var(--dim);font-size:13px;line-height:1.7}
+.team-status-dot{width:8px;height:8px;border-radius:50%;background:var(--rtn);flex-shrink:0;animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
 
 /* Delete confirm */
 .del-confirm-bd{position:fixed;inset:0;background:rgba(28,18,10,0.4);z-index:70;display:none;align-items:flex-end}
@@ -304,7 +332,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
   <div class="tabs">
     <div class="tab on" id="tab-active" onclick="setTab('active')">Active <span class="tc" id="tc-active">0</span></div>
-    <div class="tab" id="tab-done" onclick="setTab('done')">Completed <span class="tc" id="tc-done">0</span></div>
+    <div class="tab" id="tab-done" onclick="setTab('done')">Done <span class="tc" id="tc-done">0</span></div>
+    <div class="tab" id="tab-team" onclick="setTab('team')">Team <span class="tc" id="tc-team">0</span></div>
   </div>
 
   <div id="scroll-area">
@@ -394,7 +423,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   </div>
   <div class="f-group">
     <div class="f-label">Job description</div>
-    <textarea id="edit-desc" rows="4" style="resize:none" maxlength="200" autocomplete="off"></textarea>
+    <textarea id="edit-desc" rows="3" style="resize:none" maxlength="200" autocomplete="off"></textarea>
   </div>
   <div class="f-label" style="margin-bottom:8px">Urgency</div>
   <div class="detail-row">
@@ -445,6 +474,26 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <button class="submit-btn" onclick="closeSheet()">Close</button>
 </div>
 
+<!-- Team session sheet -->
+<div class="sheet" id="team-setup-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Team session</div>
+  <div class="sheet-sub">Share a live job list with your ward team in real time.</div>
+  <div class="f-group">
+    <div class="f-label">Your name</div>
+    <input type="text" id="team-name-input" placeholder="e.g. Dr Ahmed" maxlength="30" autocomplete="off">
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
+    <button class="submit-btn" onclick="createSession()">Create new session</button>
+    <div class="divider-row"><span>or join existing</span></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="join-code-input" placeholder="Enter 6-letter code" maxlength="6" style="text-transform:uppercase;letter-spacing:0.12em;font-family:'Courier New',monospace;font-size:16px;flex:1" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      <button onclick="joinSession()" style="padding:15px 20px;background:var(--surface2);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--text);cursor:pointer;white-space:nowrap">Join</button>
+    </div>
+  </div>
+  <div id="team-setup-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-top:8px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
+</div>
+
 <!-- Confirm dialog -->
 <div class="confirm-bd" id="confirm-bd">
   <div class="confirm-sheet">
@@ -469,9 +518,86 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   </div>
 </div>
 
+
 <script>
-let tasks=[],selUrg='r',curTab='active',hoTab='send';
+/* - Firebase REST API - no SDK needed - */
+var DB='https://axonal-fe833-default-rtdb.europe-west1.firebasedatabase.app';
+
+function dbGet(path){
+  return fetch(DB+path+'.json').then(function(r){return r.json();});
+}
+function dbSet(path,data){
+  return fetch(DB+path+'.json',{method:'PUT',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
+}
+function dbUpdate(path,data){
+  return fetch(DB+path+'.json',{method:'PATCH',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
+}
+function dbRemove(path){
+  return fetch(DB+path+'.json',{method:'DELETE'});
+}
+
+// Polling-based real-time (every 3s when on team tab)
+var teamPollInterval=null;
+function startTeamPoll(){
+  stopTeamPoll();
+  teamPollInterval=setInterval(function(){
+    if(!teamSession)return;
+    dbGet('/sessions/'+teamSession+'/jobs').then(function(data){
+      var prev=JSON.stringify(teamJobs);
+      teamJobs=data||{};
+      if(JSON.stringify(teamJobs)!==prev){
+        if(curTab==='team')renderTeamTab();
+        render();
+      }
+    }).catch(function(){});
+  },3000);
+}
+function stopTeamPoll(){
+  if(teamPollInterval){clearInterval(teamPollInterval);teamPollInterval=null;}
+}
+
+function initFirebaseAndStart(){
+  startApp();
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',initFirebaseAndStart);
+}else{
+  initFirebaseAndStart();
+}
+
+/* - Team state - */
+var teamSession=null,teamJobs={},teamListener=null;
+var myName=localStorage.getItem('wj_name')||'';
+var myId=localStorage.getItem('wj_uid')||(function(){var id='u'+Math.random().toString(36).slice(2,9);localStorage.setItem('wj_uid',id);return id;})();
+
+var tasks=[],selUrg='r',curTab='active',hoTab='send';
 const ORD={i:0,u:1,r:2},LBL={i:'Immediate',u:'Urgent',r:'Routine'};
+
+function startApp(){
+  load();
+  // Restore saved team session
+  var savedCode=localStorage.getItem('wj_team');
+  var savedName=localStorage.getItem('wj_name');
+  if(savedCode&&savedName){
+    myName=savedName;
+    dbGet('/sessions/'+savedCode).then(function(data){
+      if(data){
+        var memberData={};memberData[myId]={name:myName,joined:Date.now()};
+        dbUpdate('/sessions/'+savedCode+'/members',memberData);
+        teamSession=savedCode;
+        dbGet('/sessions/'+savedCode+'/jobs').then(function(jobs){
+          teamJobs=jobs||{};
+          render();
+          startTeamPoll();
+        });
+      }else{
+        localStorage.removeItem('wj_team');
+      }
+    }).catch(function(){});
+  }
+  render();tick();setInterval(tick,15000);
+} // end startApp
 
 const SHIFT_MS=16*60*60*1000;
 function load(){
@@ -490,7 +616,7 @@ function save(){try{localStorage.setItem('wj',JSON.stringify(tasks))}catch(e){}}
 function fmt(ms){return new Date(ms).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 
-/* ── Handover encode/decode ── */
+/* - Handover encode/decode - */
 // Compact format: AX1:pid|desc|u~pid|desc|u~...
 // Much shorter than JSON+base64, produces a scannable QR even with 20+ jobs
 const PREFIX='WJ2:';
@@ -540,7 +666,7 @@ function decodeHandover(code){
   }catch(e){return null}
 }
 
-/* ── Sheet management ── */
+/* - Sheet management - */
 let activeSheet=null;
 function openSheet(id){
   if(activeSheet&&activeSheet!==id){
@@ -571,7 +697,7 @@ function openHandover(){
   openSheet('ho-sheet');
 }
 
-/* ── Handover tabs ── */
+/* - Handover tabs - */
 function hoSetTab(t){
   hoTab=t;
   document.getElementById('ho-tab-send').className='ho-tab'+(t==='send'?' on':'');
@@ -581,7 +707,7 @@ function hoSetTab(t){
   if(t==='recv')setTimeout(()=>document.getElementById('import-input')&&document.getElementById('import-input').focus(),150);
 }
 
-/* ── Send panel ── */
+/* - Send panel - */
 let sendTab='qr';
 function renderSendPanel(){
   const active=tasks.filter(x=>!x.done);
@@ -682,7 +808,7 @@ function shareCode(){
   navigator.share({title:'Axonal handover',text:`Axonal handover (${active.length} task${active.length!==1?'s':''})\n\nPaste this code into Axonal > Handover > Receive jobs:\n\n${code}`}).catch(()=>{});
 }
 
-/* ── Receive panel ── */
+/* - Receive panel - */
 let scanStream=null,scanRAF=null,scanCanvas=null,scanCtx=null;
 
 function renderRecvPanel(){
@@ -836,7 +962,7 @@ function importTasks(){
   importParsed=null;
 }
 
-/* ── Core task logic ── */
+/* - Core task logic - */
 function setUrg(u){
   selUrg=u;
   ['i','u','r'].forEach(x=>document.getElementById('ub-'+x).className='ub'+(x===u?' sel-'+x:''));
@@ -845,11 +971,13 @@ function setTab(t){
   curTab=t;
   document.getElementById('tab-active').className='tab'+(t==='active'?' on':'');
   document.getElementById('tab-done').className='tab'+(t==='done'?' on':'');
-  render();
+  document.getElementById('tab-team').className='tab'+(t==='team'?' on':'');
+  if(t==='team')renderTeamTab();else render();
 }
 function addTask(){
   const pid=document.getElementById('f-pid').value.trim();
   const desc=document.getElementById('f-desc').value.trim();
+  
   if(!desc){
     const el=document.getElementById('f-desc');
     el.style.borderColor='var(--imm)';setTimeout(()=>{el.style.borderColor=''},700);
@@ -932,7 +1060,7 @@ function confirmDelFinal(){
   document.getElementById('del-confirm-bd').classList.remove('show');
 }
 
-/* ── Swipe right = complete, left = delete (with confirm) ── */
+/* - Swipe right = complete, left = delete (with confirm) - */
 function initSwipe(wrap,id){
   const card=wrap.querySelector('.card');
   const completeBg=wrap.querySelector('.card-complete-bg');
@@ -982,7 +1110,7 @@ function initSwipe(wrap,id){
   card.addEventListener('touchcancel',end,{passive:true});
 }
 
-/* ── Render ── */
+/* - Render - */
 function render(){
   const active=tasks.filter(x=>!x.done).sort((a,b)=>ORD[a.urg]-ORD[b.urg]);
   const done=tasks.filter(x=>x.done).sort((a,b)=>b.completed-a.completed);
@@ -992,6 +1120,8 @@ function render(){
   document.getElementById('s-rtn').textContent=active.filter(x=>x.urg==='r').length;
   document.getElementById('tc-active').textContent=active.length;
   document.getElementById('tc-done').textContent=done.length;
+  const teamCount=Object.values(teamJobs).filter(j=>!j.done).length;
+  document.getElementById('tc-team').textContent=teamCount||'';
   const list=document.getElementById('list');
   if(!show.length){
     list.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" fill="none"><rect x="6" y="4" width="28" height="32" rx="3" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="13" x2="28" y2="13" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="20" x2="22" y2="20" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="27" x2="25" y2="27" stroke="currentColor" stroke-width="1.2"/></svg><div class="empty-title">'+(curTab==='active'?'All clear':'Nothing yet')+'</div><p>'+(curTab==='active'?'Tap Add job below to get started.':'Completed jobs will appear here.')+'</p></div>';
@@ -1020,8 +1150,8 @@ function cardHtml(t){
   return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div></div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
 }
 
-/* ── Sheet drag-to-dismiss ── */
-['add-sheet','ho-sheet','detail-sheet','about-sheet'].forEach(sid=>{
+/* - Sheet drag-to-dismiss - */
+['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet'].forEach(sid=>{
   const sheet=document.getElementById(sid);
   let sy=0,dy=0,on=false;
   sheet.addEventListener('touchstart',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.tagName==='TEXTAREA')return;sy=e.touches[0].clientY;dy=0;on=true},{passive:true});
@@ -1063,7 +1193,7 @@ function updateSessionBar(){
 }
 load();
 
-/* ── Auto-import from QR scan URL ── */
+/* - Auto-import from QR scan URL - */
 (function(){
   try{
     const params=new URLSearchParams(window.location.search);
@@ -1089,7 +1219,183 @@ load();
   }catch(e){}
 })();
 
-render();tick();setInterval(tick,15000);
+/* - Team session - */
+function genCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c='';for(let i=0;i<6;i++)c+=chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+
+function openTeamSetup(){
+  document.getElementById('team-name-input').value=myName;
+  document.getElementById('join-code-input').value='';
+  document.getElementById('team-setup-error').style.display='none';
+  openSheet('team-setup-sheet');
+  setTimeout(()=>document.getElementById('team-name-input').focus(),320);
+}
+
+function validateName(){
+  const n=document.getElementById('team-name-input').value.trim();
+  if(!n){
+    const err=document.getElementById('team-setup-error');
+    err.textContent='Please enter your name first.';err.style.display='block';return null;
+  }
+  myName=n;localStorage.setItem('wj_name',n);
+  return n;
+}
+
+function createSession(){
+  var name=validateName();if(!name)return;
+  var code=genCode();
+  var members={};members[myId]={name:name,joined:Date.now()};
+  dbSet('/sessions/'+code,{code:code,created:Date.now(),members:members,jobs:{}}).then(function(){
+    closeSheet();joinSessionByCode(code,name);
+  }).catch(function(){
+    var err=document.getElementById('team-setup-error');
+    err.textContent='Could not create session. Check your connection.';err.style.display='block';
+  });
+}
+
+function joinSession(){
+  var name=validateName();if(!name)return;
+  var code=document.getElementById('join-code-input').value.trim().toUpperCase();
+  if(code.length!==6){
+    var err=document.getElementById('team-setup-error');
+    err.textContent='Please enter the full 6-character code.';err.style.display='block';return;
+  }
+  dbGet('/sessions/'+code).then(function(data){
+    if(!data){
+      var err=document.getElementById('team-setup-error');
+      err.textContent='Session not found. Check the code and try again.';err.style.display='block';return;
+    }
+    var memberData={};memberData[myId]={name:name,joined:Date.now()};
+    dbUpdate('/sessions/'+code+'/members',memberData).then(function(){
+      closeSheet();joinSessionByCode(code,name);
+    });
+  }).catch(function(){
+    var err=document.getElementById('team-setup-error');
+    err.textContent='Could not connect. Check your internet connection.';err.style.display='block';
+  });
+}
+
+function joinSessionByCode(code,name){
+  stopTeamPoll();
+  teamSession=code;
+  localStorage.setItem('wj_team',code);
+  localStorage.setItem('wj_name',name);
+  // Initial fetch then poll every 3s
+  dbGet('/sessions/'+code+'/jobs').then(function(data){
+    teamJobs=data||{};
+    setTab('team');
+    startTeamPoll();
+  });
+  showBanner('Joined team session '+code,'var(--team)');
+}
+
+function leaveSession(){
+  if(!teamSession)return;
+  stopTeamPoll();
+  dbRemove('/sessions/'+teamSession+'/members/'+myId);
+  teamSession=null;teamJobs={};
+  localStorage.removeItem('wj_team');
+  setTab('active');
+}
+
+function addTeamJob(pid,desc,urg){
+  if(!teamSession)return;
+  var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
+  var jobData={};
+  jobData[jobId]={id:jobId,pid:pid,desc:desc,urg:urg,addedBy:myId,addedByName:myName,assignedTo:null,assignedToName:null,done:false,doneBy:null,doneByName:null,created:Date.now()};
+  dbUpdate('/sessions/'+teamSession+'/jobs',jobData).then(function(){
+    dbGet('/sessions/'+teamSession+'/jobs').then(function(data){teamJobs=data||{};renderTeamTab();render();});
+  });
+}
+
+function assignTeamJob(jobId){
+  if(!teamSession)return;
+  var job=teamJobs[jobId];if(!job)return;
+  var update={};
+  if(job.assignedTo===myId){
+    update.assignedTo=null;update.assignedToName=null;
+  }else{
+    update.assignedTo=myId;update.assignedToName=myName;
+  }
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,update).then(function(){
+    teamJobs[jobId]=Object.assign({},job,update);renderTeamTab();
+  });
+}
+
+function completeTeamJob(jobId){
+  if(!teamSession)return;
+  var job=teamJobs[jobId];if(!job)return;
+  var update={done:!job.done,doneBy:job.done?null:myId,doneByName:job.done?null:myName,completedAt:job.done?null:Date.now()};
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,update).then(function(){
+    teamJobs[jobId]=Object.assign({},job,update);renderTeamTab();render();
+  });
+}
+
+function renderTeamTab(){
+  var list=document.getElementById('list');
+  if(!teamSession){
+    list.innerHTML='<div style="padding:24px 6px"><div style="background:var(--team-bg);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px"><div style="font-family:\'DM Serif Display\',serif;font-size:22px;font-weight:400;color:var(--team);margin-bottom:8px;letter-spacing:-0.02em">Team jobs</div><div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;font-weight:500">Create or join a shared session to see and manage jobs with your ward team in real time.</div><button onclick="openTeamSetup()" style="background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;width:100%">Join or create session</button></div></div>';
+    return;
+  }
+  var jobs=Object.values(teamJobs).sort(function(a,b){
+    if(a.done!==b.done)return a.done?1:-1;
+    var ord={i:0,u:1,r:2};return ord[a.urg]-ord[b.urg];
+  });
+  var active=jobs.filter(function(j){return!j.done;});
+  var done=jobs.filter(function(j){return j.done;});
+  var html='<div style="padding:8px 6px 160px">';
+  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+  html+='<div style="display:flex;align-items:center;gap:8px"><div class="team-status-dot"></div><span style="font-size:12px;font-weight:600;color:var(--team)">Session '+teamSession+'</span></div>';
+  html+='<div style="display:flex;gap:6px"><button onclick="openAddTeamJobSheet()" style="padding:6px 12px;background:var(--team-bg);color:var(--team);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">+ Add job</button><button onclick="leaveSession()" style="padding:6px 12px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">Leave</button></div>';
+  html+='</div>';
+  if(!jobs.length){
+    html+='<div class="team-empty">No jobs yet.<br>Tap <strong>+ Add job</strong> to get started.</div>';
+  }else{
+    html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:12px">';
+    active.forEach(function(j){
+      var isMe=j.assignedTo===myId;
+      var assignLabel=j.assignedTo?(isMe?'Mine \u2713':esc(j.assignedToName||'')):'Assign';
+      html+='<div class="team-job-row">';
+      html+='<div class="team-job-dot '+j.urg+'"></div>';
+      html+='<div class="team-job-body"><div class="team-job-desc">'+esc(j.desc)+(j.pid?'<span style="color:var(--muted);font-size:11px;font-weight:700;margin-left:6px;text-transform:uppercase">'+esc(j.pid)+'</span>':'')+'</div>';
+      html+='<div class="team-job-meta">'+esc(j.addedByName||'Unknown')+(j.assignedToName&&j.assignedTo!==myId?' &middot; <span style="color:var(--team)">'+esc(j.assignedToName)+'</span>':'')+'</div></div>';
+      html+='<div class="team-job-actions"><button class="tja tja-assign'+(isMe?' mine':'')+'" onclick="assignTeamJob(\''+j.id+'\')">'+assignLabel+'</button><button class="tja tja-done" onclick="completeTeamJob(\''+j.id+'\')">Done</button></div>';
+      html+='</div>';
+    });
+    done.forEach(function(j){
+      html+='<div class="team-job-row" style="opacity:0.45"><div class="team-job-dot '+j.urg+'"></div><div class="team-job-body"><div class="team-job-desc" style="text-decoration:line-through">'+esc(j.desc)+'</div><div class="team-job-meta">Done by '+esc(j.doneByName||'Unknown')+'</div></div><div class="team-job-actions"><button class="tja tja-done is-done" onclick="completeTeamJob(\''+j.id+'\')">Undo</button></div></div>';
+    });
+    html+='</div>';
+  }
+  html+='</div>';
+  list.innerHTML=html;
+}
+
+function openAddTeamJobSheet(){
+  openSheet('add-sheet');
+  document.querySelector('#add-sheet .submit-btn').onclick=addTeamJobFromSheet;
+  setTimeout(function(){document.getElementById('f-desc').focus();},320);
+}
+function addTeamJobFromSheet(){
+  var pid=document.getElementById('f-pid').value.trim();
+  var desc=document.getElementById('f-desc').value.trim();
+  if(!desc){var el=document.getElementById('f-desc');el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);el.focus();return;}
+  addTeamJob(pid,desc,selUrg);
+  document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
+  closeSheet();
+  document.querySelector('#add-sheet .submit-btn').onclick=addTask;
+  setTab('team');
+}
+
+function showBanner(msg,bg){
+  var banner=document.createElement('div');
+  banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:'+bg+';color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.15);font-family:DM Sans,sans-serif';
+  banner.textContent=msg;document.body.appendChild(banner);
+  setTimeout(function(){banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(function(){banner.remove();},400);},3000);
+}
 </script>
 <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
 </body>
