@@ -938,7 +938,16 @@ function render(){
     });
   }else{done.forEach(function(t){html+=cardHtml(t);});}
   list.innerHTML=html;
-  if(curTab==='active'){active.forEach(function(t){var w=list.querySelector('[data-wrap="'+t.id+'"]');if(w)initSwipe(w,t.id);});}
+  if(curTab==='active'){
+    active.forEach(function(t){
+      var w=list.querySelector('[data-wrap="'+t.id+'"]');
+      if(w){
+        if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}
+        initSwipe(w,t.id);
+      }
+    });
+    window._renderedIds=new Set(active.map(function(t){return t.id;}));
+  }
 }
 
 function cardHtml(t){
@@ -947,9 +956,9 @@ function cardHtml(t){
   if(isTeamJob)cls+=' team-assigned';
   var meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   var pidMeta='<span style="flex:1;min-width:0">'+(t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'&nbsp;')+'</span><span class="cmeta-time">'+meta+'</span>';
-  var teamBadge=isTeamJob?'<span class="team-badge">\u{1F465} Team</span>':'';
+  var teamBadge=isTeamJob?'<span class="team-badge"><span style="width:6px;height:6px;border-radius:50%;background:var(--team);display:inline-block;margin-right:3px;vertical-align:middle"></span>Team</span>':'';
   var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'">'
+  return '<div class="card-wrap" data-wrap="'+t.id+'">'
     +'<div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div>'
     +'<div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div>'
     +'<div class="card '+cls+'" data-id="'+t.id+'">'
