@@ -66,11 +66,20 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .pn{font-family:'DM Serif Display',serif;font-size:15px;font-weight:400;line-height:1}
 
 /* Tabs */
-.tabs{display:flex;padding:0 20px 12px;gap:8px;background:var(--bg);position:sticky;top:72px;z-index:19}
-.tab{flex:1;padding:10px 14px;font-size:13px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:24px;user-select:none;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s;background:transparent}
+.tabs{display:flex;padding:0 14px 10px;gap:6px;background:var(--bg);position:sticky;top:72px;z-index:19}
+.tab{flex:1;padding:9px 8px 8px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:18px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.2s;background:transparent;min-height:54px}
 .tab.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
-.tc{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;border-radius:10px;background:var(--surface3);font-size:10px;font-weight:600;padding:0 5px;color:var(--muted);transition:all 0.2s}
-.tab.on .tc{background:var(--accent-bg);color:var(--accent)}
+.tab-label{font-size:12px;font-weight:600}
+.tab-count{font-size:18px;font-weight:400;font-family:"DM Serif Display",serif;line-height:1;color:var(--muted)}
+.tab.on .tab-count{color:var(--text)}
+.tab-pills{display:flex;gap:3px;margin-top:2px}
+.tab-pill{font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.4}
+.tab-pill.i{background:var(--imm-bg);color:var(--imm)}
+.tab-pill.u{background:var(--urg-bg);color:var(--urg)}
+.tab-pill.r{background:var(--rtn-bg);color:var(--rtn)}
+.tab-bar{height:2px;border-radius:1px;width:80%;margin-top:3px;opacity:0;transition:opacity 0.2s,background 0.3s}
+.tab.on .tab-bar{opacity:1}
+.tc{display:none}
 
 /* List */
 .list{padding:2px 14px 160px}
@@ -357,28 +366,35 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   </div>
 
   <div class="tabs">
-    <div class="tab on" id="tab-active" onclick="setTab('active')">Active <span class="tc" id="tc-active">0</span></div>
-    <div class="tab" id="tab-done" onclick="setTab('done')">Done <span class="tc" id="tc-done">0</span></div>
-    <div class="tab" id="tab-team" onclick="setTab('team')">Team <span class="tc" id="tc-team">0</span></div>
+    <div class="tab on" id="tab-active" onclick="setTab('active')">
+      <span class="tab-label">Active</span>
+      <span class="tab-count" id="tc-active">0</span>
+      <div class="tab-pills" id="tab-active-pills">
+        <span class="tab-pill i" id="tp-imm">0 Imm</span>
+        <span class="tab-pill u" id="tp-urg">0 Urg</span>
+        <span class="tab-pill r" id="tp-rtn">0 Rtn</span>
+      </div>
+      <div class="tab-bar" id="tab-active-bar" style="background:var(--accent)"></div>
+    </div>
+    <div class="tab" id="tab-done" onclick="setTab('done')">
+      <span class="tab-label">Done</span>
+      <span class="tab-count" id="tc-done">0</span>
+      <div class="tab-bar" style="background:var(--rtn)"></div>
+    </div>
+    <div class="tab" id="tab-team" onclick="setTab('team')">
+      <span class="tab-label">Team</span>
+      <span class="tab-count" id="tc-team">0</span>
+      <div class="tab-pills" id="tab-team-pills" style="display:none">
+        <span class="tab-pill i" id="tp-team-imm">0 Imm</span>
+        <span class="tab-pill u" id="tp-team-urg">0 Urg</span>
+        <span class="tab-pill r" id="tp-team-rtn">0 Rtn</span>
+      </div>
+      <div class="tab-bar" id="tab-team-bar" style="background:var(--team)"></div>
+    </div>
   </div>
 
   <div id="scroll-area">
-    <div class="sub-hdr">
-      <div class="notice">
-        <div class="notice-dot"></div>
-        <p id="session-label">16hr auto-clear · session safe</p>
-      </div>
-      <div class="pills">
-        <span class="pill i"><span class="pn" id="s-imm">0</span>&nbsp;Imm</span>
-        <span class="pill u"><span class="pn" id="s-urg">0</span>&nbsp;Urg</span>
-        <span class="pill r"><span class="pn" id="s-rtn">0</span>&nbsp;Rtn</span>
-      </div>
-    </div>
-    <div class="session-bar-wrap">
-      <div class="session-bar-track">
-        <div class="session-bar-fill" id="session-bar"></div>
-      </div>
-    </div>
+
     <div class="list" id="list"></div>
   </div>
 </div>
@@ -914,22 +930,30 @@ function initSwipe(wrap,id){
 function render(){
   var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
   var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
+  var teamActive=Object.values(teamJobs).filter(function(j){return!j.done;});
+  // Update Active tab
   document.getElementById('tc-active').textContent=active.length;
   document.getElementById('tc-done').textContent=done.length;
-  var teamActive=Object.values(teamJobs).filter(function(j){return!j.done;});
   var tc=document.getElementById('tc-team');
   if(tc)tc.textContent=teamActive.length||'';
-  if(curTab==='team'){
-    // Show team urgency counts in pills
-    document.getElementById('s-imm').textContent=teamActive.filter(function(j){return j.urg==='i';}).length;
-    document.getElementById('s-urg').textContent=teamActive.filter(function(j){return j.urg==='u';}).length;
-    document.getElementById('s-rtn').textContent=teamActive.filter(function(j){return j.urg==='r';}).length;
-    renderTeamTab();updateSessionBar();return;
-  }
-  // Personal counts
-  document.getElementById('s-imm').textContent=active.filter(function(x){return x.urg==='i';}).length;
-  document.getElementById('s-urg').textContent=active.filter(function(x){return x.urg==='u';}).length;
-  document.getElementById('s-rtn').textContent=active.filter(function(x){return x.urg==='r';}).length;
+  // Update Active tab urgency pills
+  var ai=active.filter(function(x){return x.urg==='i';}).length;
+  var au=active.filter(function(x){return x.urg==='u';}).length;
+  var ar=active.filter(function(x){return x.urg==='r';}).length;
+  var eli=document.getElementById('tp-imm'),elu=document.getElementById('tp-urg'),elr=document.getElementById('tp-rtn');
+  if(eli)eli.textContent=ai+' Imm';if(elu)elu.textContent=au+' Urg';if(elr)elr.textContent=ar+' Rtn';
+  if(eli)eli.style.display=ai?'':'none';if(elu)elu.style.display=au?'':'none';if(elr)elr.style.display=ar?'':'none';
+  // Update Team tab urgency pills
+  var ti=teamActive.filter(function(j){return j.urg==='i';}).length;
+  var tu=teamActive.filter(function(j){return j.urg==='u';}).length;
+  var tr=teamActive.filter(function(j){return j.urg==='r';}).length;
+  var etti=document.getElementById('tp-team-imm'),ettu=document.getElementById('tp-team-urg'),ettr=document.getElementById('tp-team-rtn');
+  var tpp=document.getElementById('tab-team-pills');
+  if(tpp)tpp.style.display=teamSession&&teamActive.length?'flex':'none';
+  if(etti)etti.textContent=ti+' Imm';if(ettu)ettu.textContent=tu+' Urg';if(ettr)ettr.textContent=tr+' Rtn';
+  if(etti)etti.style.display=ti?'':'none';if(ettu)ettu.style.display=tu?'':'none';if(ettr)ettr.style.display=tr?'':'none';
+  updateSessionBar();
+  if(curTab==='team'){renderTeamTab();return;}
   var show=curTab==='active'?active:done;
   var list=document.getElementById('list');
   if(!show.length){
@@ -999,44 +1023,34 @@ function tick(){
 }
 function updateSessionBar(){
   try{
-    var bar=document.getElementById('session-bar');
-    var label=document.getElementById('session-label');
-    var dot=document.querySelector('.notice-dot');
-    if(!bar||!label)return;
-    if(curTab==='team'&&teamSession&&window.teamSessionCreated){
-      // Team session countdown
-      var elapsed=Date.now()-window.teamSessionCreated;
-      var remaining=Math.max(0,TEAM_SESSION_MS-elapsed);
-      var pct=(remaining/TEAM_SESSION_MS)*100;
-      bar.style.width=pct.toFixed(1)+'%';
-      var barCol=pct>50?'var(--team)':pct>25?'var(--urg)':'var(--imm)';
-      bar.style.background=barCol;
-      if(dot)dot.style.background='var(--team)';
-      var hrs=Math.floor(remaining/3600000),mins=Math.floor((remaining%3600000)/60000);
-      if(remaining<=0)label.textContent='Team session expired';
-      else if(hrs>0)label.textContent='Team session — '+hrs+'h '+mins+'m left';
-      else label.textContent='Team session — '+mins+' min left';
-      label.style.color='var(--team)';
-    }else{
-      // Personal shift countdown
-      var start=parseInt(localStorage.getItem('wj_start')||'0');
-      if(!start)return;
-      var elapsed2=Date.now()-start;
-      var remaining2=Math.max(0,SHIFT_MS-elapsed2);
-      var pct2=(remaining2/SHIFT_MS)*100;
-      bar.style.width=pct2.toFixed(1)+'%';
-      if(pct2>50)bar.style.background='var(--rtn)';
-      else if(pct2>25)bar.style.background='var(--urg)';
-      else bar.style.background='var(--imm)';
-      if(dot)dot.style.background='var(--accent)';
-      var hrs2=Math.floor(remaining2/3600000),mins2=Math.floor((remaining2%3600000)/60000);
-      if(remaining2<=0)label.textContent='Session expired';
-      else if(hrs2>0)label.textContent='Session clears in '+hrs2+'h '+mins2+'m';
-      else label.textContent='Session clears in '+mins2+' min'+(mins2!==1?'s':'');
-      label.style.color='var(--accent)';
+    // Personal shift bar
+    var start=parseInt(localStorage.getItem('wj_start')||'0');
+    var personalPct=0;
+    if(start){
+      var elapsed=Date.now()-start;
+      var remaining=Math.max(0,SHIFT_MS-elapsed);
+      personalPct=(remaining/SHIFT_MS)*100;
+    }
+    var activeBar=document.getElementById('tab-active-bar');
+    if(activeBar){
+      activeBar.style.width=personalPct.toFixed(1)+'%';
+      activeBar.style.background=personalPct>50?'var(--rtn)':personalPct>25?'var(--urg)':'var(--imm)';
+    }
+    // Team session bar
+    var teamPct=0;
+    if(teamSession&&window.teamSessionCreated){
+      var telapsed=Date.now()-window.teamSessionCreated;
+      var tremaining=Math.max(0,TEAM_SESSION_MS-telapsed);
+      teamPct=(tremaining/TEAM_SESSION_MS)*100;
+    }
+    var teamBar=document.getElementById('tab-team-bar');
+    if(teamBar){
+      teamBar.style.width=teamPct.toFixed(1)+'%';
+      teamBar.style.background=teamPct>50?'var(--team)':teamPct>25?'var(--urg)':'var(--imm)';
     }
   }catch(e){}
 }
+
 
 /* Team polling */
 function startTeamPoll(){
