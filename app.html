@@ -1221,16 +1221,12 @@ function completeTeamJob(jobId){
 /* Team tab render */
 function setTeamSubTab(t){
   teamSubTab=t;
-  // Update button styles
   ['unassigned','assigned','completed'].forEach(function(x){
     var b=document.getElementById('tst-'+x);
     if(!b)return;
-    var on=t===x;
-    b.style.background=on?'var(--surface)':'transparent';
-    b.style.color=on?'var(--text)':'var(--muted)';
-    b.style.boxShadow=on?'var(--shadow)':'';
+    b.className='tst'+(t===x?' on':'');
+    b.removeAttribute('style');
   });
-  // Show/hide panels - pure style toggle, no DOM rebuild
   ['unassigned','assigned','completed'].forEach(function(x){
     var p=document.getElementById('team-jobs-'+x);
     if(p)p.style.display=t===x?'':'none';
@@ -1329,8 +1325,7 @@ function renderTeamTab(){
   function makeSubTab(id,label,count){
     var b=document.createElement('div');b.id='tst-'+id;
     b.className='tst'+(teamSubTab===id?' on':'');
-    b.style.cssText='flex:1;padding:8px 4px;text-align:center;border-radius:13px;cursor:pointer;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;color:'+(teamSubTab===id?'var(--text)':'var(--muted)')+';background:'+(teamSubTab===id?'var(--surface)':'transparent')+';transition:all 0.2s';
-    b.innerHTML=label+(count?'<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:8px;background:'+(teamSubTab===id?'var(--accent-bg)':'var(--surface3)')+';color:'+(teamSubTab===id?'var(--accent)':'var(--muted)')+';font-size:9px;font-weight:600;padding:0 4px;margin-left:4px">'+count+'</span>':'');
+    b.innerHTML=label+(count?'<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:8px;background:var(--surface3);color:var(--muted);font-size:9px;font-weight:600;padding:0 4px;margin-left:4px">'+count+'</span>':'');
     b.addEventListener('click',function(){setTeamSubTab(id);});
     return b;
   }
