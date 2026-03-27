@@ -1358,9 +1358,8 @@ function teamJobRow(j,isDone){
   var addedLabel=document.createElement('span');addedLabel.style.cssText='font-size:10px;color:var(--dim);font-weight:500';addedLabel.textContent='Added by '+(j.addedByName||'Unknown');meta.appendChild(addedLabel);
   if(j.assignedTo){
     var chip=document.createElement('span');
-    chip.style.cssText='display:inline-flex;align-items:center;gap:3px;background:'+col+'22;color:'+col+';border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:6px';
-    var dot2=document.createElement('span');dot2.style.cssText='width:6px;height:6px;border-radius:50%;background:'+col;chip.appendChild(dot2);
-    chip.appendChild(document.createTextNode(isMe?'You':(j.assignedToName||'')));meta.appendChild(chip);
+    chip.style.cssText='display:none';
+    meta.appendChild(chip);
   }
   body.appendChild(meta);row.appendChild(body);
 
