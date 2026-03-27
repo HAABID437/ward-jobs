@@ -381,14 +381,14 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
     </div>
     <div class="tab" id="tab-team" onclick="setTab('team')">
-      <span class="tab-label">Team</span>
+      <span class="tab-label" id="tab-team-label">Team</span>
       <span class="tab-count" id="tc-team">0</span>
       <div class="tab-pills" id="tab-team-pills" style="display:none">
         <span class="tab-pill i" id="tp-team-imm">0 Imm</span>
         <span class="tab-pill u" id="tp-team-urg">0 Urg</span>
         <span class="tab-pill r" id="tp-team-rtn">0 Rtn</span>
       </div>
-      <span class="tab-time" id="tab-team-time"></span>
+
     </div>
   </div>
 
@@ -1032,17 +1032,7 @@ function updateSessionBar(){
         at.textContent=rem<=0?'expired':h>0?'clears in '+h+'h '+m+'m':'clears in '+m+'m';
       }
     }
-    // Team session time
-    var tt=document.getElementById('tab-team-time');
-    if(tt){
-      if(teamSession&&window.teamSessionCreated){
-        var trem=Math.max(0,TEAM_SESSION_MS-(Date.now()-window.teamSessionCreated));
-        var th=Math.floor(trem/3600000),tm=Math.floor((trem%3600000)/60000);
-        tt.textContent=trem<=0?'expired':th>0?'clears in '+th+'h '+tm+'m':'clears in '+tm+'m';
-      }else{
-        tt.textContent='';
-      }
-    }
+
   }catch(e){}
 }
 
@@ -1120,6 +1110,7 @@ function joinSessionByCode(code,name){
     if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
     setTab('team');startTeamPoll();
   });
+  var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
   showBanner('Joined session '+code,'var(--team)');
 }
 function leaveSession(){
@@ -1128,14 +1119,18 @@ function leaveSession(){
   dbRemove('/sessions/'+teamSession+'/members/'+myId);
   tasks=tasks.filter(function(t){return!t.teamJobId;});save();
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
-  localStorage.removeItem('wj_team');setTab('active');
+  localStorage.removeItem('wj_team');
+  var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  setTab('active');
 }
 function closeSession(){
   if(!teamSession||teamCreatorId!==myId)return;
   stopTeamPoll();dbRemove('/sessions/'+teamSession);
   tasks=tasks.filter(function(t){return!t.teamJobId;});save();
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
-  localStorage.removeItem('wj_team');showBanner('Session closed','#c0392b');setTab('active');
+  localStorage.removeItem('wj_team');
+  var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  showBanner('Session closed','#c0392b');setTab('active');
 }
 
 /* Team jobs */
@@ -1213,8 +1208,7 @@ function renderTeamTab(){
 
   // Header
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
-  hdr.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div class="team-status-dot"></div><span style="font-family:DM Serif Display,serif;font-size:20px;font-weight:400;color:var(--text);letter-spacing:0.04em">'+teamSession+'</span></div>'
-    +'<span style="font-size:11px;color:var(--muted);font-weight:500">'+timeLabel+'</span>';
+  hdr.innerHTML='<div style="display:flex;align-items:center;gap:8px"><div class="team-status-dot"></div><span style="font-size:13px;font-weight:700;color:var(--team);letter-spacing:0.06em">Live</span></div>';
   container.appendChild(hdr);
 
 
@@ -1441,6 +1435,7 @@ function showBanner(msg,bg){
         var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
         dbUpdate('/sessions/'+savedCode+'/members',md);
         teamJobs=data.jobs||{};teamMembers=data.members||{};
+        var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+savedCode+')';
         render();startTeamPoll();
       }else{localStorage.removeItem('wj_team');}
     }).catch(function(){});
