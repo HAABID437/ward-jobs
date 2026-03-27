@@ -1153,6 +1153,7 @@ function joinSessionByCode(code,name){
 function leaveSession(){
   if(!teamSession)return;
   stopTeamPoll();
+  unassignMyTeamJobs();
   dbRemove('/sessions/'+teamSession+'/members/'+myId);
   tasks=tasks.filter(function(t){return!t.teamJobId;});save();
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
