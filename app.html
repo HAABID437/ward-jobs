@@ -392,6 +392,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         <span class="tab-pill u" id="tp-team-urg">0 Urg</span>
         <span class="tab-pill r" id="tp-team-rtn">0 Rtn</span>
       </div>
+      <span class="tab-time" id="tab-team-time"></span>
 
     </div>
   </div>
@@ -1037,11 +1038,17 @@ function updateSessionBar(){
       }
     }
 
+    // Team session time
+    var tt=document.getElementById('tab-team-time');
+    if(tt){
+      if(teamSession&&window.teamSessionCreated){
+        var trem=Math.max(0,TEAM_SESSION_MS-(Date.now()-window.teamSessionCreated));
+        var th=Math.floor(trem/3600000),tm=Math.floor((trem%3600000)/60000);
+        tt.textContent=trem<=0?'expired':th>0?'clears in '+th+'h '+tm+'m':'clears in '+tm+'m';
+      }else{tt.textContent='';}
+    }
   }catch(e){}
 }
-
-
-/* Team polling */
 function startTeamPoll(){
   stopTeamPoll();
   fetchTeamData();
@@ -1176,21 +1183,28 @@ function completeTeamJob(jobId){
 /* Team tab render */
 function setTeamSubTab(t){
   teamSubTab=t;
+  // Update button styles
   ['unassigned','assigned','completed'].forEach(function(x){
-    var el=document.getElementById('tst-'+x);
-    if(el)el.className='tst'+(t===x?' on':'');
+    var b=document.getElementById('tst-'+x);
+    if(!b)return;
+    var on=t===x;
+    b.style.background=on?'var(--surface)':'transparent';
+    b.style.color=on?'var(--text)':'var(--muted)';
+    b.style.boxShadow=on?'var(--shadow)':'';
   });
-  var unassignedEl=document.getElementById('team-jobs-unassigned');
-  var assignedEl=document.getElementById('team-jobs-assigned');
-  var completedEl=document.getElementById('team-jobs-completed');
-  if(unassignedEl)unassignedEl.style.display=t==='unassigned'?'':'none';
-  if(assignedEl)assignedEl.style.display=t==='assigned'?'':'none';
-  if(completedEl)completedEl.style.display=t==='completed'?'':'none';
+  // Show/hide panels - pure style toggle, no DOM rebuild
+  ['unassigned','assigned','completed'].forEach(function(x){
+    var p=document.getElementById('team-jobs-'+x);
+    if(p)p.style.display=t===x?'':'none';
+  });
 }
 
+var _lastTeamHash='';
+var _lastTeamHash='';
 function renderTeamTab(){
   var list=document.getElementById('list');
   if(!teamSession){
+    _lastTeamHash='';
     list.innerHTML='';
     var wrap=document.createElement('div');wrap.style.padding='24px 6px';
     var card=document.createElement('div');
@@ -1209,6 +1223,10 @@ function renderTeamTab(){
   var done=jobs.filter(function(j){return j.done;});
   var members=teamMembers;
   var isCreator=teamCreatorId===myId;
+  // Skip full rebuild if nothing changed — just update sub-tab visibility
+  var newHash=JSON.stringify(jobs)+JSON.stringify(Object.keys(members))+isCreator;
+  if(newHash===_lastTeamHash&&list.children.length){setTeamSubTab(teamSubTab);return;}
+  _lastTeamHash=newHash;
 
   // Session time bar
   var barPct=100,timeLabel='Session active';
