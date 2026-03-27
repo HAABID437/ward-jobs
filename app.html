@@ -7,12 +7,17 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f5ece0">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <title>Axonal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <style>
+
 :root{
   --bg:#f5ece0;
   --surface:#ffffff;
@@ -102,8 +107,8 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .edit-actions{display:flex;flex-direction:column;gap:8px}
 
 /* Team badge on cards */
-.team-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;letter-spacing:0.04em;color:var(--team);background:var(--team-bg);border-radius:20px;padding:1px 6px;margin-top:3px;border:1px solid var(--team-bd)}
-.card.team-assigned{border-left:3px solid var(--team)}
+.team-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;letter-spacing:0.02em;color:var(--team);margin-left:6px}
+.card.team-assigned{outline:1.5px solid var(--team-bd);outline-offset:-1px;background:var(--team-bg)}
 
 /* Team panel */
 .team-code-box{background:var(--text);color:#fff;border-radius:20px;padding:20px;text-align:center;margin-bottom:16px}
@@ -129,6 +134,26 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .team-status-dot{width:8px;height:8px;border-radius:50%;background:var(--rtn);flex-shrink:0;animation:pulse-dot 2s ease-in-out infinite}
 @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
 
+.team-badge{font-size:10px;font-weight:700;color:var(--team);margin-left:5px}
+.card.team-assigned{outline:1.5px solid var(--team-bd);outline-offset:-1px;background:var(--team-bg)}
+.team-session-bar{height:3px;border-radius:2px;background:var(--border-mid);margin-bottom:10px;overflow:hidden}
+.team-session-fill{height:100%;border-radius:2px;background:var(--team)}
+.team-job-row{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)}
+.team-job-row:last-child{border-bottom:none}
+.team-job-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.team-job-dot.i{background:var(--imm)}.team-job-dot.u{background:var(--urg)}.team-job-dot.r{background:var(--rtn)}
+.team-job-body{flex:1;min-width:0}
+.team-job-desc{font-size:14px;font-weight:500;color:var(--text);line-height:1.3}
+.team-job-meta{font-size:11px;color:var(--muted);margin-top:3px}
+.team-job-actions{display:flex;gap:6px;flex-shrink:0;align-self:center}
+.tja{padding:5px 10px;border-radius:12px;font-size:11px;font-weight:600;border:none;cursor:pointer;font-family:DM Sans,sans-serif;transition:all 0.15s}
+.tja-assign{background:var(--team-bg);color:var(--team)}
+.tja-assign.mine{background:var(--team);color:#fff}
+.tja-done{background:var(--green-bg);color:var(--green)}
+.tja-done.is-done{background:var(--green);color:#fff}
+.team-empty{text-align:center;padding:48px 24px;color:var(--dim);font-size:13px;line-height:1.7}
+.team-status-dot{width:8px;height:8px;border-radius:50%;background:var(--rtn);flex-shrink:0;animation:pulse-dot 2s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
 /* Delete confirm */
 .del-confirm-bd{position:fixed;inset:0;background:rgba(28,18,10,0.4);z-index:70;display:none;align-items:flex-end}
 .del-confirm-bd.show{display:flex}
@@ -313,6 +338,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 .dbtn-confirm:active{opacity:0.85}
 .dbtn-cancel{background:var(--surface2);color:var(--muted)}
 .dbtn-cancel:active{opacity:0.7}
+
 </style>
 </head>
 <body>
@@ -500,6 +526,12 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <div id="team-setup-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-top:8px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
 </div>
 
+<!-- Member profile sheet -->
+<div class="sheet" id="member-sheet">
+  <div class="sheet-handle"></div>
+  <div id="member-sheet-content"></div>
+</div>
+
 <!-- Confirm dialog -->
 <div class="confirm-bd" id="confirm-bd">
   <div class="confirm-sheet">
@@ -526,185 +558,78 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
 
 <script>
-/* - Firebase REST API - no SDK needed - */
+/* === AXONAL CLEAN JS === */
+
+/* Firebase REST */
 var DB='https://axonal-fe833-default-rtdb.europe-west1.firebasedatabase.app';
+function dbGet(p){return fetch(DB+p+'.json').then(function(r){return r.json();});}
+function dbSet(p,d){return fetch(DB+p+'.json',{method:'PUT',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
+function dbUpdate(p,d){return fetch(DB+p+'.json',{method:'PATCH',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
+function dbRemove(p){return fetch(DB+p+'.json',{method:'DELETE'});}
 
-function dbGet(path){
-  return fetch(DB+path+'.json').then(function(r){return r.json();});
-}
-function dbSet(path,data){
-  return fetch(DB+path+'.json',{method:'PUT',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
-}
-function dbUpdate(path,data){
-  return fetch(DB+path+'.json',{method:'PATCH',body:JSON.stringify(data),headers:{'Content-Type':'application/json'}});
-}
-function dbRemove(path){
-  return fetch(DB+path+'.json',{method:'DELETE'});
-}
-
-// Polling-based real-time (every 3s when on team tab)
-var teamPollInterval=null;
-var teamMembers={};
-var TEAM_SESSION_MS=12*60*60*1000; // 12 hour team session limit
-
-function startTeamPoll(){
-  stopTeamPoll();
-  // Immediate fetch on start
-  fetchTeamData();
-  // Then poll every 4s
-  teamPollInterval=setInterval(fetchTeamData,4000);
-}
-
-function fetchTeamData(){
-  if(!teamSession)return;
-  dbGet('/sessions/'+teamSession).then(function(data){
-    if(!data){
-      // Session deleted or expired
-      stopTeamPoll();
-      teamSession=null;teamJobs={};teamMembers={};
-      localStorage.removeItem('wj_team');
-      if(curTab==='team')renderTeamTab();
-      render();
-      return;
-    }
-    // Check session expiry
-    if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
-      dbRemove('/sessions/'+teamSession);
-      stopTeamPoll();
-      teamSession=null;teamJobs={};teamMembers={};
-      localStorage.removeItem('wj_team');
-      if(curTab==='team')renderTeamTab();
-      render();
-      showBanner('Team session expired after 12 hours','var(--imm)');
-      return;
-    }
-    teamJobs=data.jobs||{};
-    teamMembers=data.members||{};
-    if(curTab==='team')renderTeamTab();
-    render();
-  }).catch(function(){});
-}
-
-function stopTeamPoll(){
-  if(teamPollInterval){clearInterval(teamPollInterval);teamPollInterval=null;}
-}
-
-function initFirebaseAndStart(){
-  startApp();
-}
-
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',initFirebaseAndStart);
-}else{
-  initFirebaseAndStart();
-}
-
-/* - Team state - */
-var teamSession=null,teamJobs={},teamListener=null;
+/* Team state */
+var teamSession=null,teamJobs={},teamMembers={},teamCreatorId=null,teamPollInterval=null;
+var TEAM_SESSION_MS=12*60*60*1000;
+var TEAM_COLORS=['#6c63ff','#e05a7a','#2d9b6f','#d4830a','#2e86c1','#8e44ad','#16a085','#c0392b'];
 var myName=localStorage.getItem('wj_name')||'';
+var myColor=localStorage.getItem('wj_color')||TEAM_COLORS[0];
 var myId=localStorage.getItem('wj_uid')||(function(){var id='u'+Math.random().toString(36).slice(2,9);localStorage.setItem('wj_uid',id);return id;})();
 
-var tasks=[],selUrg='r',curTab='active',hoTab='send';
-const ORD={i:0,u:1,r:2},LBL={i:'Immediate',u:'Urgent',r:'Routine'};
+function colorForIdx(idx){return TEAM_COLORS[idx%TEAM_COLORS.length];}
 
-function startApp(){
-  load();
-  // Restore saved team session
-  var savedCode=localStorage.getItem('wj_team');
-  var savedName=localStorage.getItem('wj_name');
-  if(savedCode&&savedName){
-    myName=savedName;
-    dbGet('/sessions/'+savedCode).then(function(data){
-      if(data){
-        var memberData={};memberData[myId]={name:myName,joined:Date.now()};
-        dbUpdate('/sessions/'+savedCode+'/members',memberData);
-        teamSession=savedCode;
-        dbGet('/sessions/'+savedCode+'/jobs').then(function(jobs){
-          teamJobs=jobs||{};
-          render();
-          startTeamPoll();
-        });
-      }else{
-        localStorage.removeItem('wj_team');
-      }
-    }).catch(function(){});
-  }
-  render();tick();setInterval(tick,15000);
-} // end startApp
+/* App state */
+var tasks=[],selUrg='r',curTab='active',hoTab='send',addDest='my',editId=null,editUrg='r';
+var ORD={i:0,u:1,r:2},LBL={i:'Immediate',u:'Urgent',r:'Routine'};
+var SHIFT_MS=16*60*60*1000;
 
-const SHIFT_MS=16*60*60*1000;
+/* Storage */
 function load(){
   try{
-    const start=parseInt(localStorage.getItem('wj_start')||'0');
-    if(!start){localStorage.setItem('wj_start',''+Date.now());tasks=[];return}
-    if(Date.now()-start>SHIFT_MS){
-      localStorage.removeItem('wj');
-      localStorage.setItem('wj_start',''+Date.now());
-      tasks=[];return;
-    }
+    var start=parseInt(localStorage.getItem('wj_start')||'0');
+    if(!start){localStorage.setItem('wj_start',''+Date.now());tasks=[];return;}
+    if(Date.now()-start>SHIFT_MS){localStorage.removeItem('wj');localStorage.setItem('wj_start',''+Date.now());tasks=[];return;}
     tasks=JSON.parse(localStorage.getItem('wj')||'[]');
-  }catch(e){tasks=[]}
+  }catch(e){tasks=[];}
 }
-function save(){try{localStorage.setItem('wj',JSON.stringify(tasks))}catch(e){}}
-function fmt(ms){return new Date(ms).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function save(){try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}}
+function fmt(ms){return new Date(ms).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-/* - Handover encode/decode - */
-// Compact format: AX1:pid|desc|u~pid|desc|u~...
-// Much shorter than JSON+base64, produces a scannable QR even with 20+ jobs
-const PREFIX='WJ2:';
-const PREFIX2='AX1:'; // new compact format
-
+/* Handover encode/decode */
+var PREFIX='WJ2:',PREFIX2='AX1:';
 function encodeHandover(){
-  const active=tasks.filter(x=>!x.done);
+  var active=tasks.filter(function(x){return!x.done;});
   if(!active.length)return null;
-  // Sanitise: replace | and ~ in content so delimiters are safe
-  const parts=active.map(t=>{
-    const p=(t.pid||'').replace(/[|~]/g,' ');
-    const d=(t.desc||'').replace(/[|~]/g,' ');
-    return p+'|'+d+'|'+t.urg;
-  });
-  return PREFIX2+parts.join('~');
+  return PREFIX2+active.map(function(t){
+    return (t.pid||'').replace(/[|~]/g,' ')+'|'+(t.desc||'').replace(/[|~]/g,' ')+'|'+t.urg;
+  }).join('~');
 }
-
 function decodeHandover(code){
   try{
-    const str=(code||'').trim();
-
-    // New compact format
+    var str=(code||'').trim();
     if(str.startsWith(PREFIX2)){
-      const body=str.slice(PREFIX2.length);
-      if(!body)return null;
-      const items=body.split('~').filter(Boolean);
-      return items.map(item=>{
-        const parts=item.split('|');
-        if(parts.length<3)return null;
-        const urg=parts[2];
-        if(!['i','u','r'].includes(urg))return null;
-        return{id:''+Date.now()+Math.random(),pid:parts[0]||'',desc:parts[1]||'',urg,added:Date.now(),done:false,completed:null};
+      return str.slice(PREFIX2.length).split('~').filter(Boolean).map(function(item){
+        var p=item.split('|');
+        if(p.length<3||!['i','u','r'].includes(p[2]))return null;
+        return{id:''+Date.now()+Math.random(),pid:p[0]||'',desc:p[1]||'',urg:p[2],added:Date.now(),done:false,completed:null};
       }).filter(Boolean);
     }
-
-    // Legacy WJ2: format (backwards compatible)
     if(str.startsWith(PREFIX)){
-      const json=decodeURIComponent(escape(atob(str.slice(PREFIX.length))));
-      const arr=JSON.parse(json);
+      var json=decodeURIComponent(escape(atob(str.slice(PREFIX.length))));
+      var arr=JSON.parse(json);
       if(!Array.isArray(arr))return null;
-      return arr.filter(x=>x.d&&['i','u','r'].includes(x.u)).map(x=>({
-        id:''+Date.now()+Math.random(),pid:x.p||'',desc:x.d,urg:x.u,added:Date.now(),done:false,completed:null
-      }));
+      return arr.filter(function(x){return x.d&&['i','u','r'].includes(x.u);}).map(function(x){
+        return{id:''+Date.now()+Math.random(),pid:x.p||'',desc:x.d,urg:x.u,added:Date.now(),done:false,completed:null};
+      });
     }
-
     return null;
-  }catch(e){return null}
+  }catch(e){return null;}
 }
 
-/* - Sheet management - */
-let activeSheet=null;
+/* Sheets */
+var activeSheet=null;
 function openSheet(id){
-  if(activeSheet&&activeSheet!==id){
-    document.getElementById(activeSheet).classList.remove('open');
-  }
+  if(activeSheet&&activeSheet!==id)document.getElementById(activeSheet).classList.remove('open');
   activeSheet=id;
   document.getElementById(id).classList.add('open');
   document.getElementById('backdrop').classList.add('show');
@@ -713,33 +638,37 @@ function closeSheet(){
   if(activeSheet)document.getElementById(activeSheet).classList.remove('open');
   document.getElementById('backdrop').classList.remove('show');
   stopScanner();
+  // Restore normal add button
+  var sub=document.getElementById('add-sheet-submit');
+  if(sub){sub.onclick=addTask;sub.textContent='Add job';}
   activeSheet=null;
 }
 document.getElementById('backdrop').addEventListener('click',closeSheet);
 
-var addDest='my'; // 'my' or 'team'
+/* Tabs */
+function setTab(t){
+  curTab=t;
+  ['active','done','team'].forEach(function(x){
+    document.getElementById('tab-'+x).className='tab'+(t===x?' on':'');
+  });
+  if(t==='team')renderTeamTab();else render();
+}
+
+/* Add sheet */
+var addDest='my';
 function setAddDest(dest){
   addDest=dest;
-  var myBtn=document.getElementById('dest-my');
-  var teamBtn=document.getElementById('dest-team');
-  if(dest==='my'){
-    myBtn.style.background='var(--text)';myBtn.style.color='#fff';
-    teamBtn.style.background='transparent';teamBtn.style.color='var(--muted)';
-  }else{
-    teamBtn.style.background='var(--team)';teamBtn.style.color='#fff';
-    myBtn.style.background='transparent';myBtn.style.color='var(--muted)';
-  }
+  var mb=document.getElementById('dest-my'),tb=document.getElementById('dest-team');
+  if(dest==='my'){mb.style.background='var(--text)';mb.style.color='#fff';tb.style.background='transparent';tb.style.color='var(--muted)';}
+  else{tb.style.background='var(--team)';tb.style.color='#fff';mb.style.background='transparent';mb.style.color='var(--muted)';}
 }
 function openAddSheet(){
   addDest='my';
   var toggle=document.getElementById('add-sheet-team-toggle');
   if(toggle)toggle.style.display=teamSession?'block':'none';
-  // Reset toggle state
-  var myBtn=document.getElementById('dest-my');
-  var teamBtn=document.getElementById('dest-team');
-  if(myBtn){myBtn.style.background='var(--text)';myBtn.style.color='#fff';}
-  if(teamBtn){teamBtn.style.background='transparent';teamBtn.style.color='var(--muted)';}
-  // Reset submit button
+  var mb=document.getElementById('dest-my'),tb=document.getElementById('dest-team');
+  if(mb){mb.style.background='var(--text)';mb.style.color='#fff';}
+  if(tb){tb.style.background='transparent';tb.style.color='var(--muted)';}
   var sub=document.getElementById('add-sheet-submit');
   if(sub){sub.onclick=addTask;sub.textContent='Add job';}
   openSheet('add-sheet');
@@ -749,345 +678,173 @@ function openHandover(){
   hoTab='send';
   document.getElementById('ho-tab-send').className='ho-tab on';
   document.getElementById('ho-tab-recv').className='ho-tab';
-  renderSendPanel();
-  renderRecvPanel();
+  renderSendPanel();renderRecvPanel();
   openSheet('ho-sheet');
 }
+function openAbout(){openSheet('about-sheet');}
 
-/* - Handover tabs - */
+/* Handover tabs */
 function hoSetTab(t){
   hoTab=t;
   document.getElementById('ho-tab-send').className='ho-tab'+(t==='send'?' on':'');
   document.getElementById('ho-tab-recv').className='ho-tab'+(t==='recv'?' on':'');
   document.getElementById('ho-send-panel').style.display=t==='send'?'':'none';
   document.getElementById('ho-recv-panel').style.display=t==='recv'?'':'none';
-  if(t==='recv')setTimeout(()=>document.getElementById('import-input')&&document.getElementById('import-input').focus(),150);
 }
 
-/* - Send panel - */
-let sendTab='qr';
+/* Send panel */
+var sendTab='qr';
 function renderSendPanel(){
-  const active=tasks.filter(x=>!x.done);
-  const panel=document.getElementById('ho-send-panel');
-  if(!active.length){
-    panel.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--dim);font-size:14px;line-height:1.7">No active jobs to hand over.<br>Add jobs first.</div>';
-    return;
-  }
-  const code=encodeHandover();
-  const ni=active.filter(x=>x.urg==='i').length;
-  const nu=active.filter(x=>x.urg==='u').length;
-  const nr=active.filter(x=>x.urg==='r').length;
-  let chips='';
-  if(ni)chips+=`<span class="ho-chip i">${ni} Immediate</span>`;
-  if(nu)chips+=`<span class="ho-chip u">${nu} Urgent</span>`;
-  if(nr)chips+=`<span class="ho-chip r">${nr} Routine</span>`;
-  panel.innerHTML=`
-    <div class="ho-summary">${chips}</div>
-    <div class="send-tabs">
-      <div class="send-tab${sendTab==='qr'?' on':''}" onclick="setSendTab('qr')">QR code</div>
-      <div class="send-tab${sendTab==='code'?' on':''}" onclick="setSendTab('code')">Text code</div>
-    </div>
-    <div id="send-qr-panel" style="display:${sendTab==='qr'?'block':'none'}">
-      <div class="qr-wrap">
-        <div class="qr-box" id="qr-box"></div>
-        <p class="qr-hint">Scan with any camera app to open Ward Jobs and import all jobs instantly.</p>
-      </div>
-    </div>
-    <div id="send-code-panel" style="display:${sendTab==='code'?'block':'none'}">
-      <div class="f-label" style="margin-bottom:8px">Handover code</div>
-      <div class="code-box" id="code-box" onclick="selectCode()">${esc(code)}</div>
-      <div class="copy-row">
-        <button class="copy-btn" id="copy-btn" onclick="copyCode('${esc(code)}')">
-          <svg viewBox="0 0 18 18"><rect x="5" y="5" width="10" height="11" rx="1.5"/><path d="M3 13V3h10"/></svg>
-          Copy code
-        </button>
-        ${navigator.share?'<button class="share-btn" id="share-btn" onclick="shareCode()"><svg viewBox="0 0 18 18"><path d="M3 9 L3 15 L15 15 L15 9"/><polyline points="6,5 9,2 12,5"/><line x1="9" y1="2" x2="9" y2="12"/></svg> Share</button>':''}
-      </div>
-      <p style="font-size:12px;color:var(--dim);line-height:1.6;margin-bottom:6px">Send via WhatsApp, text, or Teams. Paste under <strong style="color:var(--muted)">Receive jobs</strong>.</p>
-    </div>`;
-  if(sendTab==='qr') generateQR(code);
+  var active=tasks.filter(function(x){return!x.done;});
+  var panel=document.getElementById('ho-send-panel');
+  if(!active.length){panel.innerHTML='<div style="text-align:center;padding:32px 0;color:var(--dim);font-size:14px;line-height:1.7">No active jobs to hand over.</div>';return;}
+  var code=encodeHandover();
+  var ni=active.filter(function(x){return x.urg==='i';}).length;
+  var nu=active.filter(function(x){return x.urg==='u';}).length;
+  var nr=active.filter(function(x){return x.urg==='r';}).length;
+  var chips='';
+  if(ni)chips+='<span class="ho-chip i">'+ni+' Immediate</span>';
+  if(nu)chips+='<span class="ho-chip u">'+nu+' Urgent</span>';
+  if(nr)chips+='<span class="ho-chip r">'+nr+' Routine</span>';
+  var qrDisplay=sendTab==='qr'?'block':'none';
+  var codeDisplay=sendTab==='code'?'block':'none';
+  panel.innerHTML='<div class="ho-summary">'+chips+'</div>'
+    +'<div class="send-tabs">'
+    +'<div class="send-tab'+(sendTab==='qr'?' on':'')+'" onclick="setSendTab(\'qr\')">QR code</div>'
+    +'<div class="send-tab'+(sendTab==='code'?' on':'')+'" onclick="setSendTab(\'code\')">Text code</div>'
+    +'</div>'
+    +'<div id="send-qr-panel" style="display:'+qrDisplay+'">'
+    +'<div class="qr-wrap"><div class="qr-box" id="qr-box"></div>'
+    +'<p class="qr-hint">Open your iPhone Camera app, point at the QR, tap the axonal.co.uk link.</p></div></div>'
+    +'<div id="send-code-panel" style="display:'+codeDisplay+'">'
+    +'<div class="f-label" style="margin-bottom:8px">Handover code</div>'
+    +'<div class="code-box" id="code-box" onclick="selectCode()">'+esc(code)+'</div>'
+    +'<div class="copy-row">'
+    +'<button class="copy-btn" id="copy-btn" onclick="copyCode(\''+esc(code)+'\')">'
+    +'<svg viewBox="0 0 18 18"><rect x="5" y="5" width="10" height="11" rx="1.5"/><path d="M3 13V3h10"/></svg>Copy code</button>'
+    +(navigator.share?'<button class="share-btn" onclick="shareCode()"><svg viewBox="0 0 18 18"><path d="M3 9 L3 15 L15 15 L15 9"/><polyline points="6,5 9,2 12,5"/><line x1="9" y1="2" x2="9" y2="12"/></svg> Share</button>':'')
+    +'</div></div>';
+  if(sendTab==='qr')generateQR(code);
 }
-
 function setSendTab(t){
   sendTab=t;
-  document.getElementById('send-qr-panel').style.display=t==='qr'?'block':'none';
-  document.getElementById('send-code-panel').style.display=t==='code'?'block':'none';
-  document.querySelectorAll('.send-tab').forEach((el,i)=>{
-    el.className='send-tab'+(((i===0&&t==='qr')||(i===1&&t==='code'))?' on':'');
-  });
-  if(t==='qr'){const code=encodeHandover();if(code)generateQR(code);}
+  var qp=document.getElementById('send-qr-panel'),cp=document.getElementById('send-code-panel');
+  if(qp)qp.style.display=t==='qr'?'block':'none';
+  if(cp)cp.style.display=t==='code'?'block':'none';
+  document.querySelectorAll('.send-tab').forEach(function(el,i){el.className='send-tab'+((i===0&&t==='qr')||(i===1&&t==='code')?' on':'');});
+  if(t==='qr'){var code=encodeHandover();if(code)generateQR(code);}
 }
-
 function generateQR(code){
-  const box=document.getElementById('qr-box');
+  var box=document.getElementById('qr-box');
   if(!box||typeof QRCode==='undefined')return;
   box.innerHTML='';
-  // URL in QR — native camera opens the app and auto-imports on tap
-  const base=window.location.href.split('?')[0];
-  const url=base+'?ho='+encodeURIComponent(code);
-  const size=Math.min(220,window.innerWidth-100);
+  var url=window.location.href.split('?')[0]+'?ho='+encodeURIComponent(code);
+  var size=Math.min(220,window.innerWidth-100);
   new QRCode(box,{text:url,width:size,height:size,colorDark:'#1a1f2e',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.L});
 }
-
-function selectCode(){
-  const box=document.getElementById('code-box');
-  if(!box)return;
-  const sel=window.getSelection();
-  const range=document.createRange();
-  range.selectNodeContents(box);
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
+function selectCode(){var b=document.getElementById('code-box');if(!b)return;var s=window.getSelection(),r=document.createRange();r.selectNodeContents(b);s.removeAllRanges();s.addRange(r);}
 function copyCode(code){
-  const btn=document.getElementById('copy-btn');
-  const raw=code.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(raw).then(()=>{
-      btn.classList.add('copied');
-      btn.innerHTML='<svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5" stroke="currentColor" stroke-width="2" fill="none"/></svg> Copied!';
-      setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML='<svg viewBox="0 0 18 18"><rect x="5" y="5" width="10" height="11" rx="1.5"/><path d="M3 13V3h10"/></svg> Copy code';},2200);
-    });
-  } else {
-    const el=document.createElement('textarea');
-    el.value=raw;el.style.position='fixed';el.style.opacity='0';
-    document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);
-    btn.classList.add('copied');
-    btn.innerHTML='<svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5" stroke="currentColor" stroke-width="2" fill="none"/></svg> Copied!';
-    setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML='<svg viewBox="0 0 18 18"><rect x="5" y="5" width="10" height="11" rx="1.5"/><path d="M3 13V3h10"/></svg> Copy code';},2200);
-  }
+  var btn=document.getElementById('copy-btn');
+  var raw=code.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+  function done(){btn.classList.add('copied');btn.innerHTML='<svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5" stroke="currentColor" stroke-width="2" fill="none"/></svg> Copied!';setTimeout(function(){btn.classList.remove('copied');btn.innerHTML='<svg viewBox="0 0 18 18"><rect x="5" y="5" width="10" height="11" rx="1.5"/><path d="M3 13V3h10"/></svg> Copy code';},2200);}
+  if(navigator.clipboard){navigator.clipboard.writeText(raw).then(done);}
+  else{var el=document.createElement('textarea');el.value=raw;el.style.cssText='position:fixed;opacity:0';document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);done();}
 }
-
 function shareCode(){
-  const code=encodeHandover();
-  if(!code)return;
-  const active=tasks.filter(x=>!x.done);
-  navigator.share({title:'Axonal handover',text:`Axonal handover (${active.length} task${active.length!==1?'s':''})\n\nPaste this code into Axonal > Handover > Receive jobs:\n\n${code}`}).catch(()=>{});
+  var code=encodeHandover();if(!code)return;
+  var active=tasks.filter(function(x){return!x.done;});
+  navigator.share({title:'Axonal handover',text:'Axonal handover ('+active.length+' task'+(active.length!==1?'s':'')+')\n\nPaste into Axonal > Handover > Receive jobs:\n\n'+code}).catch(function(){});
 }
 
-/* - Receive panel - */
-let scanStream=null,scanRAF=null,scanCanvas=null,scanCtx=null;
-
+/* Receive panel */
+var scanStream=null,scanRAF=null,scanCanvas=null,scanCtx=null,nativeScanInterval=null;
 function renderRecvPanel(){
-  document.getElementById('ho-recv-panel').innerHTML=`
-    <div style="background:var(--surface2);border-radius:16px;padding:16px;margin-bottom:16px">
-      <div style="font-family:'DM Serif Display',serif;font-size:17px;font-weight:400;margin-bottom:10px;letter-spacing:-0.01em">How to receive jobs</div>
-      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
-        <div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div>
-        <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Open your iPhone <strong>Camera app</strong></div>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px">
-        <div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div>
-        <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Point at the sender's QR code</div>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:10px">
-        <div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div>
-        <div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Tap the <strong>axonal.co.uk</strong> link — jobs import automatically</div>
-      </div>
-    </div>
-    <div id="scan-feedback"></div>
-    <div class="divider-row"><span>or paste code manually</span></div>
-    <div class="f-group">
-      <textarea id="import-input" rows="3" placeholder="Paste handover code here..." style="resize:none;font-family:'Courier New',monospace;font-size:13px;line-height:1.6" oninput="previewImport()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-    </div>
-    <div id="import-feedback"></div>
-    <button class="submit-btn green" id="import-btn" onclick="importTasks()" style="display:none">Import jobs</button>`;
+  document.getElementById('ho-recv-panel').innerHTML='<div style="background:var(--surface2);border-radius:16px;padding:16px;margin-bottom:16px">'
+    +'<div style="font-family:DM Serif Display,serif;font-size:17px;font-weight:400;margin-bottom:10px">How to receive jobs</div>'
+    +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Open your iPhone <strong>Camera app</strong></div></div>'
+    +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Point at the sender\'s QR code</div></div>'
+    +'<div style="display:flex;align-items:flex-start;gap:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Tap the <strong>axonal.co.uk</strong> link &mdash; jobs import automatically</div></div>'
+    +'</div>'
+    +'<div id="scan-feedback"></div>'
+    +'<div class="divider-row"><span>or paste code manually</span></div>'
+    +'<div class="f-group"><textarea id="import-input" rows="3" placeholder="Paste handover code here..." style="resize:none;font-family:Courier New,monospace;font-size:13px;line-height:1.6" oninput="previewImport()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea></div>'
+    +'<div id="import-feedback"></div>'
+    +'<button class="submit-btn green" id="import-btn" onclick="importTasks()" style="display:none">Import jobs</button>';
 }
-
-function startScanner(){
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    showScanError('Camera not available on this device or browser.');return;
-  }
-  document.getElementById('scanner-container').style.display='block';
-  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false})
-    .then(stream=>{
-      scanStream=stream;
-      const video=document.getElementById('scanner-video');
-      video.srcObject=stream;
-      video.play();
-      scanCanvas=document.createElement('canvas');
-      scanCtx=scanCanvas.getContext('2d',{willReadFrequently:true});
-      // Use setInterval — rAF is throttled on iOS Safari in web apps
-      nativeScanInterval=setInterval(()=>scanTick(video),400);
-    })
-    .catch(()=>showScanError('Camera permission denied. Please allow camera access and try again.'));
-}
-
-let nativeScanInterval=null;
-
-function scanTick(video){
-  if(!scanStream||!video)return;
-  if(video.readyState<2)return; // not ready yet
-
-  // Method 1: native BarcodeDetector (fastest, most reliable)
-  if(typeof BarcodeDetector!=='undefined'){
-    const detector=new BarcodeDetector({formats:['qr_code']});
-    detector.detect(video).then(codes=>{
-      if(codes&&codes.length){
-        const parsed=tryDecode(codes[0].rawValue);
-        if(parsed&&parsed.length){stopScanner();handleScanSuccess(parsed);}
-      }
-    }).catch(()=>{});
-    return;
-  }
-
-  // Method 2: jsQR canvas fallback
-  if(typeof jsQR==='undefined')return;
-  try{
-    scanCanvas.width=video.videoWidth||640;
-    scanCanvas.height=video.videoHeight||480;
-    scanCtx.drawImage(video,0,0,scanCanvas.width,scanCanvas.height);
-    const img=scanCtx.getImageData(0,0,scanCanvas.width,scanCanvas.height);
-    const result=jsQR(img.data,img.width,img.height,{inversionAttempts:'attemptBoth'});
-    if(result&&result.data){
-      const parsed=tryDecode(result.data);
-      if(parsed&&parsed.length){stopScanner();handleScanSuccess(parsed);}
-      else{
-        const hint=document.getElementById('scanner-hint');
-        if(hint)hint.textContent='QR detected — use your camera app instead';
-      }
-    }
-  }catch(e){}
-}
-
-function tryDecode(raw){
-  if(!raw)return null;
-  // Try 1: raw is WJ2: code
-  let parsed=decodeHandover(raw);
-  if(parsed)return parsed;
-  // Try 2: extract ?ho= from URL
-  try{const u=new URL(raw);const p=u.searchParams.get('ho');if(p){parsed=decodeHandover(decodeURIComponent(p));if(parsed)return parsed;}}catch(e){}
-  // Try 3: URL-decoded
-  try{parsed=decodeHandover(decodeURIComponent(raw));if(parsed)return parsed;}catch(e){}
-  return null;
-}
-
 function stopScanner(){
   if(scanRAF){cancelAnimationFrame(scanRAF);scanRAF=null;}
   if(nativeScanInterval){clearInterval(nativeScanInterval);nativeScanInterval=null;}
-  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null;}
-  const c=document.getElementById('scanner-container');
-  if(c)c.style.display='none';
+  if(scanStream){scanStream.getTracks().forEach(function(t){t.stop();});scanStream=null;}
 }
-
-function handleScanSuccess(parsed){
-  const fb=document.getElementById('scan-feedback');
-  if(!fb)return;
-  const count=parsed.length;
-  fb.innerHTML=`<div class="scan-success"><svg viewBox="0 0 16 16"><polyline points="2,8 6,12 14,4"/></svg>${count} job${count!==1?'s':''} ready to import</div>`;
-  // store for import
-  importParsed=parsed;
-  const btn=document.getElementById('import-btn');
-  if(btn){btn.textContent=`Import ${count} job${count!==1?'s':''}`;btn.style.display='block';}
+function tryDecode(raw){
+  if(!raw)return null;
+  var p=decodeHandover(raw);if(p)return p;
+  try{var u=new URL(raw);var ho=u.searchParams.get('ho');if(ho){p=decodeHandover(decodeURIComponent(ho));if(p)return p;}}catch(e){}
+  try{p=decodeHandover(decodeURIComponent(raw));if(p)return p;}catch(e){}
+  return null;
 }
-
-function showScanError(msg){
-  stopScanner();
-  const fb=document.getElementById('scan-feedback');
-  if(fb)fb.innerHTML=`<div class="import-err"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg> ${msg}</div>`;
-}
-
-let importParsed=null;
+var importParsed=null;
 function previewImport(){
-  const val=document.getElementById('import-input').value.trim();
-  const fb=document.getElementById('import-feedback');
-  const btn=document.getElementById('import-btn');
+  var val=document.getElementById('import-input').value.trim();
+  var fb=document.getElementById('import-feedback');
+  var btn=document.getElementById('import-btn');
   importParsed=null;
-  if(!val){fb.innerHTML='';btn.style.display='none';return}
-  const result=decodeHandover(val);
-  if(!result){
-    fb.innerHTML='<div class="import-err"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg> Invalid code — check it was copied in full.</div>';
-    btn.style.display='none';return;
-  }
+  if(!val){fb.innerHTML='';btn.style.display='none';return;}
+  var result=decodeHandover(val);
+  if(!result){fb.innerHTML='<div class="import-err"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg> Invalid code &mdash; check it was copied in full.</div>';btn.style.display='none';return;}
   importParsed=result;
-  const show=result.slice(0,5);
-  let rows=show.map(t=>`<div class="preview-item"><div class="prev-dot ${t.urg}"></div><div class="prev-body">${t.pid?'<div class="prev-pid">'+esc(t.pid)+'</div>':''}<div class="prev-desc">${esc(t.desc)}</div></div></div>`).join('');
-  const extra=result.length>5?`<div class="preview-more">+${result.length-5} more task${result.length-5!==1?'s':''}</div>`:'';
-  fb.innerHTML=`<div class="f-label" style="margin-bottom:8px">${result.length} job${result.length!==1?'s':''} to import</div><div class="import-preview">${rows}${extra}</div>`;
-  btn.textContent=`Import ${result.length} job${result.length!==1?'s':''}`;
+  var show=result.slice(0,5);
+  var rows=show.map(function(t){return '<div class="preview-item"><div class="prev-dot '+t.urg+'"></div><div class="prev-body">'+(t.pid?'<div class="prev-pid">'+esc(t.pid)+'</div>':'')+'<div class="prev-desc">'+esc(t.desc)+'</div></div></div>';}).join('');
+  var extra=result.length>5?'<div class="preview-more">+'+( result.length-5)+' more</div>':'';
+  fb.innerHTML='<div class="f-label" style="margin-bottom:8px">'+result.length+' job'+(result.length!==1?'s':'')+' to import</div><div class="import-preview">'+rows+extra+'</div>';
+  btn.textContent='Import '+result.length+' job'+(result.length!==1?'s':'');
   btn.style.display='block';
 }
-
 function importTasks(){
   if(!importParsed||!importParsed.length)return;
-  const incoming=importParsed;
-  tasks=incoming.concat(tasks);
-  save();
-  closeSheet();
-  if(curTab!=='active')setTab('active');
-  else render();
+  tasks=importParsed.concat(tasks);
+  save();closeSheet();
+  if(curTab!=='active')setTab('active');else render();
   importParsed=null;
 }
 
-/* - Core task logic - */
-function setUrg(u){
-  selUrg=u;
-  ['i','u','r'].forEach(x=>document.getElementById('ub-'+x).className='ub'+(x===u?' sel-'+x:''));
-}
-function setTab(t){
-  curTab=t;
-  document.getElementById('tab-active').className='tab'+(t==='active'?' on':'');
-  document.getElementById('tab-done').className='tab'+(t==='done'?' on':'');
-  document.getElementById('tab-team').className='tab'+(t==='team'?' on':'');
-  if(t==='team')renderTeamTab();else render();
-}
+/* Core tasks */
+function setUrg(u){selUrg=u;['i','u','r'].forEach(function(x){document.getElementById('ub-'+x).className='ub'+(x===u?' sel-'+x:'');});}
 function addTask(){
   var pid=document.getElementById('f-pid').value.trim();
   var desc=document.getElementById('f-desc').value.trim();
-  if(!desc){
-    var el=document.getElementById('f-desc');
-    el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);
-    el.focus();return;
-  }
-  if(addDest==='team'&&teamSession){
-    addTeamJob(pid,desc,selUrg);
-    document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
-    closeSheet();setTab('team');return;
-  }
+  if(!desc){var el=document.getElementById('f-desc');el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);el.focus();return;}
+  if(addDest==='team'&&teamSession){addTeamJob(pid,desc,selUrg);document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';closeSheet();setTab('team');return;}
   tasks.unshift({id:''+Date.now()+Math.random(),pid:pid,desc:desc,urg:selUrg,added:Date.now(),done:false,completed:null});
-  save();
-  document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
-  closeSheet();
-  if(curTab!=='active')setTab('active');else render();
+  save();document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
+  closeSheet();if(curTab!=='active')setTab('active');else render();
 }
 function complete(id){
-  var t=tasks.find(function(x){return x.id===id;});
-  if(!t)return;
-  t.done=!t.done;t.completed=t.done?Date.now():null;
-  save();render();
+  var t=tasks.find(function(x){return x.id===id;});if(!t)return;
+  t.done=!t.done;t.completed=t.done?Date.now():null;save();render();
   if(t.teamJobId&&teamSession){
-    var update={done:t.done,doneBy:t.done?myId:null,doneByName:t.done?myName:null,completedAt:t.done?t.completed:null};
-    dbUpdate('/sessions/'+teamSession+'/jobs/'+t.teamJobId,update).then(function(){
-      if(teamJobs[t.teamJobId])teamJobs[t.teamJobId]=Object.assign({},teamJobs[t.teamJobId],update);
-    });
+    var upd={done:t.done,doneBy:t.done?myId:null,doneByName:t.done?myName:null,completedAt:t.done?t.completed:null};
+    dbUpdate('/sessions/'+teamSession+'/jobs/'+t.teamJobId,upd).then(function(){if(teamJobs[t.teamJobId])teamJobs[t.teamJobId]=Object.assign({},teamJobs[t.teamJobId],upd);});
   }
 }
 function del(id){
-  const wrap=document.querySelector('[data-wrap="'+id+'"]');
+  var wrap=document.querySelector('[data-wrap="'+id+'"]');
   if(wrap){
     wrap.style.transition='transform 0.2s ease,opacity 0.2s ease,max-height 0.22s ease 0.12s,margin 0.22s ease 0.12s';
     wrap.style.transform='translateX(-110%)';wrap.style.opacity='0';wrap.style.overflow='hidden';
-    setTimeout(()=>{wrap.style.maxHeight='0';wrap.style.marginBottom='0'},100);
-    setTimeout(()=>{tasks=tasks.filter(x=>x.id!==id);save();render()},350);
-  } else {tasks=tasks.filter(x=>x.id!==id);save();render()}
+    setTimeout(function(){wrap.style.maxHeight='0';wrap.style.marginBottom='0';},100);
+    setTimeout(function(){tasks=tasks.filter(function(x){return x.id!==id;});save();render();},350);
+  }else{tasks=tasks.filter(function(x){return x.id!==id;});save();render();}
 }
-function showConfirm(){document.getElementById('confirm-bd').classList.add('show')}
-function hideConfirm(){document.getElementById('confirm-bd').classList.remove('show')}
-function clearAll(){
-  tasks=[];save();
-  localStorage.setItem('wj_start',''+Date.now());
-  localStorage.removeItem('wj_hint_seen');
-  hideConfirm();render();updateSessionBar();
-}
-document.getElementById('confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('confirm-bd'))hideConfirm()});
-document.getElementById('del-confirm-bd').addEventListener('click',e=>{if(e.target===document.getElementById('del-confirm-bd'))cancelDel()});
+function showConfirm(){document.getElementById('confirm-bd').classList.add('show');}
+function hideConfirm(){document.getElementById('confirm-bd').classList.remove('show');}
+function clearAll(){tasks=[];save();localStorage.setItem('wj_start',''+Date.now());localStorage.removeItem('wj_hint_seen');hideConfirm();render();updateSessionBar();}
+document.getElementById('confirm-bd').addEventListener('click',function(e){if(e.target===document.getElementById('confirm-bd'))hideConfirm();});
+document.getElementById('del-confirm-bd').addEventListener('click',function(e){if(e.target===document.getElementById('del-confirm-bd'))cancelDel();});
 
-function openAbout(){openSheet('about-sheet');}
-
-let editId=null,editUrg='r';
+/* Detail/edit */
 function openDetail(id){
-  var t=tasks.find(function(x){return x.id===id;});
-  if(!t)return;
+  var t=tasks.find(function(x){return x.id===id;});if(!t)return;
   editId=id;editUrg=t.urg;
   document.getElementById('detail-title').textContent=t.pid||'Job detail';
   document.getElementById('detail-meta').textContent='Added '+fmt(t.added)+(t.done?' · Completed '+fmt(t.completed):'');
@@ -1095,441 +852,447 @@ function openDetail(id){
   document.getElementById('edit-pid').value=t.pid||'';
   document.getElementById('edit-desc').value=t.desc;
   ['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===editUrg?' sel-'+x:'');});
-  // Show "Move to team" only if in a session and not already a team job and not done
   var moveBtn=document.getElementById('move-to-team-btn');
   if(moveBtn)moveBtn.style.display=(teamSession&&!t.teamJobId&&!t.done)?'block':'none';
   openSheet('detail-sheet');
   setTimeout(function(){document.getElementById('edit-desc').focus();},320);
 }
-function setEditUrg(u){
-  editUrg=u;
-  ['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:'');});
-}
+function setEditUrg(u){editUrg=u;['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:'');});}
 function saveEdit(){
-  var t=tasks.find(function(x){return x.id===editId;});
-  if(!t)return;
-  var newDesc=document.getElementById('edit-desc').value.trim();
-  var newPid=document.getElementById('edit-pid').value.trim();
-  if(!newDesc)return;
-  t.desc=newDesc;t.pid=newPid;t.urg=editUrg;
+  var t=tasks.find(function(x){return x.id===editId;});if(!t)return;
+  var nd=document.getElementById('edit-desc').value.trim();
+  var np=document.getElementById('edit-pid').value.trim();
+  if(!nd)return;
+  t.desc=nd;t.pid=np;t.urg=editUrg;
   save();closeSheet();render();
 }
 function moveToTeam(){
-  var t=tasks.find(function(x){return x.id===editId;});
-  if(!t||!teamSession)return;
+  var t=tasks.find(function(x){return x.id===editId;});if(!t||!teamSession)return;
   var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
   var jobData={};
-  jobData[jobId]={id:jobId,pid:t.pid,desc:t.desc,urg:t.urg,addedBy:myId,addedByName:myName,assignedTo:myId,assignedToName:myName,done:false,doneBy:null,doneByName:null,created:Date.now()};
+  jobData[jobId]={id:jobId,pid:t.pid,desc:t.desc,urg:t.urg,addedBy:myId,addedByName:myName,assignedTo:myId,assignedToName:myName,assignedColor:myColor,done:false,doneBy:null,doneByName:null,created:Date.now()};
   dbUpdate('/sessions/'+teamSession+'/jobs',jobData).then(function(){
-    // Link the local task to the team job so it shows the badge
-    t.teamJobId=jobId;
-    save();
+    t.teamJobId=jobId;save();
     dbGet('/sessions/'+teamSession+'/jobs').then(function(data){teamJobs=data||{};render();});
   });
-  closeSheet();
-  showBanner('Moved to team list','var(--team)');
-}
-let pendingDelId=null;
-function confirmDel(id){
-  pendingDelId=id;
-  document.getElementById('del-confirm-bd').classList.add('show');
-}
-function cancelDel(){
-  pendingDelId=null;
-  document.getElementById('del-confirm-bd').classList.remove('show');
-}
-function confirmDelFinal(){
-  if(pendingDelId) del(pendingDelId);
-  pendingDelId=null;
-  document.getElementById('del-confirm-bd').classList.remove('show');
+  closeSheet();showBanner('Moved to team list','var(--team)');
 }
 
-/* - Swipe right = complete, left = delete (with confirm) - */
+/* Delete confirm */
+var pendingDelId=null;
+function confirmDel(id){pendingDelId=id;document.getElementById('del-confirm-bd').classList.add('show');}
+function cancelDel(){pendingDelId=null;document.getElementById('del-confirm-bd').classList.remove('show');}
+function confirmDelFinal(){if(pendingDelId)del(pendingDelId);pendingDelId=null;document.getElementById('del-confirm-bd').classList.remove('show');}
+
+/* Swipe */
 function initSwipe(wrap,id){
-  const card=wrap.querySelector('.card');
-  const completeBg=wrap.querySelector('.card-complete-bg');
-  const deleteBg=wrap.querySelector('.card-delete-bg');
-  let sx=0,sy=0,dx=0,on=false,locked=false,horiz=false;
-  const THR=80;
-  card.addEventListener('touchstart',e=>{
-    sx=e.touches[0].clientX;sy=e.touches[0].clientY;dx=0;
-    on=true;locked=false;horiz=false;
-    card.classList.add('swiping');
-  },{passive:true});
-  card.addEventListener('touchmove',e=>{
-    if(!on)return;
-    dx=e.touches[0].clientX-sx;
-    const dy=e.touches[0].clientY-sy;
-    if(!locked){locked=true;horiz=Math.abs(dx)>Math.abs(dy)*1.3}
-    if(!horiz){card.style.transform='';completeBg.style.opacity='0';deleteBg.style.opacity='0';return}
-    e.preventDefault();
-    card.style.transform='translateX('+dx+'px)';
-    if(dx>0){
-      completeBg.style.opacity=Math.min(1,dx/(THR*0.75))+'';
-      deleteBg.style.opacity='0';
-    } else {
-      deleteBg.style.opacity=Math.min(1,Math.abs(dx)/(THR*0.75))+'';
-      completeBg.style.opacity='0';
-    }
+  var card=wrap.querySelector('.card');
+  var completeBg=wrap.querySelector('.card-complete-bg');
+  var deleteBg=wrap.querySelector('.card-delete-bg');
+  var sx=0,sy=0,dx=0,on=false,locked=false,horiz=false,THR=80;
+  card.addEventListener('touchstart',function(e){sx=e.touches[0].clientX;sy=e.touches[0].clientY;dx=0;on=true;locked=false;horiz=false;card.classList.add('swiping');},{passive:true});
+  card.addEventListener('touchmove',function(e){
+    if(!on)return;dx=e.touches[0].clientX-sx;var dy=e.touches[0].clientY-sy;
+    if(!locked){locked=true;horiz=Math.abs(dx)>Math.abs(dy)*1.3;}
+    if(!horiz){card.style.transform='';completeBg.style.opacity='0';deleteBg.style.opacity='0';return;}
+    e.preventDefault();card.style.transform='translateX('+dx+'px)';
+    if(dx>0){completeBg.style.opacity=Math.min(1,dx/(THR*0.75))+'';deleteBg.style.opacity='0';}
+    else{deleteBg.style.opacity=Math.min(1,Math.abs(dx)/(THR*0.75))+'';completeBg.style.opacity='0';}
   },{passive:false});
-  const end=()=>{
+  function end(){
     if(!on)return;on=false;card.classList.remove('swiping');
-    if(horiz&&dx>THR){
-      // swipe right — complete
-      card.style.transition='transform 0.2s ease,opacity 0.2s ease';
-      card.style.transform='translateX(110%)';card.style.opacity='0';
-      completeBg.style.opacity='0';
-      setTimeout(()=>complete(id),220);
-    } else if(horiz&&dx<-THR){
-      // swipe left — confirm delete
-      card.style.transform='';deleteBg.style.opacity='0';
-      confirmDel(id);
-    } else {
-      card.style.transform='';
-      completeBg.style.opacity='0';deleteBg.style.opacity='0';
-    }
+    if(horiz&&dx>THR){card.style.transition='transform 0.2s ease,opacity 0.2s ease';card.style.transform='translateX(110%)';card.style.opacity='0';completeBg.style.opacity='0';setTimeout(function(){complete(id);},220);}
+    else if(horiz&&dx<-THR){card.style.transform='';deleteBg.style.opacity='0';confirmDel(id);}
+    else{card.style.transform='';completeBg.style.opacity='0';deleteBg.style.opacity='0';}
     dx=0;horiz=false;
-  };
+  }
   card.addEventListener('touchend',end,{passive:true});
   card.addEventListener('touchcancel',end,{passive:true});
 }
 
-/* - Render - */
+/* Render */
 function render(){
-  const active=tasks.filter(x=>!x.done).sort((a,b)=>ORD[a.urg]-ORD[b.urg]);
-  const done=tasks.filter(x=>x.done).sort((a,b)=>b.completed-a.completed);
-  document.getElementById('s-imm').textContent=active.filter(x=>x.urg==='i').length;
-  document.getElementById('s-urg').textContent=active.filter(x=>x.urg==='u').length;
-  document.getElementById('s-rtn').textContent=active.filter(x=>x.urg==='r').length;
+  var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
+  var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
+  document.getElementById('s-imm').textContent=active.filter(function(x){return x.urg==='i';}).length;
+  document.getElementById('s-urg').textContent=active.filter(function(x){return x.urg==='u';}).length;
+  document.getElementById('s-rtn').textContent=active.filter(function(x){return x.urg==='r';}).length;
   document.getElementById('tc-active').textContent=active.length;
   document.getElementById('tc-done').textContent=done.length;
-  const teamCount=Object.values(teamJobs).filter(j=>!j.done).length;
-  document.getElementById('tc-team').textContent=teamCount||'';
-  // Don't touch the list if we're on the team tab — renderTeamTab handles it
+  var tc=document.getElementById('tc-team');
+  if(tc)tc.textContent=Object.values(teamJobs).filter(function(j){return!j.done;}).length||'';
   if(curTab==='team'){renderTeamTab();return;}
-  const show=curTab==='active'?active:done;
-  const list=document.getElementById('list');
+  var show=curTab==='active'?active:done;
+  var list=document.getElementById('list');
   if(!show.length){
     list.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" fill="none"><rect x="6" y="4" width="28" height="32" rx="3" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="13" x2="28" y2="13" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="20" x2="22" y2="20" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="27" x2="25" y2="27" stroke="currentColor" stroke-width="1.2"/></svg><div class="empty-title">'+(curTab==='active'?'All clear':'Nothing yet')+'</div><p>'+(curTab==='active'?'Tap Add job below to get started.':'Completed jobs will appear here.')+'</p></div>';
     return;
   }
-  let html='';
+  var html='';
   if(curTab==='active'){
-    ['i','u','r'].forEach(urg=>{
-      const g=active.filter(x=>x.urg===urg);
+    ['i','u','r'].forEach(function(urg){
+      var g=active.filter(function(x){return x.urg===urg;});
       if(!g.length)return;
       html+='<div class="sec-hdr '+urg+'">'+LBL[urg]+'</div>';
-      g.forEach(t=>{html+=cardHtml(t)});
+      g.forEach(function(t){html+=cardHtml(t);});
     });
-  } else {done.forEach(t=>{html+=cardHtml(t)})}
+  }else{done.forEach(function(t){html+=cardHtml(t);});}
   list.innerHTML=html;
-  if(curTab==='active'){
-    active.forEach(t=>{const w=list.querySelector('[data-wrap="'+t.id+'"]');if(w)initSwipe(w,t.id)});
-  }
+  if(curTab==='active'){active.forEach(function(t){var w=list.querySelector('[data-wrap="'+t.id+'"]');if(w)initSwipe(w,t.id);});}
 }
 
 function cardHtml(t){
   var cls=t.done?'done':t.urg;
   var isTeamJob=t.teamJobId&&teamSession;
-  var teamJob=isTeamJob?teamJobs[t.teamJobId]:null;
-  var assignedToOther=teamJob&&teamJob.assignedTo&&teamJob.assignedTo!==myId;
   if(isTeamJob)cls+=' team-assigned';
   var meta=t.done?fmt(t.added)+' · done '+fmt(t.completed):fmt(t.added);
   var pidMeta='<span style="flex:1;min-width:0">'+(t.pid?'<span class="cpid">'+esc(t.pid)+'</span>':'&nbsp;')+'</span><span class="cmeta-time">'+meta+'</span>';
-  var teamBadge=isTeamJob?'<div class="team-badge">\u{1F465} Team'+(assignedToOther?' · '+esc(teamJob.assignedToName||''):'')+'</div>':'';
+  var teamBadge=isTeamJob?'<span class="team-badge">\u{1F465} Team</span>':'';
   var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
-  return '<div class="card-wrap card-new" data-wrap="'+t.id+'"><div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div><div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div><div class="card '+cls+'" data-id="'+t.id+'"><div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div><div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft"><div class="cmeta">'+pidMeta+'</div><div class="cdesc">'+esc(t.desc)+'</div>'+teamBadge+'</div></div><div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div></div></div>';
+  return '<div class="card-wrap card-new" data-wrap="'+t.id+'">'
+    +'<div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div>'
+    +'<div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div>'
+    +'<div class="card '+cls+'" data-id="'+t.id+'">'
+    +'<div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div>'
+    +'<div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft">'
+    +'<div class="cmeta">'+pidMeta+'</div>'
+    +'<div class="cdesc">'+esc(t.desc)+teamBadge+'</div>'
+    +'</div></div>'
+    +'<div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div>'
+    +'</div></div>';
 }
 
-/* - Sheet drag-to-dismiss - */
-['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet'].forEach(sid=>{
-  const sheet=document.getElementById(sid);
-  let sy=0,dy=0,on=false;
-  sheet.addEventListener('touchstart',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.tagName==='TEXTAREA')return;sy=e.touches[0].clientY;dy=0;on=true},{passive:true});
-  sheet.addEventListener('touchmove',e=>{if(!on)return;dy=e.touches[0].clientY-sy;if(dy>0){sheet.style.transition='none';sheet.style.transform='translateY('+dy+'px)'}},{passive:true});
-  sheet.addEventListener('touchend',()=>{if(!on)return;on=false;sheet.style.transition='';sheet.style.transform='';if(dy>90)closeSheet()},{passive:true});
+/* Sheet drag-to-dismiss */
+['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet'].forEach(function(sid){
+  var sheet=document.getElementById(sid);
+  if(!sheet)return;
+  var sy=0,dy=0,on=false;
+  sheet.addEventListener('touchstart',function(e){if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.tagName==='TEXTAREA')return;sy=e.touches[0].clientY;dy=0;on=true;},{passive:true});
+  sheet.addEventListener('touchmove',function(e){if(!on)return;dy=e.touches[0].clientY-sy;if(dy>0){sheet.style.transition='none';sheet.style.transform='translateY('+dy+'px)';}},{passive:true});
+  sheet.addEventListener('touchend',function(){if(!on)return;on=false;sheet.style.transition='';sheet.style.transform='';if(dy>90)closeSheet();},{passive:true});
 });
+document.getElementById('f-pid').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();document.getElementById('f-desc').focus();}});
+document.getElementById('f-desc').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addTask();}});
 
-document.getElementById('f-pid').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();document.getElementById('f-desc').focus()}});
-document.getElementById('f-desc').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();addTask()}});
-
+/* Clock + session bar */
 function tick(){
-  const n=new Date();
+  var n=new Date();
   document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   updateSessionBar();
 }
-
 function updateSessionBar(){
   try{
-    const start=parseInt(localStorage.getItem('wj_start')||'0');
+    var start=parseInt(localStorage.getItem('wj_start')||'0');
     if(!start)return;
-    const elapsed=Date.now()-start;
-    const remaining=Math.max(0,SHIFT_MS-elapsed);
-    const pct=(remaining/SHIFT_MS)*100;
-    const bar=document.getElementById('session-bar');
-    const label=document.getElementById('session-label');
+    var elapsed=Date.now()-start;
+    var remaining=Math.max(0,SHIFT_MS-elapsed);
+    var pct=(remaining/SHIFT_MS)*100;
+    var bar=document.getElementById('session-bar');
+    var label=document.getElementById('session-label');
     if(!bar||!label)return;
     bar.style.width=pct.toFixed(1)+'%';
-    // Colour: green > 50%, amber 25-50%, red < 25%
-    if(pct>50){bar.style.background='var(--rtn)'}
-    else if(pct>25){bar.style.background='var(--urg)'}
-    else{bar.style.background='var(--imm)'}
-    // Label: show time remaining
-    const hrs=Math.floor(remaining/3600000);
-    const mins=Math.floor((remaining%3600000)/60000);
-    if(remaining<=0){label.textContent='Session expired — refreshing…';}
-    else if(hrs>0){label.textContent='Session clears in '+hrs+'h '+mins+'m';}
-    else{label.textContent='Session clears in '+mins+' min'+(mins!==1?'s':'');}
+    if(pct>50)bar.style.background='var(--rtn)';
+    else if(pct>25)bar.style.background='var(--urg)';
+    else bar.style.background='var(--imm)';
+    var hrs=Math.floor(remaining/3600000);
+    var mins=Math.floor((remaining%3600000)/60000);
+    if(remaining<=0)label.textContent='Session expired';
+    else if(hrs>0)label.textContent='Session clears in '+hrs+'h '+mins+'m';
+    else label.textContent='Session clears in '+mins+' min'+(mins!==1?'s':'');
   }catch(e){}
 }
-load();
 
-/* - Auto-import from QR scan URL - */
-(function(){
-  try{
-    const params=new URLSearchParams(window.location.search);
-    const ho=params.get('ho');
-    if(!ho)return;
-    window.history.replaceState({},'',window.location.pathname);
-    const result=decodeHandover(ho)||decodeHandover(decodeURIComponent(ho));
-    if(!result||!result.length)return;
-    // Re-read localStorage fresh — another tab may have already saved jobs
-    try{const fresh=JSON.parse(localStorage.getItem('wj')||'[]');if(fresh.length>tasks.length)tasks=fresh;}catch(e){}
-    // Deduplicate by description+pid to avoid double-importing same job
-    const existingKeys=new Set(tasks.map(t=>t.urg+'|'+t.pid+'|'+t.desc));
-    const newJobs=result.filter(t=>!existingKeys.has(t.urg+'|'+t.pid+'|'+t.desc));
-    if(!newJobs.length)return;
-    tasks=newJobs.concat(tasks);
-    save();
-    const total=tasks.filter(x=>!x.done).length;
-    const banner=document.createElement('div');
-    banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:#2d7a55;color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(45,122,85,0.3);font-family:DM Sans,sans-serif;text-align:center';
-    banner.textContent=newJobs.length+' job'+(newJobs.length!==1?'s':'')+' added · '+total+' total';
-    document.body.appendChild(banner);
-    setTimeout(()=>{banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(()=>banner.remove(),400)},4000);
-  }catch(e){}
-})();
-
-/* - Team session - */
-function genCode(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c='';for(let i=0;i<6;i++)c+=chars[Math.floor(Math.random()*chars.length)];
-  return c;
+/* Team polling */
+function startTeamPoll(){
+  stopTeamPoll();
+  fetchTeamData();
+  teamPollInterval=setInterval(fetchTeamData,4000);
+}
+function stopTeamPoll(){if(teamPollInterval){clearInterval(teamPollInterval);teamPollInterval=null;}}
+function fetchTeamData(){
+  if(!teamSession)return;
+  dbGet('/sessions/'+teamSession).then(function(data){
+    if(!data){stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');if(curTab==='team')renderTeamTab();render();return;}
+    if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
+      dbRemove('/sessions/'+teamSession);stopTeamPoll();
+      teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
+      if(curTab==='team')renderTeamTab();render();showBanner('Team session expired','#c0392b');return;
+    }
+    teamJobs=data.jobs||{};teamMembers=data.members||{};
+    teamCreatorId=data.createdBy||teamCreatorId;
+    if(data.created)window.teamSessionCreated=data.created;
+    if(curTab==='team')renderTeamTab();render();
+  }).catch(function(){});
 }
 
+/* Team setup */
+function genCode(){var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
 function openTeamSetup(){
   document.getElementById('team-name-input').value=myName;
   document.getElementById('join-code-input').value='';
   document.getElementById('team-setup-error').style.display='none';
   openSheet('team-setup-sheet');
-  setTimeout(()=>document.getElementById('team-name-input').focus(),320);
+  setTimeout(function(){document.getElementById('team-name-input').focus();},320);
 }
-
 function validateName(){
-  const n=document.getElementById('team-name-input').value.trim();
-  if(!n){
-    const err=document.getElementById('team-setup-error');
-    err.textContent='Please enter your name first.';err.style.display='block';return null;
-  }
-  myName=n;localStorage.setItem('wj_name',n);
-  return n;
+  var n=document.getElementById('team-name-input').value.trim();
+  if(!n){var err=document.getElementById('team-setup-error');err.textContent='Please enter your name first.';err.style.display='block';return null;}
+  myName=n;localStorage.setItem('wj_name',n);return n;
 }
-
 function createSession(){
   var name=validateName();if(!name)return;
   var code=genCode();
-  var members={};members[myId]={name:name,joined:Date.now()};
-  dbSet('/sessions/'+code,{code:code,created:Date.now(),members:members,jobs:{}}).then(function(){
-    closeSheet();joinSessionByCode(code,name);
+  myColor=TEAM_COLORS[0];localStorage.setItem('wj_color',myColor);
+  var members={};members[myId]={name:name,color:myColor,joined:Date.now()};
+  dbSet('/sessions/'+code,{code:code,created:Date.now(),createdBy:myId,members:members,jobs:{}}).then(function(){
+    teamCreatorId=myId;closeSheet();joinSessionByCode(code,name);
   }).catch(function(){
-    var err=document.getElementById('team-setup-error');
-    err.textContent='Could not create session. Check your connection.';err.style.display='block';
+    var err=document.getElementById('team-setup-error');err.textContent='Could not create session. Check your connection.';err.style.display='block';
   });
 }
-
 function joinSession(){
   var name=validateName();if(!name)return;
   var code=document.getElementById('join-code-input').value.trim().toUpperCase();
-  if(code.length!==6){
-    var err=document.getElementById('team-setup-error');
-    err.textContent='Please enter the full 6-character code.';err.style.display='block';return;
-  }
+  if(code.length!==6){var err=document.getElementById('team-setup-error');err.textContent='Please enter the full 6-character code.';err.style.display='block';return;}
   dbGet('/sessions/'+code).then(function(data){
-    if(!data){
-      var err=document.getElementById('team-setup-error');
-      err.textContent='Session not found. Check the code and try again.';err.style.display='block';return;
-    }
-    var memberData={};memberData[myId]={name:name,joined:Date.now()};
-    dbUpdate('/sessions/'+code+'/members',memberData).then(function(){
-      closeSheet();joinSessionByCode(code,name);
-    });
+    if(!data){var err=document.getElementById('team-setup-error');err.textContent='Session not found. Check the code and try again.';err.style.display='block';return;}
+    var idx=Object.keys(data.members||{}).length;
+    myColor=TEAM_COLORS[idx%TEAM_COLORS.length];localStorage.setItem('wj_color',myColor);
+    teamCreatorId=data.createdBy||null;
+    var md={};md[myId]={name:name,color:myColor,joined:Date.now()};
+    dbUpdate('/sessions/'+code+'/members',md).then(function(){closeSheet();joinSessionByCode(code,name);});
   }).catch(function(){
-    var err=document.getElementById('team-setup-error');
-    err.textContent='Could not connect. Check your internet connection.';err.style.display='block';
+    var err=document.getElementById('team-setup-error');err.textContent='Could not connect. Check your internet.';err.style.display='block';
   });
 }
-
 function joinSessionByCode(code,name){
-  stopTeamPoll();
-  teamSession=code;
-  localStorage.setItem('wj_team',code);
-  localStorage.setItem('wj_name',name);
+  stopTeamPoll();teamSession=code;
+  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);
   dbGet('/sessions/'+code).then(function(data){
-    teamJobs=(data&&data.jobs)||{};
-    teamMembers=(data&&data.members)||{};
-    setTab('team');
-    startTeamPoll();
+    teamJobs=(data&&data.jobs)||{};teamMembers=(data&&data.members)||{};
+    teamCreatorId=(data&&data.createdBy)||null;
+    if(data&&data.created)window.teamSessionCreated=data.created;
+    if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
+    setTab('team');startTeamPoll();
   });
   showBanner('Joined session '+code,'var(--team)');
 }
-
 function leaveSession(){
   if(!teamSession)return;
   stopTeamPoll();
   dbRemove('/sessions/'+teamSession+'/members/'+myId);
-  teamSession=null;teamJobs={};
-  localStorage.removeItem('wj_team');
-  setTab('active');
+  tasks=tasks.filter(function(t){return!t.teamJobId;});save();
+  teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
+  localStorage.removeItem('wj_team');setTab('active');
+}
+function closeSession(){
+  if(!teamSession||teamCreatorId!==myId)return;
+  stopTeamPoll();dbRemove('/sessions/'+teamSession);
+  tasks=tasks.filter(function(t){return!t.teamJobId;});save();
+  teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
+  localStorage.removeItem('wj_team');showBanner('Session closed','#c0392b');setTab('active');
 }
 
+/* Team jobs */
 function addTeamJob(pid,desc,urg){
   if(!teamSession)return;
   var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
-  var jobData={};
-  jobData[jobId]={id:jobId,pid:pid,desc:desc,urg:urg,addedBy:myId,addedByName:myName,assignedTo:null,assignedToName:null,done:false,doneBy:null,doneByName:null,created:Date.now()};
-  dbUpdate('/sessions/'+teamSession+'/jobs',jobData).then(function(){
-    dbGet('/sessions/'+teamSession+'/jobs').then(function(data){teamJobs=data||{};renderTeamTab();render();});
-  });
+  var jd={};jd[jobId]={id:jobId,pid:pid,desc:desc,urg:urg,addedBy:myId,addedByName:myName,assignedTo:null,assignedToName:null,assignedColor:null,done:false,doneBy:null,doneByName:null,created:Date.now()};
+  dbUpdate('/sessions/'+teamSession+'/jobs',jd).then(function(){dbGet('/sessions/'+teamSession+'/jobs').then(function(data){teamJobs=data||{};if(curTab==='team')renderTeamTab();render();});});
 }
-
 function assignTeamJob(jobId){
   if(!teamSession)return;
   var job=teamJobs[jobId];if(!job)return;
-  var update={};
+  if(job.assignedTo&&job.assignedTo!==myId){showBanner('Already assigned to '+esc(job.assignedToName||'someone'),'#92620a');return;}
+  var upd={};
   if(job.assignedTo===myId){
-    // Unassign — remove from personal list too
-    update.assignedTo=null;update.assignedToName=null;
-    tasks=tasks.filter(function(t){return t.teamJobId!==jobId;});
-    save();
+    upd={assignedTo:null,assignedToName:null,assignedColor:null};
+    tasks=tasks.filter(function(t){return t.teamJobId!==jobId;});save();
   }else{
-    // Assign to self — add to personal active list with team badge
-    update.assignedTo=myId;update.assignedToName=myName;
-    var alreadyInList=tasks.find(function(t){return t.teamJobId===jobId;});
-    if(!alreadyInList){
+    upd={assignedTo:myId,assignedToName:myName,assignedColor:myColor};
+    if(!tasks.find(function(t){return t.teamJobId===jobId;})){
       tasks.unshift({id:'t'+jobId,pid:job.pid,desc:job.desc,urg:job.urg,added:Date.now(),done:false,completed:null,teamJobId:jobId});
       save();
     }
   }
-  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,update).then(function(){
-    teamJobs[jobId]=Object.assign({},job,update);
-    renderTeamTab();render();
-  });
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){teamJobs[jobId]=Object.assign({},job,upd);renderTeamTab();render();});
 }
-
 function completeTeamJob(jobId){
   if(!teamSession)return;
   var job=teamJobs[jobId];if(!job)return;
-  var update={done:!job.done,doneBy:job.done?null:myId,doneByName:job.done?null:myName,completedAt:job.done?null:Date.now()};
-  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,update).then(function(){
-    teamJobs[jobId]=Object.assign({},job,update);
-    // Sync personal task if exists
-    var localTask=tasks.find(function(t){return t.teamJobId===jobId;});
-    if(localTask){localTask.done=update.done;localTask.completed=update.completedAt||null;save();}
+  var upd={done:!job.done,doneBy:job.done?null:myId,doneByName:job.done?null:myName,completedAt:job.done?null:Date.now()};
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){
+    teamJobs[jobId]=Object.assign({},job,upd);
+    var lt=tasks.find(function(t){return t.teamJobId===jobId;});
+    if(lt){lt.done=upd.done;lt.completed=upd.completedAt||null;save();}
     renderTeamTab();render();
   });
 }
 
+/* Team tab render */
 function renderTeamTab(){
   var list=document.getElementById('list');
   if(!teamSession){
-    list.innerHTML='<div style="padding:24px 6px"><div style="background:var(--team-bg);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px"><div style="font-family:\'DM Serif Display\',serif;font-size:22px;font-weight:400;color:var(--team);margin-bottom:8px;letter-spacing:-0.02em">Team jobs</div><div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;font-weight:500">Create or join a shared session to see and manage jobs with your ward team in real time.</div><button onclick="openTeamSetup()" style="background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer;width:100%">Join or create session</button></div></div>';
+    list.innerHTML='';
+    var wrap=document.createElement('div');wrap.style.padding='24px 6px';
+    var card=document.createElement('div');
+    card.style.cssText='background:var(--team-bg);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px';
+    card.innerHTML='<div style="font-size:22px;font-weight:400;color:var(--team);margin-bottom:8px;font-family:DM Serif Display,serif">Team jobs</div>'
+      +'<div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;font-weight:500">Create or join a shared session to see and manage jobs with your ward team in real time.</div>';
+    var btn=document.createElement('button');
+    btn.textContent='Join or create session';
+    btn.style.cssText='background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;width:100%';
+    btn.onclick=openTeamSetup;
+    card.appendChild(btn);wrap.appendChild(card);list.appendChild(wrap);
     return;
   }
-
-  var jobs=Object.values(teamJobs).sort(function(a,b){
-    if(a.done!==b.done)return a.done?1:-1;
-    var ord={i:0,u:1,r:2};return ord[a.urg]-ord[b.urg];
-  });
+  var jobs=Object.values(teamJobs).sort(function(a,b){if(a.done!==b.done)return a.done?1:-1;return ORD[a.urg]-ORD[b.urg];});
   var active=jobs.filter(function(j){return!j.done;});
   var done=jobs.filter(function(j){return j.done;});
-  var members=Object.values(teamMembers);
+  var members=teamMembers;
+  var isCreator=teamCreatorId===myId;
 
-  var html='<div style="padding:8px 6px 160px">';
-
-  // Header row — session code + actions
-  html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
-  html+='<div style="display:flex;align-items:center;gap:7px"><div class="team-status-dot"></div><span style="font-size:12px;font-weight:700;color:var(--team);letter-spacing:0.06em">'+teamSession+'</span></div>';
-  html+='<div style="display:flex;gap:6px"><button onclick="openAddTeamJobSheet()" style="padding:6px 12px;background:var(--team-bg);color:var(--team);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">+ Add job</button><button onclick="leaveSession()" style="padding:6px 12px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:\'DM Sans\',sans-serif;cursor:pointer">Leave</button></div>';
-  html+='</div>';
-
-  // Members row
-  if(members.length){
-    html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
-    members.forEach(function(m){
-      var isMe=m.name===myName;
-      var initials=m.name.split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
-      html+='<div style="display:flex;align-items:center;gap:5px;background:'+(isMe?'var(--team)':'var(--team-bg)')+';color:'+(isMe?'#fff':'var(--team)')+';border-radius:20px;padding:4px 10px 4px 4px">';
-      html+='<div style="width:20px;height:20px;border-radius:50%;background:'+(isMe?'rgba(255,255,255,0.25)':'var(--team)')+';color:'+(isMe?'#fff':'#fff')+';font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center">'+initials+'</div>';
-      html+='<span style="font-size:11px;font-weight:600">'+esc(m.name)+(isMe?' (you)':'')+'</span>';
-      html+='</div>';
-    });
-    html+='</div>';
+  // Session time bar
+  var barPct=100,timeLabel='Session active';
+  if(window.teamSessionCreated){
+    var elapsed=Date.now()-window.teamSessionCreated;
+    var remaining=Math.max(0,TEAM_SESSION_MS-elapsed);
+    barPct=Math.round((remaining/TEAM_SESSION_MS)*100);
+    var h=Math.floor(remaining/3600000),mn=Math.floor((remaining%3600000)/60000);
+    timeLabel=h>0?('Clears in '+h+'h '+mn+'m'):('Clears in '+mn+' min');
   }
+  var barColor=barPct>50?'var(--team)':barPct>25?'var(--urg)':'var(--imm)';
+
+  list.innerHTML='';
+  var container=document.createElement('div');container.style.cssText='padding:8px 6px 160px';
+
+  // Header
+  var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
+  hdr.innerHTML='<div style="display:flex;align-items:center;gap:7px"><div class="team-status-dot"></div><span style="font-size:13px;font-weight:700;color:var(--team);letter-spacing:0.06em">'+teamSession+'</span></div>'
+    +'<span style="font-size:11px;color:var(--muted);font-weight:500">'+timeLabel+'</span>';
+  container.appendChild(hdr);
+
+  // Time bar
+  var barWrap=document.createElement('div');barWrap.className='team-session-bar';
+  var barFill=document.createElement('div');barFill.className='team-session-fill';
+  barFill.style.cssText='width:'+barPct+'%;background:'+barColor;
+  barWrap.appendChild(barFill);container.appendChild(barWrap);
+
+  // Members
+  var memberKeys=Object.keys(members);
+  if(memberKeys.length){
+    var mrow=document.createElement('div');mrow.style.cssText='display:flex;align-items:center;gap:5px;margin-bottom:12px;flex-wrap:wrap';
+    memberKeys.forEach(function(uid){
+      var m=members[uid];
+      var isMe=uid===myId;
+      var col=m.color||TEAM_COLORS[0];
+      var initials=m.name.split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
+      var chip=document.createElement('div');
+      chip.style.cssText='display:flex;align-items:center;gap:5px;background:'+(isMe?col:'var(--surface2)')+';color:'+(isMe?'#fff':col)+';border-radius:20px;padding:3px 9px 3px 3px;border:1.5px solid '+col+(isMe?'':'33')+';cursor:pointer;transition:opacity 0.15s';
+      chip.innerHTML='<div style="width:20px;height:20px;border-radius:50%;background:'+col+';color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">'+initials+'</div>'
+        +'<span style="font-size:11px;font-weight:600">'+esc(m.name)+(isMe?' (you)':'')+'</span>';
+      chip.addEventListener('click',function(){openMemberProfile(uid);});
+      mrow.appendChild(chip);
+    });
+    container.appendChild(mrow);
+  }
+
+  // Action buttons
+  var actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;margin-bottom:14px';
+  var addBtn=document.createElement('button');
+  addBtn.textContent='+ Add job';addBtn.style.cssText='flex:1;padding:10px;background:var(--team-bg);color:var(--team);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
+  addBtn.onclick=openAddTeamJobSheet;actions.appendChild(addBtn);
+  var leaveBtn=document.createElement('button');
+  leaveBtn.textContent='Leave';leaveBtn.style.cssText='padding:10px 14px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
+  leaveBtn.onclick=leaveSession;actions.appendChild(leaveBtn);
+  if(isCreator){
+    var closeBtn=document.createElement('button');
+    closeBtn.textContent='Close';closeBtn.style.cssText='padding:10px 14px;background:var(--imm-bg);color:var(--imm);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
+    closeBtn.onclick=closeSession;actions.appendChild(closeBtn);
+  }
+  container.appendChild(actions);
 
   // Jobs
   if(!jobs.length){
-    html+='<div class="team-empty">No jobs yet.<br>Tap <strong>+ Add job</strong> to get started.</div>';
+    var empty=document.createElement('div');empty.className='team-empty';empty.innerHTML='No jobs yet.<br>Tap <strong>+ Add job</strong> to get started.';container.appendChild(empty);
   }else{
-    if(active.length){
-      html+='<div style="font-family:\'DM Serif Display\',serif;font-size:13px;font-style:italic;color:var(--team);padding:4px 4px 6px;display:flex;align-items:center;gap:8px">Unassigned<span style="flex:1;height:1px;background:var(--team-bd)"></span></div>';
-      var unassigned=active.filter(function(j){return!j.assignedTo;});
-      var assigned=active.filter(function(j){return j.assignedTo;});
-      if(unassigned.length){
-        html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px">';
-        unassigned.forEach(function(j){
-          html+=teamJobRow(j);
-        });
-        html+='</div>';
-      }else{
-        html+='<div style="font-size:12px;color:var(--dim);padding:4px 4px 10px;font-weight:500">All jobs assigned</div>';
-      }
-      if(assigned.length){
-        html+='<div style="font-family:\'DM Serif Display\',serif;font-size:13px;font-style:italic;color:var(--team);padding:4px 4px 6px;display:flex;align-items:center;gap:8px">Assigned<span style="flex:1;height:1px;background:var(--team-bd)"></span></div>';
-        html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px">';
-        assigned.forEach(function(j){
-          html+=teamJobRow(j);
-        });
-        html+='</div>';
-      }
-    }
-    if(done.length){
-      html+='<div style="font-family:\'DM Serif Display\',serif;font-size:13px;font-style:italic;color:var(--dim);padding:4px 4px 6px;display:flex;align-items:center;gap:8px">Completed<span style="flex:1;height:1px;background:var(--border-mid)"></span></div>';
-      html+='<div style="background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px">';
-      done.forEach(function(j){
-        html+='<div class="team-job-row" style="opacity:0.45"><div class="team-job-dot '+j.urg+'"></div><div class="team-job-body"><div class="team-job-desc" style="text-decoration:line-through">'+esc(j.desc)+'</div><div class="team-job-meta">Done by '+esc(j.doneByName||'Unknown')+'</div></div><div class="team-job-actions"><button class="tja tja-done is-done" onclick="completeTeamJob(\''+j.id+'\')">Undo</button></div></div>';
-      });
-      html+='</div>';
-    }
+    var unassigned=active.filter(function(j){return!j.assignedTo;});
+    var assigned=active.filter(function(j){return j.assignedTo;});
+    if(unassigned.length){container.appendChild(teamSectionHeader('Unassigned'));container.appendChild(teamJobList(unassigned));}
+    if(assigned.length){container.appendChild(teamSectionHeader('Assigned'));container.appendChild(teamJobList(assigned));}
+    if(active.length&&!active.length&&done.length){var allDone=document.createElement('div');allDone.style.cssText='text-align:center;padding:16px;font-size:13px;color:var(--rtn);font-weight:600';allDone.textContent='\u2713 All jobs complete';container.appendChild(allDone);}
+    if(done.length){container.appendChild(teamSectionHeader('Completed'));container.appendChild(teamJobList(done,true));}
   }
-  html+='</div>';
-  list.innerHTML=html;
+  list.appendChild(container);
 }
 
-function teamJobRow(j){
+function teamSectionHeader(text){
+  var d=document.createElement('div');
+  d.style.cssText='font-family:DM Serif Display,serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 6px;display:flex;align-items:center;gap:8px';
+  d.innerHTML=text+'<span style="flex:1;height:1px;background:var(--border-mid)"></span>';
+  return d;
+}
+
+function teamJobList(jobs,isDone){
+  var wrap=document.createElement('div');wrap.style.cssText='background:var(--surface);border-radius:18px;overflow:hidden;margin-bottom:10px';
+  jobs.forEach(function(j){wrap.appendChild(teamJobRow(j,isDone));});
+  return wrap;
+}
+
+function teamJobRow(j,isDone){
   var isMe=j.assignedTo===myId;
-  var assignLabel=j.assignedTo?(isMe?'Mine \u2713':esc(j.assignedToName||'')):'Assign';
-  var h='<div class="team-job-row'+(j.assignedTo?' assigned':'')+'">'; 
-  h+='<div class="team-job-dot '+j.urg+'"></div>';
-  h+='<div class="team-job-body"><div class="team-job-desc">'+esc(j.desc)+(j.pid?'<span style="color:var(--muted);font-size:11px;font-weight:700;margin-left:6px;text-transform:uppercase">'+esc(j.pid)+'</span>':'')+'</div>';
-  h+='<div class="team-job-meta">'+esc(j.addedByName||'Unknown')+(j.assignedTo&&!isMe?' &middot; <span style="color:var(--team)">'+esc(j.assignedToName)+'</span>':'')+'</div></div>';
-  h+='<div class="team-job-actions"><button class="tja tja-assign'+(isMe?' mine':'')+'" onclick="assignTeamJob(\''+j.id+'\')">'+assignLabel+'</button><button class="tja tja-done" onclick="completeTeamJob(\''+j.id+'\')">Done</button></div>';
-  h+='</div>';
-  return h;
+  var takenByOther=j.assignedTo&&j.assignedTo!==myId;
+  var col=j.assignedColor||'var(--team)';
+  var row=document.createElement('div');
+  row.className='team-job-row';
+  if(j.assignedTo)row.style.borderLeft='3px solid '+col;
+  else row.style.borderLeft='3px solid transparent';
+  if(isDone)row.style.opacity='0.5';
+
+  var dot=document.createElement('div');dot.className='team-job-dot '+j.urg;dot.style.marginTop='13px';row.appendChild(dot);
+
+  var body=document.createElement('div');body.className='team-job-body';
+
+  var desc=document.createElement('div');desc.className='team-job-desc';
+  if(isDone)desc.style.textDecoration='line-through';
+  desc.textContent=j.desc;
+  if(j.pid){var pid=document.createElement('span');pid.style.cssText='color:var(--muted);font-size:10px;font-weight:700;margin-left:6px;text-transform:uppercase';pid.textContent=j.pid;desc.appendChild(pid);}
+  body.appendChild(desc);
+
+  var meta=document.createElement('div');meta.className='team-job-meta';meta.style.marginTop='4px';
+  var addedLabel=document.createElement('span');addedLabel.style.cssText='font-size:10px;color:var(--dim);font-weight:500';addedLabel.textContent='Added by '+(j.addedByName||'Unknown');meta.appendChild(addedLabel);
+  if(j.assignedTo){
+    var chip=document.createElement('span');
+    chip.style.cssText='display:inline-flex;align-items:center;gap:3px;background:'+col+'22;color:'+col+';border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:6px';
+    var dot2=document.createElement('span');dot2.style.cssText='width:6px;height:6px;border-radius:50%;background:'+col;chip.appendChild(dot2);
+    chip.appendChild(document.createTextNode(isMe?'You':(j.assignedToName||'')));meta.appendChild(chip);
+  }
+  body.appendChild(meta);row.appendChild(body);
+
+  var actions=document.createElement('div');actions.className='team-job-actions';
+  if(!isDone){
+    var assignBtn=document.createElement('button');
+    assignBtn.className='tja tja-assign'+(isMe?' mine':'');
+    assignBtn.textContent=j.assignedTo?(isMe?'Mine \u2713':(j.assignedToName||'')):'Assign me';
+    if(takenByOther)assignBtn.style.cssText='opacity:0.35;cursor:not-allowed';
+    assignBtn.addEventListener('click',function(){assignTeamJob(j.id);});
+    actions.appendChild(assignBtn);
+  }
+  var doneBtn=document.createElement('button');
+  doneBtn.className='tja tja-done'+(isDone?' is-done':'');
+  doneBtn.textContent=isDone?'Undo':'Done';
+  doneBtn.addEventListener('click',function(){completeTeamJob(j.id);});
+  actions.appendChild(doneBtn);
+  row.appendChild(actions);
+  return row;
 }
 
 function openAddTeamJobSheet(){
+  var sub=document.getElementById('add-sheet-submit');
+  if(sub){sub.onclick=addTeamJobFromSheet;sub.textContent='Add to team';}
+  var toggle=document.getElementById('add-sheet-team-toggle');
+  if(toggle)toggle.style.display='none'; // hide toggle since we know destination
   openSheet('add-sheet');
-  document.querySelector('#add-sheet .submit-btn').onclick=addTeamJobFromSheet;
   setTimeout(function(){document.getElementById('f-desc').focus();},320);
 }
 function addTeamJobFromSheet(){
@@ -1538,9 +1301,66 @@ function addTeamJobFromSheet(){
   if(!desc){var el=document.getElementById('f-desc');el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);el.focus();return;}
   addTeamJob(pid,desc,selUrg);
   document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
-  closeSheet();
-  document.querySelector('#add-sheet .submit-btn').onclick=addTask;
-  setTab('team');
+  var sub=document.getElementById('add-sheet-submit');if(sub){sub.onclick=addTask;sub.textContent='Add job';}
+  closeSheet();setTab('team');
+}
+
+/* Member profile */
+function openMemberProfile(uid){
+  var member=teamMembers[uid];if(!member)return;
+  var col=member.color||TEAM_COLORS[0];
+  var isMe=uid===myId;
+  var initials=member.name.split(' ').map(function(w){return w[0]||'';}).join('').toUpperCase().slice(0,2);
+  var allJobs=Object.values(teamJobs);
+  var assigned=allJobs.filter(function(j){return j.assignedTo===uid&&!j.done;});
+  var completed=allJobs.filter(function(j){return j.doneBy===uid&&j.done;});
+
+  var content=document.getElementById('member-sheet-content');content.innerHTML='';
+
+  // Avatar header
+  var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;gap:14px;padding:0 0 20px';
+  var avatar=document.createElement('div');avatar.style.cssText='width:52px;height:52px;border-radius:50%;background:'+col+';color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0';
+  avatar.textContent=initials;hdr.appendChild(avatar);
+  var nameWrap=document.createElement('div');
+  var name=document.createElement('div');name.style.cssText='font-family:DM Serif Display,serif;font-size:22px;font-weight:400;letter-spacing:-0.02em';name.textContent=member.name+(isMe?' (you)':'');
+  var sub=document.createElement('div');sub.style.cssText='font-size:12px;color:var(--muted);font-weight:500;margin-top:2px';sub.textContent='Session '+teamSession;
+  nameWrap.appendChild(name);nameWrap.appendChild(sub);hdr.appendChild(nameWrap);content.appendChild(hdr);
+
+  // Stats
+  var stats=document.createElement('div');stats.style.cssText='display:flex;gap:8px;margin-bottom:20px';
+  function statCard(num,label,bg,tc){
+    var d=document.createElement('div');d.style.cssText='flex:1;background:'+bg+';border-radius:14px;padding:12px;text-align:center';
+    d.innerHTML='<div style="font-family:DM Serif Display,serif;font-size:24px;color:'+tc+'">'+num+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">'+label+'</div>';
+    return d;
+  }
+  stats.appendChild(statCard(assigned.length,'Active','var(--team-bg)','var(--team)'));
+  stats.appendChild(statCard(completed.length,'Done','var(--rtn-bg)','var(--rtn)'));
+  content.appendChild(stats);
+
+  function jobSection(title,list,isDone){
+    if(!list.length)return;
+    var lbl=document.createElement('div');lbl.style.cssText='font-family:DM Serif Display,serif;font-size:14px;font-style:italic;color:var(--muted);margin-bottom:8px';lbl.textContent=title;content.appendChild(lbl);
+    var wrap=document.createElement('div');wrap.style.cssText='background:var(--surface2);border-radius:16px;overflow:hidden;margin-bottom:16px';
+    list.forEach(function(j){
+      var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border)'+(isDone?';opacity:0.6':'');
+      var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+(j.urg==='i'?'var(--imm)':j.urg==='u'?'var(--urg)':'var(--rtn)');row.appendChild(dot);
+      var text=document.createElement('div');text.style.cssText='flex:1;min-width:0';
+      var d=document.createElement('div');d.style.cssText='font-size:14px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'+(isDone?';text-decoration:line-through':'');d.textContent=j.desc;text.appendChild(d);
+      if(j.pid){var pid=document.createElement('div');pid.style.cssText='font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;margin-top:1px';pid.textContent=j.pid;text.appendChild(pid);}
+      row.appendChild(text);wrap.appendChild(row);
+    });
+    content.appendChild(wrap);
+  }
+
+  jobSection('Active jobs',assigned,false);
+  jobSection('Completed',completed,true);
+  if(!assigned.length&&!completed.length){
+    var empty=document.createElement('div');empty.style.cssText='text-align:center;padding:32px 0;color:var(--dim);font-size:13px;font-weight:500';empty.textContent='No jobs assigned yet';content.appendChild(empty);
+  }
+
+  var closeBtn=document.createElement('button');closeBtn.className='submit-btn';closeBtn.style.marginTop='4px';closeBtn.textContent='Close';closeBtn.onclick=closeSheet;content.appendChild(closeBtn);
+  openSheet('member-sheet');
 }
 
 function showBanner(msg,bg){
@@ -1549,6 +1369,51 @@ function showBanner(msg,bg){
   banner.textContent=msg;document.body.appendChild(banner);
   setTimeout(function(){banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(function(){banner.remove();},400);},3000);
 }
+
+/* Auto-import from QR */
+(function(){
+  try{
+    var params=new URLSearchParams(window.location.search);
+    var ho=params.get('ho');if(!ho)return;
+    window.history.replaceState({},'',window.location.pathname);
+    var result=decodeHandover(ho)||decodeHandover(decodeURIComponent(ho));
+    if(!result||!result.length)return;
+    try{var fresh=JSON.parse(localStorage.getItem('wj')||'[]');if(fresh.length>tasks.length)tasks=fresh;}catch(e){}
+    var keys=new Set(tasks.map(function(t){return t.urg+'|'+t.pid+'|'+t.desc;}));
+    var newJobs=result.filter(function(t){return!keys.has(t.urg+'|'+t.pid+'|'+t.desc);});
+    if(!newJobs.length)return;
+    tasks=newJobs.concat(tasks);save();
+    var total=tasks.filter(function(x){return!x.done;}).length;
+    showBanner(newJobs.length+' job'+(newJobs.length!==1?'s':'')+' added · '+total+' total','#2d7a55');
+  }catch(e){}
+})();
+
+/* Restore team session */
+(function(){
+  var savedCode=localStorage.getItem('wj_team');
+  var savedName=localStorage.getItem('wj_name');
+  if(savedCode&&savedName){
+    myName=savedName;
+    dbGet('/sessions/'+savedCode).then(function(data){
+      if(data){
+        teamSession=savedCode;teamCreatorId=data.createdBy||null;
+        if(data.created)window.teamSessionCreated=data.created;
+        var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
+        dbUpdate('/sessions/'+savedCode+'/members',md);
+        teamJobs=data.jobs||{};teamMembers=data.members||{};
+        render();startTeamPoll();
+      }else{localStorage.removeItem('wj_team');}
+    }).catch(function(){});
+  }
+})();
+
+function startApp(){
+  load();render();tick();setInterval(tick,15000);
+}
+
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',startApp);}
+else{startApp();}
+
 </script>
 <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
 </body>
