@@ -914,14 +914,22 @@ function initSwipe(wrap,id){
 function render(){
   var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
   var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
+  document.getElementById('tc-active').textContent=active.length;
+  document.getElementById('tc-done').textContent=done.length;
+  var teamActive=Object.values(teamJobs).filter(function(j){return!j.done;});
+  var tc=document.getElementById('tc-team');
+  if(tc)tc.textContent=teamActive.length||'';
+  if(curTab==='team'){
+    // Show team urgency counts in pills
+    document.getElementById('s-imm').textContent=teamActive.filter(function(j){return j.urg==='i';}).length;
+    document.getElementById('s-urg').textContent=teamActive.filter(function(j){return j.urg==='u';}).length;
+    document.getElementById('s-rtn').textContent=teamActive.filter(function(j){return j.urg==='r';}).length;
+    renderTeamTab();updateSessionBar();return;
+  }
+  // Personal counts
   document.getElementById('s-imm').textContent=active.filter(function(x){return x.urg==='i';}).length;
   document.getElementById('s-urg').textContent=active.filter(function(x){return x.urg==='u';}).length;
   document.getElementById('s-rtn').textContent=active.filter(function(x){return x.urg==='r';}).length;
-  document.getElementById('tc-active').textContent=active.length;
-  document.getElementById('tc-done').textContent=done.length;
-  var tc=document.getElementById('tc-team');
-  if(tc)tc.textContent=Object.values(teamJobs).filter(function(j){return!j.done;}).length||'';
-  if(curTab==='team'){renderTeamTab();return;}
   var show=curTab==='active'?active:done;
   var list=document.getElementById('list');
   if(!show.length){
@@ -964,8 +972,8 @@ function cardHtml(t){
     +'<div class="card '+cls+'" data-id="'+t.id+'">'
     +'<div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div>'
     +'<div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft">'
-    +'<div class="cmeta">'+pidMeta+'</div>'
-    +'<div class="cdesc">'+esc(t.desc)+teamBadge+'</div>'
+    +'<div class="cmeta">'+pidMeta+teamBadge+'</div>'
+    +'<div class="cdesc">'+esc(t.desc)+'</div>'
     +'</div></div>'
     +'<div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div>'
     +'</div></div>';
@@ -991,23 +999,42 @@ function tick(){
 }
 function updateSessionBar(){
   try{
-    var start=parseInt(localStorage.getItem('wj_start')||'0');
-    if(!start)return;
-    var elapsed=Date.now()-start;
-    var remaining=Math.max(0,SHIFT_MS-elapsed);
-    var pct=(remaining/SHIFT_MS)*100;
     var bar=document.getElementById('session-bar');
     var label=document.getElementById('session-label');
+    var dot=document.querySelector('.notice-dot');
     if(!bar||!label)return;
-    bar.style.width=pct.toFixed(1)+'%';
-    if(pct>50)bar.style.background='var(--rtn)';
-    else if(pct>25)bar.style.background='var(--urg)';
-    else bar.style.background='var(--imm)';
-    var hrs=Math.floor(remaining/3600000);
-    var mins=Math.floor((remaining%3600000)/60000);
-    if(remaining<=0)label.textContent='Session expired';
-    else if(hrs>0)label.textContent='Session clears in '+hrs+'h '+mins+'m';
-    else label.textContent='Session clears in '+mins+' min'+(mins!==1?'s':'');
+    if(curTab==='team'&&teamSession&&window.teamSessionCreated){
+      // Team session countdown
+      var elapsed=Date.now()-window.teamSessionCreated;
+      var remaining=Math.max(0,TEAM_SESSION_MS-elapsed);
+      var pct=(remaining/TEAM_SESSION_MS)*100;
+      bar.style.width=pct.toFixed(1)+'%';
+      var barCol=pct>50?'var(--team)':pct>25?'var(--urg)':'var(--imm)';
+      bar.style.background=barCol;
+      if(dot)dot.style.background='var(--team)';
+      var hrs=Math.floor(remaining/3600000),mins=Math.floor((remaining%3600000)/60000);
+      if(remaining<=0)label.textContent='Team session expired';
+      else if(hrs>0)label.textContent='Team session — '+hrs+'h '+mins+'m left';
+      else label.textContent='Team session — '+mins+' min left';
+      label.style.color='var(--team)';
+    }else{
+      // Personal shift countdown
+      var start=parseInt(localStorage.getItem('wj_start')||'0');
+      if(!start)return;
+      var elapsed2=Date.now()-start;
+      var remaining2=Math.max(0,SHIFT_MS-elapsed2);
+      var pct2=(remaining2/SHIFT_MS)*100;
+      bar.style.width=pct2.toFixed(1)+'%';
+      if(pct2>50)bar.style.background='var(--rtn)';
+      else if(pct2>25)bar.style.background='var(--urg)';
+      else bar.style.background='var(--imm)';
+      if(dot)dot.style.background='var(--accent)';
+      var hrs2=Math.floor(remaining2/3600000),mins2=Math.floor((remaining2%3600000)/60000);
+      if(remaining2<=0)label.textContent='Session expired';
+      else if(hrs2>0)label.textContent='Session clears in '+hrs2+'h '+mins2+'m';
+      else label.textContent='Session clears in '+mins2+' min'+(mins2!==1?'s':'');
+      label.style.color='var(--accent)';
+    }
   }catch(e){}
 }
 
