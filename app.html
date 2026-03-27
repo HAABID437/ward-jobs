@@ -1198,7 +1198,6 @@ function initSwipe(wrap,id){
 function render(){
   const active=tasks.filter(x=>!x.done).sort((a,b)=>ORD[a.urg]-ORD[b.urg]);
   const done=tasks.filter(x=>x.done).sort((a,b)=>b.completed-a.completed);
-  const show=curTab==='active'?active:done;
   document.getElementById('s-imm').textContent=active.filter(x=>x.urg==='i').length;
   document.getElementById('s-urg').textContent=active.filter(x=>x.urg==='u').length;
   document.getElementById('s-rtn').textContent=active.filter(x=>x.urg==='r').length;
@@ -1206,6 +1205,9 @@ function render(){
   document.getElementById('tc-done').textContent=done.length;
   const teamCount=Object.values(teamJobs).filter(j=>!j.done).length;
   document.getElementById('tc-team').textContent=teamCount||'';
+  // Don't touch the list if we're on the team tab — renderTeamTab handles it
+  if(curTab==='team'){renderTeamTab();return;}
+  const show=curTab==='active'?active:done;
   const list=document.getElementById('list');
   if(!show.length){
     list.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" fill="none"><rect x="6" y="4" width="28" height="32" rx="3" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="13" x2="28" y2="13" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="20" x2="22" y2="20" stroke="currentColor" stroke-width="1.2"/><line x1="12" y1="27" x2="25" y2="27" stroke="currentColor" stroke-width="1.2"/></svg><div class="empty-title">'+(curTab==='active'?'All clear':'Nothing yet')+'</div><p>'+(curTab==='active'?'Tap Add job below to get started.':'Completed jobs will appear here.')+'</p></div>';
