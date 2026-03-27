@@ -77,8 +77,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .tab-pill.i{background:var(--imm-bg);color:var(--imm)}
 .tab-pill.u{background:var(--urg-bg);color:var(--urg)}
 .tab-pill.r{background:var(--rtn-bg);color:var(--rtn)}
-.tab-bar{height:2px;border-radius:1px;width:80%;margin-top:3px;opacity:0;transition:opacity 0.2s,background 0.3s}
-.tab.on .tab-bar{opacity:1}
+.tab-time{font-size:9px;font-weight:500;color:var(--dim);margin-top:1px;white-space:nowrap}
 .tc{display:none}
 
 /* List */
@@ -374,12 +373,12 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         <span class="tab-pill u" id="tp-urg">0 Urg</span>
         <span class="tab-pill r" id="tp-rtn">0 Rtn</span>
       </div>
-      <div class="tab-bar" id="tab-active-bar" style="background:var(--accent)"></div>
+      <span class="tab-time" id="tab-active-time"></span>
     </div>
     <div class="tab" id="tab-done" onclick="setTab('done')">
       <span class="tab-label">Done</span>
       <span class="tab-count" id="tc-done">0</span>
-      <div class="tab-bar" style="background:var(--rtn)"></div>
+
     </div>
     <div class="tab" id="tab-team" onclick="setTab('team')">
       <span class="tab-label">Team</span>
@@ -389,7 +388,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         <span class="tab-pill u" id="tp-team-urg">0 Urg</span>
         <span class="tab-pill r" id="tp-team-rtn">0 Rtn</span>
       </div>
-      <div class="tab-bar" id="tab-team-bar" style="background:var(--team)"></div>
+      <span class="tab-time" id="tab-team-time"></span>
     </div>
   </div>
 
@@ -1023,30 +1022,26 @@ function tick(){
 }
 function updateSessionBar(){
   try{
-    // Personal shift bar
-    var start=parseInt(localStorage.getItem('wj_start')||'0');
-    var personalPct=0;
-    if(start){
-      var elapsed=Date.now()-start;
-      var remaining=Math.max(0,SHIFT_MS-elapsed);
-      personalPct=(remaining/SHIFT_MS)*100;
+    // Personal shift time
+    var at=document.getElementById('tab-active-time');
+    if(at){
+      var start=parseInt(localStorage.getItem('wj_start')||'0');
+      if(start){
+        var rem=Math.max(0,SHIFT_MS-(Date.now()-start));
+        var h=Math.floor(rem/3600000),m=Math.floor((rem%3600000)/60000);
+        at.textContent=rem<=0?'expired':h>0?'clears in '+h+'h '+m+'m':'clears in '+m+'m';
+      }
     }
-    var activeBar=document.getElementById('tab-active-bar');
-    if(activeBar){
-      activeBar.style.width=personalPct.toFixed(1)+'%';
-      activeBar.style.background=personalPct>50?'var(--rtn)':personalPct>25?'var(--urg)':'var(--imm)';
-    }
-    // Team session bar
-    var teamPct=0;
-    if(teamSession&&window.teamSessionCreated){
-      var telapsed=Date.now()-window.teamSessionCreated;
-      var tremaining=Math.max(0,TEAM_SESSION_MS-telapsed);
-      teamPct=(tremaining/TEAM_SESSION_MS)*100;
-    }
-    var teamBar=document.getElementById('tab-team-bar');
-    if(teamBar){
-      teamBar.style.width=teamPct.toFixed(1)+'%';
-      teamBar.style.background=teamPct>50?'var(--team)':teamPct>25?'var(--urg)':'var(--imm)';
+    // Team session time
+    var tt=document.getElementById('tab-team-time');
+    if(tt){
+      if(teamSession&&window.teamSessionCreated){
+        var trem=Math.max(0,TEAM_SESSION_MS-(Date.now()-window.teamSessionCreated));
+        var th=Math.floor(trem/3600000),tm=Math.floor((trem%3600000)/60000);
+        tt.textContent=trem<=0?'expired':th>0?'clears in '+th+'h '+tm+'m':'clears in '+tm+'m';
+      }else{
+        tt.textContent='';
+      }
     }
   }catch(e){}
 }
