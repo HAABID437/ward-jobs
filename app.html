@@ -1895,6 +1895,34 @@ function startApp(){
     }catch(e){}
   })();
 
+  // Restore team session from localStorage on refresh
+  (function(){
+    var savedCode=localStorage.getItem('wj_team');
+    var savedName=localStorage.getItem('wj_name');
+    if(!savedCode||!savedName)return;
+    myName=savedName;
+    dbGet('/sessions/'+savedCode).then(function(data){
+      if(!data){localStorage.removeItem('wj_team');return;}
+      if(Date.now()-(data.created||0)>TEAM_SESSION_MS){
+        dbRemove('/sessions/'+savedCode);localStorage.removeItem('wj_team');return;
+      }
+      teamSession=savedCode;
+      teamCreatorId=data.createdBy||null;
+      if(data.created)window.teamSessionCreated=data.created;
+      teamJobs=data.jobs||{};
+      teamMembers=data.members||{};
+      if(teamMembers[myId]&&teamMembers[myId].color){
+        myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);
+      }
+      // Re-register presence
+      var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
+      dbUpdate('/sessions/'+savedCode+'/members',md);
+      var tl=document.getElementById('tab-team-label');
+      if(tl)tl.textContent='Team ('+savedCode+')';
+      render();startTeamPoll();
+    }).catch(function(){});
+  })();
+
   render();tick();setInterval(tick,15000);
 }
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',startApp);}
