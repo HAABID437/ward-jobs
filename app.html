@@ -605,6 +605,26 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><polyline points="4,7 6,9 10,5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Sync enabled
     </div>
+
+    <!-- Username -->
+    <div class="f-group">
+      <div class="f-label">Display name</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="auth-display-name" placeholder="e.g. Dr Ahmed" maxlength="40" autocomplete="off" style="flex:1">
+        <button onclick="saveDisplayName()" style="padding:0 18px;background:var(--text);color:#fff;border:none;border-radius:16px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;flex-shrink:0">Save</button>
+      </div>
+      <div id="auth-name-msg" style="display:none;font-size:12px;font-weight:600;margin-top:6px"></div>
+    </div>
+
+    <!-- Change password -->
+    <div class="f-group">
+      <div class="f-label">Change password</div>
+      <input type="password" id="auth-new-password" placeholder="New password (min. 6 chars)" autocomplete="new-password" style="margin-bottom:8px">
+      <input type="password" id="auth-confirm-password" placeholder="Confirm new password" autocomplete="new-password">
+      <div id="auth-pw-msg" style="display:none;font-size:12px;font-weight:600;margin-top:6px"></div>
+      <button onclick="changePassword()" style="width:100%;padding:14px;background:var(--surface2);color:var(--text);border:none;border-radius:16px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:8px">Update password</button>
+    </div>
+
     <button class="submit-btn" onclick="syncNow()" style="margin-bottom:10px">Sync now</button>
     <button onclick="signOut()" style="width:100%;padding:15px;background:var(--imm-bg);color:var(--imm);border:none;border-radius:18px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Sign out</button>
   </div>
@@ -704,8 +724,12 @@ function openAuthSheet(){
     var initials=(currentUser.displayName||currentUser.email||'U').charAt(0).toUpperCase();
     var col=TEAM_COLORS[Math.abs(hashStr(currentUser.uid))%TEAM_COLORS.length];
     var av=document.getElementById('auth-user-avatar');if(av){av.textContent=initials;av.style.background=col;}
-    var nm=document.getElementById('auth-user-name');if(nm)nm.textContent=currentUser.displayName||'';
+    var nm=document.getElementById('auth-user-name');if(nm)nm.textContent=currentUser.displayName||currentUser.email.split('@')[0];
     var em=document.getElementById('auth-user-email');if(em)em.textContent=currentUser.email||'';
+    var dn=document.getElementById('auth-display-name');if(dn)dn.value=currentUser.displayName||'';
+    // Clear password fields and messages
+    ['auth-new-password','auth-confirm-password'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    ['auth-name-msg','auth-pw-msg'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   }else{
     out.style.display='block';inn.style.display='none';
     document.getElementById('auth-sheet-title').textContent='Sign in';
@@ -817,6 +841,47 @@ function checkVerification(){
   });
 }
 
+function saveDisplayName(){
+  if(!currentUser)return;
+  var val=document.getElementById('auth-display-name').value.trim();
+  var msg=document.getElementById('auth-name-msg');
+  if(!val){msg.textContent='Please enter a name.';msg.style.color='var(--imm)';msg.style.display='block';return;}
+  currentUser.updateProfile({displayName:val}).then(function(){
+    msg.textContent='Name updated.';msg.style.color='var(--rtn)';msg.style.display='block';
+    var nm=document.getElementById('auth-user-name');if(nm)nm.textContent=val;
+    // Update avatar initial
+    var av=document.getElementById('auth-user-avatar');if(av)av.textContent=val.charAt(0).toUpperCase();
+    updateAuthUI();
+    setTimeout(function(){msg.style.display='none';},3000);
+  }).catch(function(){
+    msg.textContent='Could not update name. Please try again.';msg.style.color='var(--imm)';msg.style.display='block';
+  });
+}
+
+function changePassword(){
+  if(!currentUser)return;
+  var np=document.getElementById('auth-new-password').value;
+  var cp=document.getElementById('auth-confirm-password').value;
+  var msg=document.getElementById('auth-pw-msg');
+  msg.style.display='none';
+  if(!np){msg.textContent='Please enter a new password.';msg.style.color='var(--imm)';msg.style.display='block';return;}
+  if(np.length<6){msg.textContent='Password must be at least 6 characters.';msg.style.color='var(--imm)';msg.style.display='block';return;}
+  if(np!==cp){msg.textContent='Passwords do not match.';msg.style.color='var(--imm)';msg.style.display='block';return;}
+  currentUser.updatePassword(np).then(function(){
+    msg.textContent='Password updated successfully.';msg.style.color='var(--rtn)';msg.style.display='block';
+    document.getElementById('auth-new-password').value='';
+    document.getElementById('auth-confirm-password').value='';
+    setTimeout(function(){msg.style.display='none';},3000);
+  }).catch(function(e){
+    if(e.code==='auth/requires-recent-login'){
+      msg.textContent='Please sign out and sign back in before changing your password.';
+    }else{
+      msg.textContent=friendlyAuthError(e.code);
+    }
+    msg.style.color='var(--imm)';msg.style.display='block';
+  });
+}
+
 function friendlyAuthError(code){
   var map={'auth/invalid-email':'Invalid email address.','auth/user-not-found':'No account found with that email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'An account already exists with that email.','auth/weak-password':'Password must be at least 6 characters.','auth/too-many-requests':'Too many attempts. Please try again later.','auth/popup-closed-by-user':'Sign-in cancelled.'};
   return map[code]||'Something went wrong. Please try again.';
@@ -824,44 +889,48 @@ function friendlyAuthError(code){
 
 /* Cloud sync */
 function syncToCloud(){
-  if(!currentUser)return;
-  var data={tasks:tasks,saved:Date.now()};
-  dbSet('/users/'+currentUser.uid+'/tasks',data).catch(function(){});
+  if(!currentUser)return Promise.resolve();
+  return currentUser.getIdToken().then(function(token){
+    var data={tasks:tasks,saved:Date.now()};
+    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token,{
+      method:'PUT',
+      body:JSON.stringify(data),
+      headers:{'Content-Type':'application/json'}
+    });
+  });
 }
 
 function syncNow(){
   if(!currentUser)return;
   var btn=document.querySelector('#auth-signed-in .submit-btn');
-  if(btn){btn.textContent='Syncing…';btn.disabled=true;}
+  if(btn){btn.textContent='Syncing\u2026';btn.disabled=true;}
   syncToCloud().then(function(){
     if(btn){btn.textContent='Sync now';btn.disabled=false;}
     showBanner('Jobs synced','var(--rtn)');
-  }).catch(function(){
+  }).catch(function(e){
+    console.warn('Sync error:',e);
     if(btn){btn.textContent='Sync now';btn.disabled=false;}
-    showBanner('Sync failed — check your connection','#c0392b');
+    showBanner('Sync failed \u2014 check your connection','#c0392b');
   });
 }
 
 function syncFromCloud(){
   if(!currentUser)return;
-  dbGet('/users/'+currentUser.uid+'/tasks').then(function(data){
+  currentUser.getIdToken().then(function(token){
+    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
+  }).then(function(data){
     if(!data||!data.tasks)return;
     var cloudTasks=data.tasks;
-    // Merge: combine local and cloud, deduplicate by id, keep most recent done state
     var merged={};
     tasks.forEach(function(t){merged[t.id]=t;});
     cloudTasks.forEach(function(t){
       if(!merged[t.id]){merged[t.id]=t;}
-      else{
-        // Keep whichever has more recent activity
-        var local=merged[t.id];
-        if((t.completed||0)>(local.completed||0))merged[t.id]=t;
-      }
+      else if((t.completed||0)>(merged[t.id].completed||0)){merged[t.id]=t;}
     });
     tasks=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
     save();render();
     showBanner('Jobs synced from cloud','var(--rtn)');
-  }).catch(function(){});
+  }).catch(function(e){console.warn('Sync from cloud error:',e);});
 }
 
 function dbSet(p,d){return fetch(DB+p+'.json?auth='+encodeURIComponent((currentUser&&currentUser.accessToken)||''),{method:'PUT',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
