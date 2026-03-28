@@ -935,20 +935,9 @@ function pollUserTasks(){
     // Restore team session from cloud if needed
     if(data.team&&data.team.code&&!teamSession&&localStorage.getItem('wj_team_left_code')!==data.team.code){
       var code=data.team.code;
-      dbGet('/sessions/'+code).then(function(session){
-        if(!session||Date.now()-(session.created||0)>TEAM_SESSION_MS)return;
-        myName=data.team.name||myName;myColor=data.team.color||myColor;
-        localStorage.setItem('wj_name',myName);localStorage.setItem('wj_color',myColor);
-        localStorage.setItem('wj_team',code);
-        teamSession=code;teamCreatorId=session.createdBy||null;
-        if(session.created)window.teamSessionCreated=session.created;
-        teamJobs=session.jobs||{};teamMembers=session.members||{};
-        var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
-        dbUpdate('/sessions/'+code+'/members',md);
-        var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
-        render();startTeamPoll();
-        showBanner('Rejoined team session '+code,'var(--team)');
-      }).catch(function(){});
+      var name=data.team.name||myName;
+      // Use joinSessionByCode so membership is registered before polling starts
+      joinSessionByCode(code,name);
     }
   }).catch(function(){});
 }
@@ -1988,26 +1977,7 @@ function startApp(){
     var savedName=localStorage.getItem('wj_name');
     if(!savedCode||!savedName||localStorage.getItem('wj_team_left_code')===savedCode)return;
     myName=savedName;
-    dbGet('/sessions/'+savedCode).then(function(data){
-      if(!data){localStorage.removeItem('wj_team');return;}
-      if(Date.now()-(data.created||0)>TEAM_SESSION_MS){
-        dbRemove('/sessions/'+savedCode);localStorage.removeItem('wj_team');return;
-      }
-      teamSession=savedCode;
-      teamCreatorId=data.createdBy||null;
-      if(data.created)window.teamSessionCreated=data.created;
-      teamJobs=data.jobs||{};
-      teamMembers=data.members||{};
-      if(teamMembers[myId]&&teamMembers[myId].color){
-        myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);
-      }
-      // Re-register presence
-      var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
-      dbUpdate('/sessions/'+savedCode+'/members',md);
-      var tl=document.getElementById('tab-team-label');
-      if(tl)tl.textContent='Team ('+savedCode+')';
-      render();startTeamPoll();
-    }).catch(function(){});
+    joinSessionByCode(savedCode,savedName);
   })();
 
   render();tick();setInterval(tick,15000);
