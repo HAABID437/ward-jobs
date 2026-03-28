@@ -683,8 +683,12 @@ function initFirebase(){
     }
     _fbAuth=firebase.auth();
     _fbAuth.onAuthStateChanged(function(user){
-      // Accept any user — NHS domain enforced at sign-up
       currentUser=user||null;
+      if(user){
+        // Use Firebase UID as myId so same user = same ID across all devices
+        myId=user.uid;
+        localStorage.setItem('wj_uid',user.uid);
+      }
       updateAuthUI();
       if(currentUser)syncFromCloud();
     });
