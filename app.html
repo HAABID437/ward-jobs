@@ -896,47 +896,41 @@ function pollUserTasks(){
     return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
   }).then(function(data){
     if(!data)return;
-    var incoming=data.tasks||[];
-    var hash=JSON.stringify(incoming);
-    if(hash===_lastUserHash)return; // nothing changed
+    var cloudTasks=data.tasks||[];
+    var cloudSaved=data.saved||0;
+    var hash=JSON.stringify(cloudTasks)+cloudSaved;
+    if(hash===_lastUserHash)return;
     _lastUserHash=hash;
 
-    // Merge: local wins on done state if more recent
-    var merged={};
-    incoming.forEach(function(t){merged[t.id]=t;});
-    tasks.forEach(function(t){
-      if(!merged[t.id]){
-        // local task not in cloud — could be deleted on another device
-        // only keep if added recently (within session window)
-        if(Date.now()-(t.added||0)<SHIFT_MS)merged[t.id]=t;
-      }else{
-        // both have it — keep most recently modified
-        var local=t, cloud=merged[t.id];
-        var localTs=Math.max(local.completed||0,local.added||0);
-        var cloudTs=Math.max(cloud.completed||0,cloud.added||0);
-        if(localTs>=cloudTs)merged[t.id]=local;
-      }
+    // Cloud is source of truth for deletions.
+    // Local only contributes tasks added AFTER the last cloud write (not yet pushed).
+    var cloudIds=new Set(cloudTasks.map(function(t){return t.id;}));
+    var localOnly=tasks.filter(function(t){
+      return !t.teamJobId && !cloudIds.has(t.id) && (t.added||0)>cloudSaved;
     });
 
-    // Handle deletions: if task in local but NOT in cloud hash, remove it
-    // (only if cloud has been written at least once — i.e. cloud has tasks)
-    if(incoming.length>0){
-      var cloudIds=new Set(incoming.map(function(t){return t.id;}));
-      tasks=tasks.filter(function(t){
-        if(t.teamJobId)return true; // never remove team-linked tasks via user sync
-        return cloudIds.has(t.id);
-      });
-    }
+    // Build final list: cloud tasks + genuinely new local-only tasks
+    var merged={};
+    cloudTasks.forEach(function(t){merged[t.id]=t;});
+    // For tasks in both: take whichever has done=true, else cloud wins
+    tasks.forEach(function(t){
+      if(merged[t.id]){
+        if(t.done&&!merged[t.id].done){merged[t.id]=t;} // local completed it
+      }
+    });
+    localOnly.forEach(function(t){merged[t.id]=t;});
 
+    var result=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
     var prev=JSON.stringify(tasks);
-    tasks=Object.values(merged)
-      .filter(function(t){return!t.teamJobId||teamSession;}) // drop stale team tasks
-      .sort(function(a,b){return(b.added||0)-(a.added||0);});
-    var next=JSON.stringify(tasks);
-    if(prev!==next){
-      try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
-      if(curTab!=='team')render();else updateCounts();
-    }
+    var next=JSON.stringify(result);
+    if(prev===next)return; // nothing actually changed locally
+
+    tasks=result;
+    try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
+    if(curTab!=='team')render();else updateCounts();
+
+    // If local had extra tasks not in cloud, push them up
+    if(localOnly.length){syncToCloud();}
 
     // Restore team session from cloud if needed
     if(data.team&&data.team.code&&!teamSession&&!localStorage.getItem('wj_team_left')){
