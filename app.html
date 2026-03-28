@@ -114,6 +114,10 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .detail-row .ub{flex:1}
 .edit-actions{display:flex;flex-direction:column;gap:8px}
 
+
+/* Auth */
+.auth-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
+.auth-input-wrap{margin-bottom:12px}
 /* Team badge on cards */
 .team-badge{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;letter-spacing:0.02em;color:var(--team);margin-left:6px}
 .card.team-assigned{outline:1.5px solid var(--team-bd);outline-offset:-1px;background:var(--team-bg)}
@@ -253,7 +257,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .sheet-sub{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.5;font-weight:500}
 .f-label{font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .f-group{margin-bottom:14px}
-input[type=text],textarea{background:var(--surface2);border:none;border-radius:16px;color:var(--text);font-size:16px;padding:15px 16px;outline:none;font-family:'DM Sans',sans-serif;font-weight:500;width:100%;-webkit-appearance:none;transition:box-shadow 0.18s}
+input[type=text],input[type=email],input[type=password],textarea{background:var(--surface2);border:none;border-radius:16px;color:var(--text);font-size:16px;padding:15px 16px;outline:none;font-family:'DM Sans',sans-serif;font-weight:500;width:100%;-webkit-appearance:none;transition:box-shadow 0.18s}
 input[type=text]:focus,textarea:focus{box-shadow:0 0 0 2px var(--accent-bd)}
 input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 .pid-input{font-family:'Courier New',monospace;letter-spacing:0.05em;font-size:14px}
@@ -364,7 +368,12 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         </div>
         <div class="brand-sub">Shift task manager</div>
       </div>
-      <div class="hdr-clock" id="clock">--:--</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button id="auth-btn" onclick="openAuthSheet()" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:opacity 0.15s" aria-label="Sign in">
+          <svg id="auth-icon" width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+        <div class="hdr-clock" id="clock">--:--</div>
+      </div>
     </div>
   </div>
 
@@ -549,6 +558,58 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <div id="member-sheet-content"></div>
 </div>
 
+<!-- Auth sheet -->
+<div class="sheet" id="auth-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="auth-sheet-title">Sign in</div>
+  <div class="sheet-sub" id="auth-sheet-sub">Sync your jobs across devices.</div>
+  <div id="auth-signed-out">
+    <div style="background:var(--team-bg);border-radius:14px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="var(--team)" stroke-width="1.4"/><line x1="7" y1="4.5" x2="7" y2="7.5" stroke="var(--team)" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="9.5" r="0.7" fill="var(--team)"/></svg>
+      <span style="font-size:12px;font-weight:600;color:var(--team)">NHS staff only &mdash; sign up requires an <strong>@nhs.net</strong> email</span>
+    </div>
+    <div class="f-group">
+      <div class="f-label">NHS email</div>
+      <input type="email" id="auth-email" placeholder="yourname@nhs.net" autocomplete="email" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="f-group">
+      <div class="f-label">Password</div>
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password">
+    </div>
+    <div id="auth-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-bottom:14px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
+    <button class="submit-btn" id="auth-action-btn" onclick="authAction()">Sign in</button>
+    <button onclick="toggleAuthMode()" id="auth-toggle-btn" style="width:100%;padding:14px;background:none;border:none;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;margin-top:2px">Don't have an account? <span style="color:var(--text);font-weight:600">Sign up</span></button>
+  </div>
+  <div id="auth-verification-pending" style="display:none">
+    <div style="text-align:center;padding:12px 0 20px">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--urg-bg);display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
+        <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><path d="M3 7l10 7 10-7" stroke="var(--urg)" stroke-width="1.8" stroke-linecap="round"/><rect x="2" y="5" width="22" height="16" rx="3" stroke="var(--urg)" stroke-width="1.8"/></svg>
+      </div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;margin-bottom:8px">Check your inbox</div>
+      <div id="auth-verify-msg" style="font-size:13px;color:var(--muted);font-weight:500;line-height:1.6;margin-bottom:4px">We've sent a verification link to your NHS email. Click it to activate sync.</div>
+    </div>
+    <button class="submit-btn green" onclick="checkVerification()" style="margin-bottom:10px">I've verified my email</button>
+    <button onclick="resendVerification()" style="width:100%;padding:15px;background:var(--surface2);color:var(--muted);border:none;border-radius:18px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Resend email</button>
+    <button onclick="signOut();document.getElementById('auth-verification-pending').style.display='none';document.getElementById('auth-signed-out').style.display='block';" style="width:100%;padding:14px;background:none;border:none;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;margin-top:4px">Use a different account</button>
+  </div>
+
+  <div id="auth-signed-in" style="display:none">
+    <div style="display:flex;align-items:center;gap:14px;padding:8px 0 20px">
+      <div id="auth-user-avatar" class="auth-avatar" style="width:48px;height:48px;font-size:16px;background:var(--team)"></div>
+      <div>
+        <div id="auth-user-name" style="font-size:16px;font-weight:600;color:var(--text)"></div>
+        <div id="auth-user-email" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+      </div>
+    </div>
+    <div id="auth-sync-status" style="background:var(--rtn-bg);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--rtn);font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.5"/><polyline points="4,7 6,9 10,5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Sync enabled
+    </div>
+    <button class="submit-btn" onclick="syncNow()" style="margin-bottom:10px">Sync now</button>
+    <button onclick="signOut()" style="width:100%;padding:15px;background:var(--imm-bg);color:var(--imm);border:none;border-radius:18px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Sign out</button>
+  </div>
+</div>
+
 <!-- Confirm dialog -->
 <div class="confirm-bd" id="confirm-bd">
   <div class="confirm-sheet">
@@ -574,13 +635,241 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 </div>
 
 
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js" crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js" crossorigin="anonymous"></script>
 <script>
 /* === AXONAL CLEAN JS === */
 
 /* Firebase REST */
+/* Firebase App + Auth */
+var _fbApp, _fbAuth;
+function initFirebase(){
+  if(typeof firebase==='undefined'){
+    setTimeout(initFirebase,100);return;
+  }
+  try{
+    if(firebase.apps&&firebase.apps.length){
+      _fbApp=firebase.apps[0];
+    }else{
+      _fbApp=firebase.initializeApp({
+        apiKey:"AIzaSyBhu79yitSTWZ6r6eCZXLqwMe9LuPIdVac",
+        authDomain:"axonal-fe833.firebaseapp.com",
+        databaseURL:"https://axonal-fe833-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId:"axonal-fe833",
+        storageBucket:"axonal-fe833.firebasestorage.app",
+        messagingSenderId:"884484121399",
+        appId:"1:884484121399:web:22facc4b4f61ec58a570b2"
+      });
+    }
+    _fbAuth=firebase.auth();
+    _fbAuth.onAuthStateChanged(function(user){
+      // Only treat as logged in if email is verified
+      currentUser=(user&&user.emailVerified)?user:null;
+      updateAuthUI();
+      if(currentUser)syncFromCloud();
+    });
+  }catch(e){console.warn('Firebase init failed:',e);}
+}
+initFirebase();
+
+var currentUser=null;
+var authMode='signin'; // 'signin' or 'signup'
+var syncInterval=null;
+
+function updateAuthUI(){
+  var btn=document.getElementById('auth-btn');
+  var icon=document.getElementById('auth-icon');
+  if(!btn)return;
+  if(currentUser){
+    // Show coloured avatar initial
+    var initials=(currentUser.displayName||currentUser.email||'U').charAt(0).toUpperCase();
+    var col=TEAM_COLORS[Math.abs(hashStr(currentUser.uid))%TEAM_COLORS.length];
+    btn.innerHTML='<div class="auth-avatar" style="width:26px;height:26px;font-size:11px;background:'+col+'">'+initials+'</div>';
+    if(!syncInterval)syncInterval=setInterval(syncToCloud,5*60*1000);
+  }else{
+    btn.innerHTML='<svg id="auth-icon" width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
+  }
+}
+function hashStr(s){var h=0;for(var i=0;i<s.length;i++)h=(Math.imul(31,h)+s.charCodeAt(i))|0;return Math.abs(h);}
+
+function openAuthSheet(){
+  var out=document.getElementById('auth-signed-out');
+  var inn=document.getElementById('auth-signed-in');
+  if(currentUser){
+    out.style.display='none';inn.style.display='block';
+    document.getElementById('auth-sheet-title').textContent='Account';
+    document.getElementById('auth-sheet-sub').textContent='Your jobs sync automatically when signed in.';
+    var initials=(currentUser.displayName||currentUser.email||'U').charAt(0).toUpperCase();
+    var col=TEAM_COLORS[Math.abs(hashStr(currentUser.uid))%TEAM_COLORS.length];
+    var av=document.getElementById('auth-user-avatar');if(av){av.textContent=initials;av.style.background=col;}
+    var nm=document.getElementById('auth-user-name');if(nm)nm.textContent=currentUser.displayName||'';
+    var em=document.getElementById('auth-user-email');if(em)em.textContent=currentUser.email||'';
+  }else{
+    out.style.display='block';inn.style.display='none';
+    document.getElementById('auth-sheet-title').textContent='Sign in';
+    document.getElementById('auth-sheet-sub').textContent='Sync your jobs across devices.';
+    authMode='signin';updateAuthModeUI();
+  }
+  document.getElementById('auth-error').style.display='none';
+  openSheet('auth-sheet');
+}
+
+function toggleAuthMode(){
+  authMode=authMode==='signin'?'signup':'signin';
+  updateAuthModeUI();
+}
+function updateAuthModeUI(){
+  var btn=document.getElementById('auth-action-btn');
+  var tog=document.getElementById('auth-toggle-btn');
+  if(btn)btn.textContent=authMode==='signin'?'Sign in':'Create account';
+  if(tog){
+    if(authMode==='signin'){
+      tog.innerHTML="Don't have an account? <span style='color:var(--text);font-weight:600'>Sign up</span>";
+    }else{
+      tog.innerHTML="Already have an account? <span style='color:var(--text);font-weight:600'>Sign in</span>";
+    }
+  }
+}
+
+function isNHSEmail(email){
+  return email.toLowerCase().endsWith('@nhs.net');
+}
+
+function authAction(){
+  var email=document.getElementById('auth-email').value.trim();
+  var pass=document.getElementById('auth-password').value;
+  var errEl=document.getElementById('auth-error');
+  errEl.style.display='none';
+  if(!email||!pass){errEl.textContent='Please enter your email and password.';errEl.style.display='block';return;}
+  // NHS email restriction on sign-up only
+  if(authMode==='signup'&&!isNHSEmail(email)){
+    errEl.textContent='Sign-up is restricted to NHS email addresses (@nhs.net). Please use your NHS email.';
+    errEl.style.display='block';return;
+  }
+  var btn=document.getElementById('auth-action-btn');
+  btn.textContent='Please wait…';btn.disabled=true;
+  if(authMode==='signup'){
+    _fbAuth.createUserWithEmailAndPassword(email,pass).then(function(cred){
+      // Send verification email immediately
+      cred.user.sendEmailVerification().then(function(){
+        btn.textContent='Create account';btn.disabled=false;
+        // Show verification pending state instead of closing
+        document.getElementById('auth-signed-out').style.display='none';
+        document.getElementById('auth-verification-pending').style.display='block';
+      });
+    }).catch(function(e){
+      btn.textContent='Create account';btn.disabled=false;
+      errEl.textContent=friendlyAuthError(e.code);errEl.style.display='block';
+    });
+  }else{
+    _fbAuth.signInWithEmailAndPassword(email,pass).then(function(cred){
+      btn.textContent='Sign in';btn.disabled=false;
+      if(!cred.user.emailVerified){
+        // Signed in but not verified — show reminder
+        document.getElementById('auth-signed-out').style.display='none';
+        document.getElementById('auth-verification-pending').style.display='block';
+        document.getElementById('auth-verify-msg').textContent='Please verify your NHS email before using sync. Check your inbox at '+email+'.';
+      }else{
+        closeSheet();
+      }
+    }).catch(function(e){
+      btn.textContent='Sign in';btn.disabled=false;
+      errEl.textContent=friendlyAuthError(e.code);errEl.style.display='block';
+    });
+  }
+}
+
+function signInWithGoogle(){
+  var provider=new firebase.auth.GoogleAuthProvider();
+  _fbAuth.signInWithPopup(provider).then(function(){closeSheet();}).catch(function(e){
+    var errEl=document.getElementById('auth-error');
+    errEl.textContent=friendlyAuthError(e.code);errEl.style.display='block';
+  });
+}
+
+function signOut(){
+  _fbAuth.signOut().then(function(){closeSheet();}).catch(function(){});
+}
+
+function resendVerification(){
+  var user=_fbAuth.currentUser;
+  if(!user)return;
+  user.sendEmailVerification().then(function(){
+    showBanner('Verification email resent','var(--rtn)');
+  }).catch(function(){
+    showBanner('Could not resend — try again later','#c0392b');
+  });
+}
+
+function checkVerification(){
+  var user=_fbAuth.currentUser;
+  if(!user)return;
+  user.reload().then(function(){
+    if(user.emailVerified){
+      currentUser=user;
+      updateAuthUI();syncFromCloud();
+      document.getElementById('auth-verification-pending').style.display='none';
+      closeSheet();
+      showBanner('Email verified \u2014 sync enabled','var(--rtn)');
+    }else{
+      showBanner('Not yet verified \u2014 check your inbox','#92620a');
+    }
+  });
+}
+
+function friendlyAuthError(code){
+  var map={'auth/invalid-email':'Invalid email address.','auth/user-not-found':'No account found with that email.','auth/wrong-password':'Incorrect password.','auth/email-already-in-use':'An account already exists with that email.','auth/weak-password':'Password must be at least 6 characters.','auth/too-many-requests':'Too many attempts. Please try again later.','auth/popup-closed-by-user':'Sign-in cancelled.'};
+  return map[code]||'Something went wrong. Please try again.';
+}
+
+/* Cloud sync */
+function syncToCloud(){
+  if(!currentUser)return;
+  var data={tasks:tasks,saved:Date.now()};
+  dbSet('/users/'+currentUser.uid+'/tasks',data).catch(function(){});
+}
+
+function syncNow(){
+  if(!currentUser)return;
+  var btn=document.querySelector('#auth-signed-in .submit-btn');
+  if(btn){btn.textContent='Syncing…';btn.disabled=true;}
+  syncToCloud().then(function(){
+    if(btn){btn.textContent='Sync now';btn.disabled=false;}
+    showBanner('Jobs synced','var(--rtn)');
+  }).catch(function(){
+    if(btn){btn.textContent='Sync now';btn.disabled=false;}
+    showBanner('Sync failed — check your connection','#c0392b');
+  });
+}
+
+function syncFromCloud(){
+  if(!currentUser)return;
+  dbGet('/users/'+currentUser.uid+'/tasks').then(function(data){
+    if(!data||!data.tasks)return;
+    var cloudTasks=data.tasks;
+    // Merge: combine local and cloud, deduplicate by id, keep most recent done state
+    var merged={};
+    tasks.forEach(function(t){merged[t.id]=t;});
+    cloudTasks.forEach(function(t){
+      if(!merged[t.id]){merged[t.id]=t;}
+      else{
+        // Keep whichever has more recent activity
+        var local=merged[t.id];
+        if((t.completed||0)>(local.completed||0))merged[t.id]=t;
+      }
+    });
+    tasks=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
+    save();render();
+    showBanner('Jobs synced from cloud','var(--rtn)');
+  }).catch(function(){});
+}
+
+function dbSet(p,d){return fetch(DB+p+'.json?auth='+encodeURIComponent((currentUser&&currentUser.accessToken)||''),{method:'PUT',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
+
 var DB='https://axonal-fe833-default-rtdb.europe-west1.firebasedatabase.app';
 function dbGet(p){return fetch(DB+p+'.json').then(function(r){return r.json();});}
-function dbSet(p,d){return fetch(DB+p+'.json',{method:'PUT',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
 function dbUpdate(p,d){return fetch(DB+p+'.json',{method:'PATCH',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
 function dbRemove(p){return fetch(DB+p+'.json',{method:'DELETE'});}
 
@@ -618,7 +907,7 @@ function load(){
     tasks=JSON.parse(localStorage.getItem('wj')||'[]');
   }catch(e){tasks=[];}
 }
-function save(){try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}}
+function save(){try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}if(currentUser)syncToCloud();}
 function fmt(ms){return new Date(ms).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -1036,7 +1325,7 @@ function cardHtml(t){
 }
 
 /* Sheet drag-to-dismiss */
-['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet'].forEach(function(sid){
+['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet'].forEach(function(sid){
   var sheet=document.getElementById(sid);
   if(!sheet)return;
   var sy=0,dy=0,on=false;
