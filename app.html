@@ -1470,20 +1470,31 @@ function fetchTeamData(){
   dbGet('/sessions/'+teamSession).then(function(data){
     if(!data){stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');if(curTab==='team')renderTeamTab();render();return;}
     if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
-      // Unassign my jobs before session deletes
       tasks=tasks.filter(function(t){return!t.teamJobId;});save();
       dbRemove('/sessions/'+teamSession);stopTeamPoll();
       teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
       if(curTab==='team')renderTeamTab();render();showBanner('Team session expired — jobs returned to pool','#c0392b');return;
     }
-    var newHash=JSON.stringify(data.jobs)+JSON.stringify(data.members);
+    // Check if we're still a member — another device may have left
+    var members=data.members||{};
+    if(!members[myId]){
+      stopTeamPoll();
+      tasks=tasks.filter(function(t){return!t.teamJobId;});save();
+      teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
+      localStorage.removeItem('wj_team');
+      localStorage.setItem('wj_team_left','1');
+      var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+      clearTeamFromCloud();
+      if(curTab==='team')setTab('active');else render();
+      return;
+    }
+    var newHash=JSON.stringify(data.jobs)+JSON.stringify(members);
     var changed=newHash!==_lastTeamHash;
     _lastTeamHash=newHash;
-    teamJobs=data.jobs||{};teamMembers=data.members||{};
+    teamJobs=data.jobs||{};teamMembers=members;
     teamCreatorId=data.createdBy||teamCreatorId;
     if(data.created)window.teamSessionCreated=data.created;
-    // Only re-render if data actually changed
     if(changed){
       if(curTab==='team')renderTeamTab();
       updateCounts();
