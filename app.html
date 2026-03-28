@@ -898,7 +898,8 @@ function pollUserTasks(){
     if(!data)return;
     var cloudTasks=data.tasks||[];
     var cloudSaved=data.saved||0;
-    var hash=JSON.stringify(cloudTasks)+cloudSaved;
+    var cloudTeamHash=data.team?data.team.code:'null';
+    var hash=JSON.stringify(cloudTasks)+cloudSaved+cloudTeamHash;
     if(hash===_lastUserHash)return;
     _lastUserHash=hash;
 
@@ -923,16 +924,14 @@ function pollUserTasks(){
     var result=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
     var prev=JSON.stringify(tasks);
     var next=JSON.stringify(result);
-    if(prev===next)return; // nothing actually changed locally
+    if(prev!==next){
+      tasks=result;
+      try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
+      if(curTab!=='team')render();else updateCounts();
+      if(localOnly.length){syncToCloud();}
+    }
 
-    tasks=result;
-    try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
-    if(curTab!=='team')render();else updateCounts();
-
-    // If local had extra tasks not in cloud, push them up
-    if(localOnly.length){syncToCloud();}
-
-    // Sync team state from cloud
+    // Sync team state — always check, independent of task changes
     var cloudTeamCode=data.team&&data.team.code?data.team.code:null;
 
     if(cloudTeamCode&&!teamSession&&localStorage.getItem('wj_team_left_code')!==cloudTeamCode){
