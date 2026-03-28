@@ -664,8 +664,8 @@ function initFirebase(){
     }
     _fbAuth=firebase.auth();
     _fbAuth.onAuthStateChanged(function(user){
-      // Only treat as logged in if email is verified
-      currentUser=(user&&user.emailVerified)?user:null;
+      // Accept any user — NHS domain enforced at sign-up
+      currentUser=user||null;
       updateAuthUI();
       if(currentUser)syncFromCloud();
     });
@@ -751,29 +751,18 @@ function authAction(){
   var btn=document.getElementById('auth-action-btn');
   btn.textContent='Please wait…';btn.disabled=true;
   if(authMode==='signup'){
-    _fbAuth.createUserWithEmailAndPassword(email,pass).then(function(cred){
-      // Send verification email immediately
-      cred.user.sendEmailVerification().then(function(){
-        btn.textContent='Create account';btn.disabled=false;
-        // Show verification pending state instead of closing
-        document.getElementById('auth-signed-out').style.display='none';
-        document.getElementById('auth-verification-pending').style.display='block';
-      });
+    _fbAuth.createUserWithEmailAndPassword(email,pass).then(function(){
+      btn.textContent='Create account';btn.disabled=false;
+      closeSheet();
+      showBanner('Account created — sync enabled','var(--rtn)');
     }).catch(function(e){
       btn.textContent='Create account';btn.disabled=false;
       errEl.textContent=friendlyAuthError(e.code);errEl.style.display='block';
     });
   }else{
-    _fbAuth.signInWithEmailAndPassword(email,pass).then(function(cred){
+    _fbAuth.signInWithEmailAndPassword(email,pass).then(function(){
       btn.textContent='Sign in';btn.disabled=false;
-      if(!cred.user.emailVerified){
-        // Signed in but not verified — show reminder
-        document.getElementById('auth-signed-out').style.display='none';
-        document.getElementById('auth-verification-pending').style.display='block';
-        document.getElementById('auth-verify-msg').textContent='Please verify your NHS email before using sync. Check your inbox at '+email+'.';
-      }else{
-        closeSheet();
-      }
+      closeSheet();
     }).catch(function(e){
       btn.textContent='Sign in';btn.disabled=false;
       errEl.textContent=friendlyAuthError(e.code);errEl.style.display='block';
@@ -793,13 +782,22 @@ function signOut(){
   _fbAuth.signOut().then(function(){closeSheet();}).catch(function(){});
 }
 
+var ACTION_CODE_SETTINGS={
+  url:'https://axonal.co.uk/app.html',
+  handleCodeInApp:false
+};
+
 function resendVerification(){
+  // Reload user first to get fresh token, then resend
   var user=_fbAuth.currentUser;
-  if(!user)return;
-  user.sendEmailVerification().then(function(){
-    showBanner('Verification email resent','var(--rtn)');
-  }).catch(function(){
-    showBanner('Could not resend — try again later','#c0392b');
+  if(!user){showBanner('Please sign in again to resend','#92620a');return;}
+  user.reload().then(function(){
+    return _fbAuth.currentUser.sendEmailVerification(ACTION_CODE_SETTINGS);
+  }).then(function(){
+    showBanner('Verification email sent — check your NHS inbox','var(--rtn)');
+  }).catch(function(e){
+    console.warn('Resend error:',e);
+    showBanner('Could not resend — wait a minute and try again','#92620a');
   });
 }
 
