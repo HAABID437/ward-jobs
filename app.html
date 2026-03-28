@@ -1545,6 +1545,17 @@ function joinSessionByCode(code,name){
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
   showBanner('Joined session '+code,'var(--team)');
 }
+function clearTeamFromCloud(){
+  // Explicitly zero out team in cloud immediately — don't rely on async save()
+  if(!currentUser)return;
+  currentUser.getIdToken().then(function(token){
+    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token,{
+      method:'PATCH',
+      body:JSON.stringify({team:null}),
+      headers:{'Content-Type':'application/json'}
+    });
+  }).catch(function(){});
+}
 function leaveSession(){
   if(!teamSession)return;
   stopTeamPoll();
@@ -1554,7 +1565,8 @@ function leaveSession(){
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
-  save(); // save() calls syncToCloud which will now write team:null
+  save();
+  clearTeamFromCloud();
   setTab('active');
 }
 function closeSession(){
@@ -1564,7 +1576,8 @@ function closeSession(){
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
-  save(); // syncs team:null to cloud
+  save();
+  clearTeamFromCloud();
   showBanner('Session closed','#c0392b');setTab('active');
 }
 
