@@ -705,7 +705,8 @@ function updateAuthUI(){
     var initials=(currentUser.displayName||currentUser.email||'U').charAt(0).toUpperCase();
     var col=TEAM_COLORS[Math.abs(hashStr(currentUser.uid))%TEAM_COLORS.length];
     btn.innerHTML='<div class="auth-avatar" style="width:26px;height:26px;font-size:11px;background:'+col+'">'+initials+'</div>';
-    if(!syncInterval)syncInterval=setInterval(syncToCloud,5*60*1000);
+    if(!syncInterval)syncInterval=setInterval(pollUserTasks,3000);
+    pollUserTasks(); // immediate pull on sign-in
   }else{
     btn.innerHTML='<svg id="auth-icon" width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
@@ -887,6 +888,76 @@ function friendlyAuthError(code){
 }
 
 /* Cloud sync */
+
+var _lastUserHash='';
+function pollUserTasks(){
+  if(!currentUser)return;
+  currentUser.getIdToken(false).then(function(token){
+    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
+  }).then(function(data){
+    if(!data)return;
+    var incoming=data.tasks||[];
+    var hash=JSON.stringify(incoming);
+    if(hash===_lastUserHash)return; // nothing changed
+    _lastUserHash=hash;
+
+    // Merge: local wins on done state if more recent
+    var merged={};
+    incoming.forEach(function(t){merged[t.id]=t;});
+    tasks.forEach(function(t){
+      if(!merged[t.id]){
+        // local task not in cloud — could be deleted on another device
+        // only keep if added recently (within session window)
+        if(Date.now()-(t.added||0)<SHIFT_MS)merged[t.id]=t;
+      }else{
+        // both have it — keep most recently modified
+        var local=t, cloud=merged[t.id];
+        var localTs=Math.max(local.completed||0,local.added||0);
+        var cloudTs=Math.max(cloud.completed||0,cloud.added||0);
+        if(localTs>=cloudTs)merged[t.id]=local;
+      }
+    });
+
+    // Handle deletions: if task in local but NOT in cloud hash, remove it
+    // (only if cloud has been written at least once — i.e. cloud has tasks)
+    if(incoming.length>0){
+      var cloudIds=new Set(incoming.map(function(t){return t.id;}));
+      tasks=tasks.filter(function(t){
+        if(t.teamJobId)return true; // never remove team-linked tasks via user sync
+        return cloudIds.has(t.id);
+      });
+    }
+
+    var prev=JSON.stringify(tasks);
+    tasks=Object.values(merged)
+      .filter(function(t){return!t.teamJobId||teamSession;}) // drop stale team tasks
+      .sort(function(a,b){return(b.added||0)-(a.added||0);});
+    var next=JSON.stringify(tasks);
+    if(prev!==next){
+      try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
+      if(curTab!=='team')render();else updateCounts();
+    }
+
+    // Restore team session from cloud if needed
+    if(data.team&&data.team.code&&!teamSession&&!localStorage.getItem('wj_team_left')){
+      var code=data.team.code;
+      dbGet('/sessions/'+code).then(function(session){
+        if(!session||Date.now()-(session.created||0)>TEAM_SESSION_MS)return;
+        myName=data.team.name||myName;myColor=data.team.color||myColor;
+        localStorage.setItem('wj_name',myName);localStorage.setItem('wj_color',myColor);
+        localStorage.setItem('wj_team',code);
+        teamSession=code;teamCreatorId=session.createdBy||null;
+        if(session.created)window.teamSessionCreated=session.created;
+        teamJobs=session.jobs||{};teamMembers=session.members||{};
+        var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
+        dbUpdate('/sessions/'+code+'/members',md);
+        var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
+        render();startTeamPoll();
+        showBanner('Rejoined team session '+code,'var(--team)');
+      }).catch(function(){});
+    }
+  }).catch(function(){});
+}
 function syncToCloud(){
   if(!currentUser)return Promise.resolve();
   return currentUser.getIdToken().then(function(token){
@@ -915,48 +986,8 @@ function syncNow(){
 
 function syncFromCloud(){
   if(!currentUser)return;
-  currentUser.getIdToken().then(function(token){
-    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
-  }).then(function(data){
-    if(!data)return;
-    // Merge tasks
-    if(data.tasks&&data.tasks.length){
-      var merged={};
-      tasks.forEach(function(t){merged[t.id]=t;});
-      data.tasks.forEach(function(t){
-        if(!merged[t.id]){merged[t.id]=t;}
-        else if((t.completed||0)>(merged[t.id].completed||0)){merged[t.id]=t;}
-      });
-      tasks=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
-      save();render();
-    }
-    // Restore team session if not already in one
-    if(data.team&&data.team.code&&!teamSession&&!localStorage.getItem('wj_team_left')){
-      var code=data.team.code;
-      // Verify session still exists before rejoining
-      dbGet('/sessions/'+code).then(function(session){
-        if(!session)return;
-        if(Date.now()-(session.created||0)>TEAM_SESSION_MS)return; // expired
-        myName=data.team.name||myName;
-        myColor=data.team.color||myColor;
-        localStorage.setItem('wj_name',myName);
-        localStorage.setItem('wj_color',myColor);
-        localStorage.setItem('wj_team',code);
-        teamSession=code;
-        teamCreatorId=session.createdBy||null;
-        if(session.created)window.teamSessionCreated=session.created;
-        teamJobs=session.jobs||{};
-        teamMembers=session.members||{};
-        // Re-register presence
-        var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
-        dbUpdate('/sessions/'+code+'/members',md);
-        var tl=document.getElementById('tab-team-label');
-        if(tl)tl.textContent='Team ('+code+')';
-        render();startTeamPoll();
-        showBanner('Rejoined team session '+code,'var(--team)');
-      }).catch(function(){});
-    }
-  }).catch(function(e){console.warn('Sync from cloud error:',e);});
+  _lastUserHash=''; // force poll to process
+  pollUserTasks();
 }
 
 function dbSet(p,d){return fetch(DB+p+'.json?auth='+encodeURIComponent((currentUser&&currentUser.accessToken)||''),{method:'PUT',body:JSON.stringify(d),headers:{'Content-Type':'application/json'}});}
