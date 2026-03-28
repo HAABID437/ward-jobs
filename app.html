@@ -536,15 +536,11 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <div class="f-label">Your name</div>
     <input type="text" id="team-name-input" placeholder="e.g. Dr Ahmed" maxlength="30" autocomplete="off">
   </div>
-  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
-    <button class="submit-btn" onclick="createSession()">Create new session</button>
-    <div class="divider-row"><span>or join existing</span></div>
-    <div style="display:flex;gap:8px">
-      <input type="text" id="join-code-input" placeholder="Enter 6-letter code" maxlength="6" style="text-transform:uppercase;letter-spacing:0.12em;font-family:'Courier New',monospace;font-size:16px;flex:1" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-      <button onclick="joinSession()" style="padding:15px 20px;background:var(--surface2);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--text);cursor:pointer;white-space:nowrap">Join</button>
-    </div>
-  </div>
-  <div id="team-setup-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-top:8px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
+  <button class="submit-btn" onclick="createSession()" style="margin-bottom:10px">Create new session</button>
+  <div class="divider-row"><span>or join with a code</span></div>
+  <input type="text" id="join-code-input" placeholder="Enter 6-letter code" maxlength="6" style="text-transform:uppercase;letter-spacing:0.14em;font-family:'Courier New',monospace;font-size:18px;text-align:center;margin-bottom:10px" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+  <button onclick="joinSession()" style="width:100%;padding:17px;background:var(--surface2);color:var(--text);border:none;border-radius:18px;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Join session</button>
+  <div id="team-setup-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-top:12px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
 </div>
 
 <!-- Member profile sheet -->
@@ -1497,48 +1493,28 @@ function showBanner(msg,bg){
   setTimeout(function(){banner.style.transition='opacity 0.4s';banner.style.opacity='0';setTimeout(function(){banner.remove();},400);},3000);
 }
 
-/* Auto-import from QR */
-(function(){
-  try{
-    var params=new URLSearchParams(window.location.search);
-    var ho=params.get('ho');if(!ho)return;
-    window.history.replaceState({},'',window.location.pathname);
-    var result=decodeHandover(ho)||decodeHandover(decodeURIComponent(ho));
-    if(!result||!result.length)return;
-    try{var fresh=JSON.parse(localStorage.getItem('wj')||'[]');if(fresh.length>tasks.length)tasks=fresh;}catch(e){}
-    var keys=new Set(tasks.map(function(t){return t.urg+'|'+t.pid+'|'+t.desc;}));
-    var newJobs=result.filter(function(t){return!keys.has(t.urg+'|'+t.pid+'|'+t.desc);});
-    if(!newJobs.length)return;
-    tasks=newJobs.concat(tasks);save();
-    var total=tasks.filter(function(x){return!x.done;}).length;
-    showBanner(newJobs.length+' job'+(newJobs.length!==1?'s':'')+' added · '+total+' total','#2d7a55');
-  }catch(e){}
-})();
-
-/* Restore team session */
-(function(){
-  var savedCode=localStorage.getItem('wj_team');
-  var savedName=localStorage.getItem('wj_name');
-  if(savedCode&&savedName){
-    myName=savedName;
-    dbGet('/sessions/'+savedCode).then(function(data){
-      if(data){
-        teamSession=savedCode;teamCreatorId=data.createdBy||null;
-        if(data.created)window.teamSessionCreated=data.created;
-        var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
-        dbUpdate('/sessions/'+savedCode+'/members',md);
-        teamJobs=data.jobs||{};teamMembers=data.members||{};
-        var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+savedCode+')';
-        render();startTeamPoll();
-      }else{localStorage.removeItem('wj_team');}
-    }).catch(function(){});
-  }
-})();
-
 function startApp(){
-  load();render();tick();setInterval(tick,15000);
-}
+  load();
 
+  // Auto-import from QR -- runs after load() so tasks array is correct
+  (function(){
+    try{
+      var params=new URLSearchParams(window.location.search);
+      var ho=params.get('ho');if(!ho)return;
+      window.history.replaceState({},'',window.location.pathname);
+      var result=decodeHandover(ho)||decodeHandover(decodeURIComponent(ho));
+      if(!result||!result.length)return;
+      var keys=new Set(tasks.map(function(t){return t.urg+'|'+t.pid+'|'+t.desc;}));
+      var newJobs=result.filter(function(t){return!keys.has(t.urg+'|'+t.pid+'|'+t.desc);});
+      if(!newJobs.length)return;
+      tasks=newJobs.concat(tasks);save();
+      var total=tasks.filter(function(x){return!x.done;}).length;
+      showBanner(newJobs.length+' job'+(newJobs.length!==1?'s':'')+' added · '+total+' total','#2d7a55');
+    }catch(e){}
+  })();
+
+  render();tick();setInterval(tick,15000);
+}
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',startApp);}
 else{startApp();}
 
