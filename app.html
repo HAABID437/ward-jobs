@@ -932,12 +932,45 @@ function pollUserTasks(){
     // If local had extra tasks not in cloud, push them up
     if(localOnly.length){syncToCloud();}
 
-    // Restore team session from cloud if needed
-    if(data.team&&data.team.code&&!teamSession&&localStorage.getItem('wj_team_left_code')!==data.team.code){
-      var code=data.team.code;
-      var name=data.team.name||myName;
-      // Use joinSessionByCode so membership is registered before polling starts
-      joinSessionByCode(code,name);
+    // Sync team state from cloud
+    var cloudTeamCode=data.team&&data.team.code?data.team.code:null;
+
+    if(cloudTeamCode&&!teamSession&&localStorage.getItem('wj_team_left_code')!==cloudTeamCode){
+      // Cloud says joined, we're not — silently join
+      var joinName=data.team.name||myName;
+      // Register membership first, then fetch and start polling
+      var joinMd={};joinMd[myId]={name:joinName,color:myColor,joined:Date.now()};
+      dbUpdate('/sessions/'+cloudTeamCode+'/members',joinMd).then(function(){
+        return dbGet('/sessions/'+cloudTeamCode);
+      }).then(function(sess){
+        if(!sess||Date.now()-(sess.created||0)>TEAM_SESSION_MS){
+          clearTeamFromCloud();return;
+        }
+        teamSession=cloudTeamCode;
+        teamCreatorId=sess.createdBy||null;
+        if(sess.created)window.teamSessionCreated=sess.created;
+        teamJobs=sess.jobs||{};teamMembers=sess.members||{};
+        if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
+        localStorage.setItem('wj_team',cloudTeamCode);
+        localStorage.setItem('wj_name',joinName);
+        localStorage.removeItem('wj_team_left_code');
+        var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+cloudTeamCode+')';
+        updateCounts();startTeamPoll();
+      }).catch(function(){});
+
+    }else if(!cloudTeamCode&&teamSession){
+      // Cloud says not in a team, but we are — silently leave
+      stopTeamPoll();
+      dbRemove('/sessions/'+teamSession+'/members/'+myId);
+      unassignMyTeamJobs();
+      tasks=tasks.filter(function(t){return!t.teamJobId;});
+      var leftCode=teamSession;
+      teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
+      localStorage.removeItem('wj_team');
+      localStorage.setItem('wj_team_left_code',leftCode);
+      var tl2=document.getElementById('tab-team-label');if(tl2)tl2.textContent='Team';
+      try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
+      if(curTab==='team')setTab('active');else{render();updateCounts();}
     }
   }).catch(function(){});
 }
