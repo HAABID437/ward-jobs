@@ -967,7 +967,7 @@ function dbUpdate(p,d){return fetch(DB+p+'.json',{method:'PATCH',body:JSON.strin
 function dbRemove(p){return fetch(DB+p+'.json',{method:'DELETE'});}
 
 /* Team state */
-var teamSession=null,teamJobs={},teamMembers={},teamCreatorId=null,teamPollInterval=null,teamSubTab="unassigned";
+var teamSession=null,teamJobs={},teamMembers={},teamCreatorId=null,teamPollInterval=null,teamSubTab="unassigned",_lastTeamHash="";
 var TEAM_SESSION_MS=12*60*60*1000;
 var TEAM_COLORS=['#6c63ff','#e05a7a','#2d9b6f','#d4830a','#2e86c1','#8e44ad','#16a085','#c0392b'];
 var myName=localStorage.getItem('wj_name')||'';
@@ -1462,7 +1462,7 @@ function updateSessionBar(){
 function startTeamPoll(){
   stopTeamPoll();
   fetchTeamData();
-  teamPollInterval=setInterval(fetchTeamData,4000);
+  teamPollInterval=setInterval(fetchTeamData,2000);
 }
 function stopTeamPoll(){if(teamPollInterval){clearInterval(teamPollInterval);teamPollInterval=null;}}
 function fetchTeamData(){
@@ -1477,12 +1477,17 @@ function fetchTeamData(){
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
       if(curTab==='team')renderTeamTab();render();showBanner('Team session expired — jobs returned to pool','#c0392b');return;
     }
+    var newHash=JSON.stringify(data.jobs)+JSON.stringify(data.members);
+    var changed=newHash!==_lastTeamHash;
+    _lastTeamHash=newHash;
     teamJobs=data.jobs||{};teamMembers=data.members||{};
     teamCreatorId=data.createdBy||teamCreatorId;
     if(data.created)window.teamSessionCreated=data.created;
-    // Only re-render the list if we're on the team tab; always update counts
-    if(curTab==='team')renderTeamTab();
-    updateCounts();
+    // Only re-render if data actually changed
+    if(changed){
+      if(curTab==='team')renderTeamTab();
+      updateCounts();
+    }
   }).catch(function(){});
 }
 
@@ -1534,6 +1539,7 @@ function joinSessionByCode(code,name){
     teamCreatorId=(data&&data.createdBy)||null;
     if(data&&data.created)window.teamSessionCreated=data.created;
     if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
+    syncToCloud(); // persist team membership to cloud account
     setTab('team');startTeamPoll();
   });
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
@@ -1544,19 +1550,21 @@ function leaveSession(){
   stopTeamPoll();
   unassignMyTeamJobs();
   dbRemove('/sessions/'+teamSession+'/members/'+myId);
-  tasks=tasks.filter(function(t){return!t.teamJobId;});save();
+  tasks=tasks.filter(function(t){return!t.teamJobId;});
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  save(); // save() calls syncToCloud which will now write team:null
   setTab('active');
 }
 function closeSession(){
   if(!teamSession||teamCreatorId!==myId)return;
   stopTeamPoll();dbRemove('/sessions/'+teamSession);
-  tasks=tasks.filter(function(t){return!t.teamJobId;});save();
+  tasks=tasks.filter(function(t){return!t.teamJobId;});
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  save(); // syncs team:null to cloud
   showBanner('Session closed','#c0392b');setTab('active');
 }
 
@@ -1564,8 +1572,17 @@ function closeSession(){
 function addTeamJob(pid,desc,urg){
   if(!teamSession)return;
   var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
-  var jd={};jd[jobId]={id:jobId,pid:pid,desc:desc,urg:urg,addedBy:myId,addedByName:myName,assignedTo:null,assignedToName:null,assignedColor:null,done:false,doneBy:null,doneByName:null,created:Date.now()};
-  dbUpdate('/sessions/'+teamSession+'/jobs',jd).then(function(){dbGet('/sessions/'+teamSession+'/jobs').then(function(data){teamJobs=data||{};if(curTab==='team')renderTeamTab();render();});});
+  var job={id:jobId,pid:pid,desc:desc,urg:urg,addedBy:myId,addedByName:myName,assignedTo:null,assignedToName:null,assignedColor:null,done:false,doneBy:null,doneByName:null,created:Date.now()};
+  // Optimistic update — render immediately
+  teamJobs[jobId]=job;
+  if(curTab==='team')renderTeamTab();render();
+  // Then persist to Firebase
+  var jd={};jd[jobId]=job;
+  dbUpdate('/sessions/'+teamSession+'/jobs',jd).catch(function(){
+    // Rollback on failure
+    delete teamJobs[jobId];if(curTab==='team')renderTeamTab();render();
+    showBanner('Failed to add job — check connection','#c0392b');
+  });
 }
 function assignTeamJob(jobId){
   if(!teamSession)return;
@@ -1582,17 +1599,31 @@ function assignTeamJob(jobId){
       save();
     }
   }
-  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){teamJobs[jobId]=Object.assign({},job,upd);renderTeamTab();render();});
+  // Optimistic update
+  teamJobs[jobId]=Object.assign({},job,upd);
+  renderTeamTab();render();
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).catch(function(){
+    // Rollback
+    teamJobs[jobId]=job;renderTeamTab();render();
+    showBanner('Failed to update — check connection','#c0392b');
+  });
 }
 function completeTeamJob(jobId){
   if(!teamSession)return;
   var job=teamJobs[jobId];if(!job)return;
   var upd={done:!job.done,doneBy:job.done?null:myId,doneByName:job.done?null:myName,completedAt:job.done?null:Date.now()};
-  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){
-    teamJobs[jobId]=Object.assign({},job,upd);
-    var lt=tasks.find(function(t){return t.teamJobId===jobId;});
-    if(lt){lt.done=upd.done;lt.completed=upd.completedAt||null;save();}
+  // Optimistic update
+  var prevJob=Object.assign({},job);
+  teamJobs[jobId]=Object.assign({},job,upd);
+  var lt=tasks.find(function(t){return t.teamJobId===jobId;});
+  if(lt){lt.done=upd.done;lt.completed=upd.completedAt||null;save();}
+  renderTeamTab();render();
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).catch(function(){
+    // Rollback
+    teamJobs[jobId]=prevJob;
+    if(lt){lt.done=prevJob.done;lt.completed=prevJob.completedAt||null;save();}
     renderTeamTab();render();
+    showBanner('Failed to update — check connection','#c0392b');
   });
 }
 
