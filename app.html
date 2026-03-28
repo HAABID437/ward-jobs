@@ -890,7 +890,16 @@ function friendlyAuthError(code){
 function syncToCloud(){
   if(!currentUser)return Promise.resolve();
   return currentUser.getIdToken().then(function(token){
-    var data={tasks:tasks,saved:Date.now()};
+    var data={
+      tasks:tasks,
+      saved:Date.now(),
+      team:teamSession?{
+        code:teamSession,
+        name:myName,
+        color:myColor,
+        uid:myId
+      }:null
+    };
     return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token,{
       method:'PUT',
       body:JSON.stringify(data),
@@ -901,16 +910,7 @@ function syncToCloud(){
 
 function syncNow(){
   if(!currentUser)return;
-  var btn=document.querySelector('#auth-signed-in .submit-btn');
-  if(btn){btn.textContent='Syncing\u2026';btn.disabled=true;}
-  syncToCloud().then(function(){
-    if(btn){btn.textContent='Sync now';btn.disabled=false;}
-    showBanner('Jobs synced','var(--rtn)');
-  }).catch(function(e){
-    console.warn('Sync error:',e);
-    if(btn){btn.textContent='Sync now';btn.disabled=false;}
-    showBanner('Sync failed \u2014 check your connection','#c0392b');
-  });
+  syncToCloud().catch(function(e){console.warn('Sync error:',e);});
 }
 
 function syncFromCloud(){
@@ -918,17 +918,44 @@ function syncFromCloud(){
   currentUser.getIdToken().then(function(token){
     return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
   }).then(function(data){
-    if(!data||!data.tasks)return;
-    var cloudTasks=data.tasks;
-    var merged={};
-    tasks.forEach(function(t){merged[t.id]=t;});
-    cloudTasks.forEach(function(t){
-      if(!merged[t.id]){merged[t.id]=t;}
-      else if((t.completed||0)>(merged[t.id].completed||0)){merged[t.id]=t;}
-    });
-    tasks=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
-    save();render();
-    showBanner('Jobs synced from cloud','var(--rtn)');
+    if(!data)return;
+    // Merge tasks
+    if(data.tasks&&data.tasks.length){
+      var merged={};
+      tasks.forEach(function(t){merged[t.id]=t;});
+      data.tasks.forEach(function(t){
+        if(!merged[t.id]){merged[t.id]=t;}
+        else if((t.completed||0)>(merged[t.id].completed||0)){merged[t.id]=t;}
+      });
+      tasks=Object.values(merged).sort(function(a,b){return(b.added||0)-(a.added||0);});
+      save();render();
+    }
+    // Restore team session if not already in one
+    if(data.team&&data.team.code&&!teamSession){
+      var code=data.team.code;
+      // Verify session still exists before rejoining
+      dbGet('/sessions/'+code).then(function(session){
+        if(!session)return;
+        if(Date.now()-(session.created||0)>TEAM_SESSION_MS)return; // expired
+        myName=data.team.name||myName;
+        myColor=data.team.color||myColor;
+        localStorage.setItem('wj_name',myName);
+        localStorage.setItem('wj_color',myColor);
+        localStorage.setItem('wj_team',code);
+        teamSession=code;
+        teamCreatorId=session.createdBy||null;
+        if(session.created)window.teamSessionCreated=session.created;
+        teamJobs=session.jobs||{};
+        teamMembers=session.members||{};
+        // Re-register presence
+        var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
+        dbUpdate('/sessions/'+code+'/members',md);
+        var tl=document.getElementById('tab-team-label');
+        if(tl)tl.textContent='Team ('+code+')';
+        render();startTeamPoll();
+        showBanner('Rejoined team session '+code,'var(--team)');
+      }).catch(function(){});
+    }
   }).catch(function(e){console.warn('Sync from cloud error:',e);});
 }
 
