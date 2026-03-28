@@ -931,7 +931,7 @@ function syncFromCloud(){
       save();render();
     }
     // Restore team session if not already in one
-    if(data.team&&data.team.code&&!teamSession){
+    if(data.team&&data.team.code&&!teamSession&&!localStorage.getItem('wj_team_left')){
       var code=data.team.code;
       // Verify session still exists before rejoining
       dbGet('/sessions/'+code).then(function(session){
@@ -1533,7 +1533,7 @@ function joinSession(){
 }
 function joinSessionByCode(code,name){
   stopTeamPoll();teamSession=code;
-  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);
+  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);localStorage.removeItem('wj_team_left');
   dbGet('/sessions/'+code).then(function(data){
     teamJobs=(data&&data.jobs)||{};teamMembers=(data&&data.members)||{};
     teamCreatorId=(data&&data.createdBy)||null;
@@ -1564,9 +1564,9 @@ function leaveSession(){
   tasks=tasks.filter(function(t){return!t.teamJobId;});
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
+  localStorage.setItem('wj_team_left','1'); // explicit leave flag
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
-  save();
-  clearTeamFromCloud();
+  save();clearTeamFromCloud();
   setTab('active');
 }
 function closeSession(){
@@ -1575,9 +1575,9 @@ function closeSession(){
   tasks=tasks.filter(function(t){return!t.teamJobId;});
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
+  localStorage.setItem('wj_team_left','1'); // explicit leave flag
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
-  save();
-  clearTeamFromCloud();
+  save();clearTeamFromCloud();
   showBanner('Session closed','#c0392b');setTab('active');
 }
 
@@ -1943,7 +1943,7 @@ function startApp(){
   (function(){
     var savedCode=localStorage.getItem('wj_team');
     var savedName=localStorage.getItem('wj_name');
-    if(!savedCode||!savedName)return;
+    if(!savedCode||!savedName||localStorage.getItem('wj_team_left'))return;
     myName=savedName;
     dbGet('/sessions/'+savedCode).then(function(data){
       if(!data){localStorage.removeItem('wj_team');return;}
