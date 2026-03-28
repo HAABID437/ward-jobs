@@ -933,7 +933,7 @@ function pollUserTasks(){
     if(localOnly.length){syncToCloud();}
 
     // Restore team session from cloud if needed
-    if(data.team&&data.team.code&&!teamSession&&!localStorage.getItem('wj_team_left')){
+    if(data.team&&data.team.code&&!teamSession&&localStorage.getItem('wj_team_left_code')!==data.team.code){
       var code=data.team.code;
       dbGet('/sessions/'+code).then(function(session){
         if(!session||Date.now()-(session.created||0)>TEAM_SESSION_MS)return;
@@ -1504,11 +1504,12 @@ function fetchTeamData(){
     // Check if we're still a member — another device may have left
     var members=data.members||{};
     if(!members[myId]){
+      var kickedFrom=teamSession;
       stopTeamPoll();
       tasks=tasks.filter(function(t){return!t.teamJobId;});save();
       teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
       localStorage.removeItem('wj_team');
-      localStorage.setItem('wj_team_left','1');
+      localStorage.setItem('wj_team_left_code',kickedFrom);
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
       clearTeamFromCloud();
       if(curTab==='team')setTab('active');else render();
@@ -1569,7 +1570,7 @@ function joinSession(){
 }
 function joinSessionByCode(code,name){
   stopTeamPoll();teamSession=code;
-  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);localStorage.removeItem('wj_team_left');
+  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);localStorage.removeItem('wj_team_left_code');
   // Always register presence first — before polling starts so membership check never fails
   var md={};md[myId]={name:name,color:myColor,joined:Date.now()};
   dbUpdate('/sessions/'+code+'/members',md).then(function(){
@@ -1603,8 +1604,9 @@ function leaveSession(){
   dbRemove('/sessions/'+teamSession+'/members/'+myId);
   tasks=tasks.filter(function(t){return!t.teamJobId;});
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
+  var leftCode=teamSession;
   localStorage.removeItem('wj_team');
-  localStorage.setItem('wj_team_left','1'); // explicit leave flag
+  localStorage.setItem('wj_team_left_code',leftCode);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
   save();clearTeamFromCloud();
   setTab('active');
@@ -1614,8 +1616,9 @@ function closeSession(){
   stopTeamPoll();dbRemove('/sessions/'+teamSession);
   tasks=tasks.filter(function(t){return!t.teamJobId;});
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
+  var leftCode2=teamSession;
   localStorage.removeItem('wj_team');
-  localStorage.setItem('wj_team_left','1'); // explicit leave flag
+  localStorage.setItem('wj_team_left_code',leftCode2);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
   save();clearTeamFromCloud();
   showBanner('Session closed','#c0392b');setTab('active');
@@ -1983,7 +1986,7 @@ function startApp(){
   (function(){
     var savedCode=localStorage.getItem('wj_team');
     var savedName=localStorage.getItem('wj_name');
-    if(!savedCode||!savedName||localStorage.getItem('wj_team_left'))return;
+    if(!savedCode||!savedName||localStorage.getItem('wj_team_left_code')===savedCode)return;
     myName=savedName;
     dbGet('/sessions/'+savedCode).then(function(data){
       if(!data){localStorage.removeItem('wj_team');return;}
