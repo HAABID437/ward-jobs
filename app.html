@@ -1545,14 +1545,18 @@ function joinSession(){
 function joinSessionByCode(code,name){
   stopTeamPoll();teamSession=code;
   localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);localStorage.removeItem('wj_team_left');
-  dbGet('/sessions/'+code).then(function(data){
+  // Always register presence first — before polling starts so membership check never fails
+  var md={};md[myId]={name:name,color:myColor,joined:Date.now()};
+  dbUpdate('/sessions/'+code+'/members',md).then(function(){
+    return dbGet('/sessions/'+code);
+  }).then(function(data){
     teamJobs=(data&&data.jobs)||{};teamMembers=(data&&data.members)||{};
     teamCreatorId=(data&&data.createdBy)||null;
     if(data&&data.created)window.teamSessionCreated=data.created;
     if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
-    syncToCloud(); // persist team membership to cloud account
+    syncToCloud();
     setTab('team');startTeamPoll();
-  });
+  }).catch(function(){});
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
   showBanner('Joined session '+code,'var(--team)');
 }
