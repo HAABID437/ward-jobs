@@ -6,7 +6,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#f5ece0">
+<meta name="theme-color" id="tc-light" media="(prefers-color-scheme: light)" content="#f5ece0">
+<meta name="theme-color" id="tc-dark" media="(prefers-color-scheme: dark)" content="#0f0e0c">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -708,18 +709,14 @@ function applyTheme(t){
   document.body.style.background=bg;
   var fills=document.querySelectorAll('.safe-top-fill,.safe-bot-fill');
   for(var i=0;i<fills.length;i++)fills[i].style.background=bg;
-  // Force Safari to repaint Dynamic Island + bottom bar by removing/re-adding meta
-  var oldMeta=document.querySelector('meta[name="theme-color"]');
-  if(oldMeta)oldMeta.parentNode.removeChild(oldMeta);
-  var newMeta=document.createElement('meta');
-  newMeta.name='theme-color';
-  newMeta.content=bg;
-  document.head.appendChild(newMeta);
-  // Second frame update to catch Safari's deferred repaint
-  requestAnimationFrame(function(){
-    document.documentElement.style.background=bg;
-    document.body.style.background=bg;
-  });
+  // Update both media-specific theme-color metas
+  var light=document.getElementById('tc-light');
+  var dark=document.getElementById('tc-dark');
+  if(isDark){if(dark)dark.content=bg;}
+  else{if(light)light.content=bg;}
+  // Safari repaint trick: micro-scroll forces native chrome to re-evaluate bg
+  var sa=document.getElementById('scroll-area');
+  if(sa){var s=sa.scrollTop;sa.scrollTop=s+1;sa.scrollTop=s;}
   var moon=document.getElementById('theme-icon-moon');
   var sun=document.getElementById('theme-icon-sun');
   if(moon)moon.style.display=isDark?'none':'block';
