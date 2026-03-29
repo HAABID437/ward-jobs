@@ -615,6 +615,11 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <div class="f-label">Your name</div>
     <input type="text" id="team-name-input" placeholder="e.g. Dr Ahmed" maxlength="30" autocomplete="off">
   </div>
+  <div id="ward-template-picker" style="display:none;margin-bottom:12px">
+    <div class="f-label" style="margin-bottom:8px">Ward layout <span style="font-weight:400;color:var(--dim)">(optional)</span></div>
+    <div id="ward-picker-options" style="display:flex;flex-direction:column;gap:6px"></div>
+    <button onclick="openWardBuilderFromTeam()" style="width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted);margin-top:6px">+ Create new template</button>
+  </div>
   <button class="submit-btn" onclick="createSession()" style="margin-bottom:10px">Create new session</button>
   <div class="divider-row"><span>or join with a code</span></div>
   <input type="text" id="join-code-input" placeholder="Enter 6-letter code" maxlength="6" style="text-transform:uppercase;letter-spacing:0.14em;font-family:'Courier New',monospace;font-size:18px;text-align:center;margin-bottom:10px" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
@@ -1798,13 +1803,67 @@ function fetchTeamData(){
 
 /* Team setup */
 function genCode(){var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
+var _selectedWardTemplateId=null;
+
 function openTeamSetup(){
   document.getElementById('team-name-input').value=myName;
   document.getElementById('join-code-input').value='';
   document.getElementById('team-setup-error').style.display='none';
+  _selectedWardTemplateId=null;
+  // Show ward picker only if logged in and has templates
+  var picker=document.getElementById('ward-template-picker');
+  if(picker){
+    if(currentUser&&wardTemplates.length){
+      picker.style.display='block';
+      renderWardPicker();
+    }else{
+      picker.style.display='none';
+    }
+  }
   openSheet('team-setup-sheet');
   setTimeout(function(){document.getElementById('team-name-input').focus();},320);
 }
+
+function renderWardPicker(){
+  var opts=document.getElementById('ward-picker-options');
+  if(!opts)return;
+  opts.innerHTML='';
+  // "None" option
+  var noneRow=makePickerOption(null,'No ward layout','Just jobs, no map');
+  opts.appendChild(noneRow);
+  wardTemplates.forEach(function(tmpl){
+    var totalBeds=tmpl.bays.reduce(function(s,b){return s+b.beds.length;},0);
+    var meta=tmpl.bays.length+' bay'+(tmpl.bays.length!==1?'s':'')+' · '+totalBeds+' beds';
+    opts.appendChild(makePickerOption(tmpl.id,tmpl.name,meta));
+  });
+}
+
+function makePickerOption(id,label,sub){
+  var row=document.createElement('div');
+  var isSelected=_selectedWardTemplateId===id;
+  row.style.cssText='display:flex;align-items:center;gap:10px;padding:11px 14px;background:var(--surface2);border-radius:14px;cursor:pointer;border:2px solid '+(isSelected?'var(--team)':'transparent');
+  var dot=document.createElement('div');
+  dot.style.cssText='width:18px;height:18px;border-radius:50%;border:2px solid '+(isSelected?'var(--team)':'var(--border-mid)')+';background:'+(isSelected?'var(--team)':'transparent')+';flex-shrink:0;display:flex;align-items:center;justify-content:center';
+  if(isSelected){dot.innerHTML='<svg width="8" height="8" viewBox="0 0 8 8"><polyline points="1,4 3,6 7,2" stroke="#fff" stroke-width="1.5" fill="none"/></svg>';}
+  var info=document.createElement('div');
+  var name=document.createElement('div');name.style.cssText='font-size:14px;font-weight:600;color:var(--text)';name.textContent=label;
+  var meta=document.createElement('div');meta.style.cssText='font-size:11px;color:var(--muted);margin-top:1px';meta.textContent=sub;
+  info.appendChild(name);info.appendChild(meta);row.appendChild(dot);row.appendChild(info);
+  row.addEventListener('click',function(){_selectedWardTemplateId=id;renderWardPicker();});
+  return row;
+}
+
+function openWardBuilderFromTeam(){
+  _editingTemplateId=null;
+  _builderReturnToTeamSetup=true;
+  document.getElementById('ward-setup-title').textContent='New ward layout';
+  document.getElementById('ward-name-input').value='';
+  _builderBays=[];
+  renderBayBuilder();
+  openSheet('ward-setup-sheet');
+  setTimeout(function(){document.getElementById('ward-name-input').focus();},320);
+}
+
 function validateName(){
   var n=document.getElementById('team-name-input').value.trim();
   if(!n){var err=document.getElementById('team-setup-error');err.textContent='Please enter your name first.';err.style.display='block';return null;}
@@ -1815,8 +1874,13 @@ function createSession(){
   var code=genCode();
   myColor=TEAM_COLORS[0];localStorage.setItem('wj_color',myColor);
   var members={};members[myId]={name:name,color:myColor,joined:Date.now()};
-  dbSet('/sessions/'+code,{code:code,created:Date.now(),createdBy:myId,members:members,jobs:{}}).then(function(){
-    teamCreatorId=myId;closeSheet();joinSessionByCode(code,name);
+  // Attach selected ward template
+  var selectedWard=wardTemplates.find(function(t){return t.id===_selectedWardTemplateId;})||null;
+  var sessionData={code:code,created:Date.now(),createdBy:myId,members:members,jobs:{},ward:selectedWard||null};
+  dbSet('/sessions/'+code,sessionData).then(function(){
+    teamCreatorId=myId;
+    if(selectedWard){wardTemplate=selectedWard;try{localStorage.setItem('wj_ward',JSON.stringify(selectedWard));}catch(e){}}
+    closeSheet();joinSessionByCode(code,name);
   }).catch(function(){
     var err=document.getElementById('team-setup-error');err.textContent='Could not create session. Check your connection.';err.style.display='block';
   });
@@ -1848,6 +1912,15 @@ function joinSessionByCode(code,name){
     teamCreatorId=(data&&data.createdBy)||null;
     if(data&&data.created)window.teamSessionCreated=data.created;
     if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
+    // Pick up ward template from session
+    if(data&&data.ward){
+      wardTemplate=data.ward;
+      try{localStorage.setItem('wj_ward',JSON.stringify(data.ward));}catch(e){}
+      // Add to personal library if not already there
+      if(!wardTemplates.some(function(t){return t.id===data.ward.id;})){
+        wardTemplates.push(data.ward);saveWardTemplatesToStorage();pushWardTemplatesToCloud();
+      }
+    }
     syncToCloud();
     setTab('team');startTeamPoll();
   }).catch(function(){});
@@ -2076,14 +2149,8 @@ function renderTeamTab(){
         bayEl.appendChild(bedsGrid);wardSection.appendChild(bayEl);
       });
       container.appendChild(wardSection);
-    }else{
-      // Prompt to set up ward layout
-      var wardPrompt=document.createElement('button');
-      wardPrompt.style.cssText='width:100%;padding:13px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:16px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:8px';
-      wardPrompt.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="2" stroke="currentColor" stroke-width="1.3"/><line x1="1" y1="5" x2="13" y2="5" stroke="currentColor" stroke-width="1.3"/><line x1="5" y1="5" x2="5" y2="13" stroke="currentColor" stroke-width="1.3"/></svg> Set up ward layout';
-      wardPrompt.onclick=openWardSetup;
-      container.appendChild(wardPrompt);
     }
+    // No prompt when no ward — ward is set at session creation time
   }
 
   var unassigned=active.filter(function(j){return!j.assignedTo&&matchesSearch(j);});
@@ -2264,7 +2331,8 @@ function openMemberProfile(uid){
 var wardTemplates=[]; // array of {id, name, bays:[{name, beds:[]}]}
 var wardTemplate=null; // currently active template for THIS team session
 var _builderBays=[];
-var _editingTemplateId=null; // null = new template
+var _editingTemplateId=null;
+var _builderReturnToTeamSetup=false;
 
 function loadWardTemplates(){
   try{var s=localStorage.getItem('wj_wards');if(s)wardTemplates=JSON.parse(s);}catch(e){}
@@ -2442,8 +2510,12 @@ function saveWardTemplate(){
   saveWardTemplatesToStorage();
   pushWardTemplatesToCloud();
   closeSheet();
-  // Re-open templates list
-  setTimeout(function(){openWardTemplates();},350);
+  if(_builderReturnToTeamSetup){
+    _builderReturnToTeamSetup=false;
+    setTimeout(function(){openTeamSetup();},350);
+  }else{
+    setTimeout(function(){openWardTemplates();},350);
+  }
   showBanner('Template saved','var(--rtn)');
 }
 
