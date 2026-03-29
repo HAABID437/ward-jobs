@@ -156,7 +156,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bed:active{transform:scale(0.95)}
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
-.ward-bed.has-rtn{border-color:var(--rtn);background:var(--rtn-bg)}
+.ward-bed.has-done{border-color:var(--rtn);background:var(--rtn-bg)}
 .ward-bed-label{font-size:11px;font-weight:700;color:var(--text);line-height:1.2}
 .ward-bed-count{font-size:9px;font-weight:600;color:var(--muted)}
 .ward-bed-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0}
@@ -2586,31 +2586,43 @@ function renderWardTab(){
   list.appendChild(container);
 }
 
-function bedTaskUrgency(bedLabel){
-  // Get all active tasks matching this bed label (by pid)
-  var all=tasks.concat(Object.values(teamJobs)).filter(function(t){
-    return !t.done&&t.pid&&t.pid.trim().toLowerCase()===bedLabel.trim().toLowerCase();
+function bedJobsForLabel(bedLabel){
+  // Only team jobs count for ward view (personal tasks added via bed)
+  return Object.values(teamJobs).filter(function(t){
+    return t.pid&&t.pid.trim().toLowerCase()===bedLabel.trim().toLowerCase();
   });
+}
+function bedTaskUrgency(bedLabel){
+  var all=bedJobsForLabel(bedLabel).filter(function(t){return !t.done;});
   if(!all.length)return null;
   if(all.some(function(t){return t.urg==='i';}))return 'i';
   if(all.some(function(t){return t.urg==='u';}))return 'u';
   return 'r';
 }
-
+function bedAllDone(bedLabel){
+  var all=bedJobsForLabel(bedLabel);
+  return all.length>0&&all.every(function(t){return t.done;});
+}
 function bedTaskCount(bedLabel){
-  return tasks.concat(Object.values(teamJobs)).filter(function(t){
-    return !t.done&&t.pid&&t.pid.trim().toLowerCase()===bedLabel.trim().toLowerCase();
-  }).length;
+  return bedJobsForLabel(bedLabel).filter(function(t){return !t.done;}).length;
 }
 
 function makeBedCard(bedLabel){
   var urg=bedTaskUrgency(bedLabel);
   var count=bedTaskCount(bedLabel);
+  var allDone=bedAllDone(bedLabel);
   var card=document.createElement('div');
-  card.className='ward-bed'+(urg?' has-'+urg:'');
-  var dot=document.createElement('div');dot.className='ward-bed-dot';
+  card.className='ward-bed'+(allDone?' has-done':urg?' has-'+urg:'');
+  if(allDone){
+    // Green tick
+    var tick=document.createElement('div');
+    tick.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="var(--rtn)"/><polyline points="4,7 6,9 10,5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    card.appendChild(tick);
+  }else{
+    var dot=document.createElement('div');dot.className='ward-bed-dot';card.appendChild(dot);
+  }
   var lbl=document.createElement('div');lbl.className='ward-bed-label';lbl.textContent=bedLabel;
-  card.appendChild(dot);card.appendChild(lbl);
+  card.appendChild(lbl);
   if(count>0){
     var cnt=document.createElement('div');cnt.className='ward-bed-count';
     cnt.textContent=count+' job'+(count!==1?'s':'');
@@ -2619,6 +2631,49 @@ function makeBedCard(bedLabel){
   card.addEventListener('click',function(){openBedSheet(bedLabel);});
   return card;
 }
+
+function assignTeamJobFromBed(jobId){
+  if(!teamSession)return;
+  var job=teamJobs[jobId];if(!job)return;
+  var isMe=job.assignedTo===myId;
+  var upd;
+  if(isMe){
+    // Unassign
+    upd={assignedTo:null,assignedToName:null,assignedColor:null};
+    tasks=tasks.filter(function(t){return t.teamJobId!==jobId;});
+    save();
+  }else if(!job.assignedTo){
+    // Assign to me
+    upd={assignedTo:myId,assignedToName:myName,assignedColor:myColor};
+    if(!tasks.find(function(t){return t.teamJobId===jobId;})){
+      tasks.unshift({id:'t'+jobId,pid:job.pid,desc:job.desc,urg:job.urg,added:Date.now(),done:false,completed:null,teamJobId:jobId});
+      save();
+    }
+  }else{
+    showBanner('Already assigned to '+(job.assignedToName||'someone'),'#92620a');return;
+  }
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){
+    teamJobs[jobId]=Object.assign({},job,upd);
+    if(curTab==='team')renderTeamTab();
+    openBedSheet(job.pid); // refresh bed sheet
+  });
+}
+
+function completeTeamJobFromBed(jobId){
+  if(!teamSession)return;
+  var job=teamJobs[jobId];if(!job)return;
+  var newDone=!job.done;
+  var upd={done:newDone,doneBy:newDone?myId:null,doneByName:newDone?myName:null,completedAt:newDone?Date.now():null};
+  // Update local task if assigned to me
+  var lt=tasks.find(function(t){return t.teamJobId===jobId;});
+  if(lt){lt.done=newDone;lt.completed=upd.completedAt||null;save();}
+  dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){
+    teamJobs[jobId]=Object.assign({},job,upd);
+    if(curTab==='team')renderTeamTab();
+    openBedSheet(job.pid);
+  });
+}
+
 
 function renameBed(oldLabel){
   // Find the bed in the active template and rename it
@@ -2732,14 +2787,43 @@ function openBedSheet(bedLabel){
     var lbl=document.createElement('div');lbl.style.cssText='font-family:DM Serif Display,serif;font-size:13px;font-style:italic;color:var(--muted);margin-bottom:8px';lbl.textContent=title;sec.appendChild(lbl);
     var wrap=document.createElement('div');wrap.style.cssText='background:var(--surface2);border-radius:16px;overflow:hidden;margin-bottom:14px';
     list.forEach(function(t){
-      var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border)'+(isDone?';opacity:0.5':'');
+      var isTeamJob=!!t.id&&t.id.charAt(0)==='j'; // team jobs have ids starting with 'j'
+      var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)'+(isDone?';opacity:0.55':'');
       var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+(t.urg==='i'?'var(--imm)':t.urg==='u'?'var(--urg)':'var(--rtn)');
       var body=document.createElement('div');body.style.cssText='flex:1;min-width:0';
       var desc=document.createElement('div');desc.style.cssText='font-size:14px;font-weight:500;color:var(--text)'+(isDone?';text-decoration:line-through':'');desc.textContent=t.desc;
       body.appendChild(desc);
-      if(t.assignedToName){var badge=document.createElement('div');badge.style.cssText='font-size:10px;color:var(--team);font-weight:600;margin-top:2px';badge.textContent='👥 '+t.assignedToName;body.appendChild(badge);}
+      // Assignment label
+      if(isTeamJob&&t.assignedTo&&!isDone){
+        var asgn=document.createElement('div');
+        var isMe=t.assignedTo===myId;
+        asgn.style.cssText='font-size:10px;font-weight:600;margin-top:2px;color:'+(isMe?'var(--team)':'var(--muted)');
+        asgn.textContent=isMe?'Assigned to you':'Assigned to '+(t.assignedToName||'someone');
+        body.appendChild(asgn);
+      }
       row.appendChild(dot);row.appendChild(body);
-      if(!isDone&&!t.assignedTo){
+      // Action buttons for team jobs
+      if(isTeamJob&&!isDone){
+        // Assign/unassign button
+        var canAssign=!t.assignedTo||(t.assignedTo===myId);
+        var aBtn=document.createElement('button');
+        aBtn.style.cssText='padding:5px 10px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;';
+        if(t.assignedTo===myId){
+          aBtn.textContent='Mine ✓';aBtn.style.cssText+='background:var(--team);color:#fff';
+        }else if(t.assignedTo){
+          aBtn.textContent='Taken';aBtn.style.cssText+='background:var(--surface3);color:var(--dim);cursor:not-allowed';
+        }else{
+          aBtn.textContent='Assign me';aBtn.style.cssText+='background:var(--team-bg);color:var(--team)';
+        }
+        if(canAssign){aBtn.onclick=function(){assignTeamJobFromBed(t.id);};}
+        // Done button
+        var dBtn=document.createElement('button');
+        dBtn.textContent='Done';
+        dBtn.style.cssText='padding:5px 10px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;background:var(--rtn-bg);color:var(--rtn)';
+        dBtn.onclick=function(){completeTeamJobFromBed(t.id);};
+        row.appendChild(aBtn);row.appendChild(dBtn);
+      }else if(!isDone&&!isTeamJob){
+        // Personal task complete button
         var cb=document.createElement('button');cb.style.cssText='background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;flex-shrink:0';
         cb.innerHTML='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/></svg>';
         cb.onclick=function(){complete(t.id);closeSheet();setTimeout(function(){openBedSheet(bedLabel);},50);};
