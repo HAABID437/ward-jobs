@@ -705,6 +705,14 @@ function toggleTheme(){
   _theme=_theme==='dark'?'light':'dark';
   localStorage.setItem('wj_theme',_theme);
   applyTheme(_theme);
+  if(currentUser){
+    currentUser.getIdToken(false).then(function(token){
+      fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token,{
+        method:'PATCH',body:JSON.stringify({theme:_theme}),
+        headers:{'Content-Type':'application/json'}
+      });
+    }).catch(function(){});
+  }
 }
 applyTheme(_theme);
 
@@ -952,6 +960,13 @@ function pollUserTasks(){
     var cloudSaved=data.saved||0;
     var cloudTeamHash=data.team?data.team.code:'null';
 
+    // Always sync theme preference
+    if(data.theme&&data.theme!==_theme){
+      _theme=data.theme;
+      localStorage.setItem('wj_theme',_theme);
+      applyTheme(_theme);
+    }
+
     // Always sync session start — independent of whether tasks changed
     if(data.sessionStart){
       var localStart=parseInt(localStorage.getItem('wj_start')||'0');
@@ -1042,6 +1057,7 @@ function syncToCloud(){
       tasks:tasks,
       saved:Date.now(),
       sessionStart:parseInt(localStorage.getItem('wj_start')||'0'),
+      theme:_theme,
       team:teamSession?{
         code:teamSession,
         name:myName,
