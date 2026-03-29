@@ -1806,6 +1806,7 @@ function genCode(){var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<6
 var _selectedWardTemplateId=null;
 
 function openTeamSetup(){
+  try{
   document.getElementById('team-name-input').value=myName;
   document.getElementById('join-code-input').value='';
   document.getElementById('team-setup-error').style.display='none';
@@ -1822,6 +1823,7 @@ function openTeamSetup(){
   }
   openSheet('team-setup-sheet');
   setTimeout(function(){document.getElementById('team-name-input').focus();},320);
+  }catch(e){showBanner('Error: '+e.message,'#c0392b');console.error('openTeamSetup failed:',e);}
 }
 
 function renderWardPicker(){
