@@ -63,10 +63,14 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
 html{height:100%;overflow:hidden}
-body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:16px;overflow:hidden;position:fixed;width:100%;transition:background 0.25s,color 0.25s}
+body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:16px;overflow:hidden;position:fixed;width:100%}
 #shell{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
 #scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 
+
+/* Safe area fills — match browser chrome instantly */
+.safe-top-fill{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:100}
+.safe-bot-fill{position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:var(--bg);z-index:100}
 /* Header */
 .hdr{padding:16px 20px 12px;background:var(--bg);position:sticky;top:0;z-index:20}
 .hdr-row{display:flex;align-items:flex-start;justify-content:space-between}
@@ -382,6 +386,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 </style>
 </head>
 <body>
+<div class="safe-top-fill"></div>
+<div class="safe-bot-fill"></div>
 <div id="shell">
   <div class="hdr">
     <div class="hdr-row">
@@ -692,14 +698,19 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 /* Theme */
 var _theme=localStorage.getItem('wj_theme')||'light';
 function applyTheme(t){
-  document.documentElement.setAttribute('data-theme',t==='dark'?'dark':'');
+  var isDark=t==='dark';
+  // Update data-theme and meta synchronously before paint
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'');
+  var bg=isDark?'#141210':'#f5ece0';
+  // Force immediate background on html/body so safe areas match instantly
+  document.documentElement.style.background=bg;
+  document.body.style.background=bg;
+  var meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.content=bg;
   var moon=document.getElementById('theme-icon-moon');
   var sun=document.getElementById('theme-icon-sun');
-  if(moon)moon.style.display=t==='dark'?'none':'block';
-  if(sun)sun.style.display=t==='dark'?'block':'none';
-  // Update meta theme-color
-  var meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.content=t==='dark'?'#141210':'#f5ece0';
+  if(moon)moon.style.display=isDark?'none':'block';
+  if(sun)sun.style.display=isDark?'block':'none';
 }
 function toggleTheme(){
   _theme=_theme==='dark'?'light':'dark';
