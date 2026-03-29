@@ -148,11 +148,11 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 
 
 /* Ward */
-.ward-bay{margin-bottom:16px}
-.ward-bay-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 8px;display:flex;align-items:center;gap:8px}
+.ward-bay{margin-bottom:16px;touch-action:pan-y}
+.ward-bay-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 8px;display:flex;align-items:center;gap:8px;touch-action:pan-y}
 .ward-bay-hdr::after{content:'';flex:1;height:1px;background:var(--border-mid)}
-.ward-beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
-.ward-bed{background:var(--surface);border-radius:14px;padding:10px 8px 8px;text-align:center;cursor:pointer;border:1.5px solid var(--border);transition:transform 0.12s,border-color 0.2s;position:relative;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.ward-beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;touch-action:pan-y}
+.ward-bed{background:var(--surface);border-radius:14px;padding:10px 8px 8px;text-align:center;cursor:pointer;border:1.5px solid var(--border);transition:transform 0.12s,border-color 0.2s;position:relative;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:pan-y}
 .ward-bed:active{transform:scale(0.95)}
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
