@@ -2772,12 +2772,23 @@ function openBedSheet(bedLabel){
   qaBtn.onclick=function(){
     var desc=qaInput.value.trim();
     if(!desc)return;
-    tasks.unshift({id:''+Date.now()+Math.random(),pid:bedLabel,desc:desc,urg:qaUrg,added:Date.now(),done:false,completed:null});
-    save();
+    if(teamSession){
+      // Add as team job so all members see it
+      var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
+      var job={id:jobId,pid:bedLabel,desc:desc,urg:qaUrg,
+        addedBy:myId,addedByName:myName,
+        assignedTo:null,assignedToName:null,assignedColor:null,
+        done:false,doneBy:null,doneByName:null,created:Date.now()};
+      teamJobs[jobId]=job;
+      var jd={};jd[jobId]=job;
+      dbUpdate('/sessions/'+teamSession+'/jobs',jd).catch(function(){});
+    }else{
+      tasks.unshift({id:''+Date.now()+Math.random(),pid:bedLabel,desc:desc,urg:qaUrg,added:Date.now(),done:false,completed:null});
+      save();
+    }
     qaInput.value='';
-    // Refresh sheet
     closeSheet();
-    setTimeout(function(){openBedSheet(bedLabel);if(curTab==='team')renderTeamTab();},50);
+    setTimeout(function(){openBedSheet(bedLabel);if(curTab==='team')renderTeamTab();},100);
   };
   qaInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();qaBtn.click();}});
   quickAdd.appendChild(qaLabel);quickAdd.appendChild(urgRow);
