@@ -68,7 +68,7 @@
 html{height:100%;overflow:hidden}
 body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:16px;overflow:hidden;position:fixed;width:100%}
 #shell{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
-#scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
+#scroll-area{flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
 
 
 /* Tooltips */
@@ -152,7 +152,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bay-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 8px;display:flex;align-items:center;gap:8px;touch-action:pan-y}
 .ward-bay-hdr::after{content:'';flex:1;height:1px;background:var(--border-mid)}
 .ward-beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;touch-action:pan-y}
-.ward-bed{background:var(--surface);border-radius:14px;padding:10px 8px 8px;text-align:center;cursor:pointer;border:1.5px solid var(--border);transition:transform 0.12s,border-color 0.2s;position:relative;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;touch-action:pan-y}
+.ward-bed{background:var(--surface);border-radius:14px;padding:10px 8px 8px;text-align:center;cursor:pointer;border:1.5px solid var(--border);transition:transform 0.12s,border-color 0.2s;position:relative;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .ward-bed:active{transform:scale(0.95)}
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
@@ -1299,6 +1299,11 @@ function closeSheet(){
   activeSheet=null;
 }
 document.getElementById('backdrop').addEventListener('click',closeSheet);
+// Ensure iOS Safari allows scrolling in scroll-area
+(function(){
+  var sa=document.getElementById('scroll-area');
+  if(sa){sa.addEventListener('touchmove',function(){},{passive:true});}
+})();
 
 /* Tabs */
 var searchQuery='';
@@ -2086,7 +2091,8 @@ function renderTeamTab(){
   var barColor=barPct>50?'var(--team)':barPct>25?'var(--urg)':'var(--imm)';
 
   list.innerHTML='';
-  var container=document.createElement('div');container.style.cssText='padding-bottom:180px;min-height:100%';
+  list.style.cssText='padding:0;overflow:visible';
+  var container=document.createElement('div');container.style.cssText='padding:8px 14px 180px';
 
   // Header
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
@@ -2193,6 +2199,9 @@ function renderTeamTab(){
   container.appendChild(cpanel);
 
   list.appendChild(container);
+  // Force iOS Safari to recognise the new scroll height
+  var sa=document.getElementById('scroll-area');
+  if(sa){sa.scrollTop=sa.scrollTop;}
 }
 
 function teamSectionHeader(text){
