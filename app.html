@@ -157,7 +157,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
 .ward-bed.has-rtn{border-color:var(--rtn);background:var(--rtn-bg)}
-.ward-bed.has-done{border-color:var(--rtn);background:var(--rtn-bg)}
+.ward-bed.has-done{border-color:var(--border-mid);background:var(--surface2);opacity:0.7}
 .ward-bed-label{font-size:11px;font-weight:700;color:var(--text);line-height:1.2}
 .ward-bed-count{font-size:9px;font-weight:600;color:var(--muted)}
 .ward-bed-dot{width:6px;height:6px;border-radius:50%;background:var(--dim);flex-shrink:0}
@@ -2588,9 +2588,9 @@ function renderWardTab(){
 }
 
 function bedJobsForLabel(bedLabel){
-  var lc=bedLabel.trim().toLowerCase();
+  var lc=bedLabel.trim().toLowerCase().replace(/\s+/g,' ');
   return Object.values(teamJobs).filter(function(t){
-    return t.pid&&t.pid.trim().toLowerCase()===lc;
+    return t.pid&&t.pid.trim().toLowerCase().replace(/\s+/g,' ')===lc;
   });
 }
 function bedTaskUrgency(bedLabel){
@@ -2708,18 +2708,16 @@ function renameBed(oldLabel){
 }
 
 function openBedSheet(bedLabel){
-  var lc=bedLabel.trim().toLowerCase();
+  var lc=bedLabel.trim().toLowerCase().replace(/\s+/g,' ');
   // Team jobs for this bed
-  var teamTasksForBed=Object.values(teamJobs).filter(function(j){return j.pid&&j.pid.trim().toLowerCase()===lc;});
+  var teamTasksForBed=Object.values(teamJobs).filter(function(j){return j.pid&&j.pid.trim().toLowerCase().replace(/\s+/g,' ')===lc;});
   // Personal-only tasks (not linked to team)
-  var personalTasks=tasks.filter(function(t){return t.pid&&t.pid.trim().toLowerCase()===lc&&!t.teamJobId;});
+  var personalTasks=tasks.filter(function(t){return t.pid&&t.pid.trim().toLowerCase().replace(/\s+/g,' ')===lc&&!t.teamJobId;});
   var active=personalTasks.filter(function(t){return!t.done;});
   var done=personalTasks.filter(function(t){return t.done;});
 
   var content=document.getElementById('bed-sheet-content');
   content.innerHTML='';
-  // DEBUG
-  showBanner('team:'+Object.values(teamJobs).length+' personal:'+tasks.filter(function(t){return t.pid&&t.pid.trim().toLowerCase()===lc;}).length+' teamForBed:'+teamTasksForBed.length,'#333');
 
   // Header with rename
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:0 0 16px';
@@ -2735,13 +2733,6 @@ function openBedSheet(bedLabel){
   renameBtn.onclick=function(){renameBed(bedLabel);};
   nameWrap.appendChild(nameEl);nameWrap.appendChild(renameBtn);
   left.appendChild(dot);left.appendChild(nameWrap);hdr.appendChild(left);
-
-  // Add job button
-  var addBtn=document.createElement('button');
-  addBtn.textContent='+ Add job';
-  addBtn.style.cssText='background:var(--accent);color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0';
-  addBtn.onclick=function(){closeSheet();openAddSheetForBed(bedLabel);};
-  hdr.appendChild(addBtn);
   content.appendChild(hdr);
 
   // Inline quick-add form
@@ -2751,19 +2742,20 @@ function openBedSheet(bedLabel){
   // Urgency selector
   var qaUrg='r';
   var urgRow=document.createElement('div');urgRow.style.cssText='display:flex;gap:6px;margin-bottom:8px';
-  [{u:'i',l:'Immediate',bg:'var(--imm)',c:'var(--imm)'},{u:'u',l:'Urgent',bg:'var(--urg)',c:'var(--urg)'},{u:'r',l:'Routine',bg:'var(--rtn)',c:'var(--rtn)'}].forEach(function(item){
+  [{u:'i',l:'Immediate',c:'var(--imm)'},{u:'u',l:'Urgent',c:'var(--urg)'},{u:'r',l:'Routine',c:'var(--rtn)'}].forEach(function(item){
     var ub=document.createElement('button');
     ub.dataset.urg=item.u;
     ub.textContent=item.l;
-    ub.style.cssText='flex:1;padding:7px 4px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;transition:all 0.15s;background:'+(item.u==='r'?item.bg+'22':'var(--surface3)')+';color:'+(item.u==='r'?item.c:'var(--muted)')+';outline:'+(item.u==='r'?'2px solid '+item.c:'none');
+    var isSelected=item.u==='r';
+    ub.style.cssText='flex:1;padding:7px 4px;border:2px solid '+(isSelected?item.c:'var(--border-mid)')+';border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;transition:all 0.15s;background:'+(isSelected?'var(--surface)':'var(--surface3)')+';color:'+(isSelected?item.c:'var(--muted)');
     ub.onclick=function(){
       qaUrg=item.u;
       urgRow.querySelectorAll('button').forEach(function(b){
         var u=b.dataset.urg;
         var col=u==='i'?'var(--imm)':u==='u'?'var(--urg)':'var(--rtn)';
-        b.style.background=u===qaUrg?col+'22':'var(--surface3)';
+        b.style.border='2px solid '+(u===qaUrg?col:'var(--border-mid)');
+        b.style.background=u===qaUrg?'var(--surface)':'var(--surface3)';
         b.style.color=u===qaUrg?col:'var(--muted)';
-        b.style.outline=u===qaUrg?'2px solid '+col:'none';
       });
     };
     urgRow.appendChild(ub);
