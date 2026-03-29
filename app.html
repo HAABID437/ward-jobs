@@ -156,6 +156,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bed:active{transform:scale(0.95)}
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
+.ward-bed.has-rtn{border-color:var(--rtn);background:var(--rtn-bg)}
 .ward-bed.has-done{border-color:var(--rtn);background:var(--rtn-bg)}
 .ward-bed-label{font-size:11px;font-weight:700;color:var(--text);line-height:1.2}
 .ward-bed-count{font-size:9px;font-weight:600;color:var(--muted)}
@@ -2588,19 +2589,15 @@ function renderWardTab(){
 
 function bedJobsForLabel(bedLabel){
   var lc=bedLabel.trim().toLowerCase();
-  var personal=tasks.filter(function(t){
+  return Object.values(teamJobs).filter(function(t){
     return t.pid&&t.pid.trim().toLowerCase()===lc;
   });
-  var team=Object.values(teamJobs).filter(function(t){
-    return t.pid&&t.pid.trim().toLowerCase()===lc;
-  });
-  return personal.concat(team);
 }
 function bedTaskUrgency(bedLabel){
-  var all=bedJobsForLabel(bedLabel).filter(function(t){return !t.done;});
-  if(!all.length)return null;
-  if(all.some(function(t){return t.urg==='i';}))return 'i';
-  if(all.some(function(t){return t.urg==='u';}))return 'u';
+  var active=bedJobsForLabel(bedLabel).filter(function(t){return !t.done;});
+  if(!active.length)return null;
+  if(active.some(function(t){return t.urg==='i';}))return 'i';
+  if(active.some(function(t){return t.urg==='u';}))return 'u';
   return 'r';
 }
 function bedAllDone(bedLabel){
@@ -2616,9 +2613,13 @@ function makeBedCard(bedLabel){
   var count=bedTaskCount(bedLabel);
   var allDone=bedAllDone(bedLabel);
   var card=document.createElement('div');
-  card.className='ward-bed'+(allDone?' has-done':urg?' has-'+urg:'');
+  var cls='ward-bed';
+  if(allDone) cls+=' has-done';
+  else if(urg==='i') cls+=' has-imm';
+  else if(urg==='u') cls+=' has-urg';
+  else if(urg==='r') cls+=' has-rtn';
+  card.className=cls;
   if(allDone){
-    // Green tick
     var tick=document.createElement('div');
     tick.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="var(--rtn)"/><polyline points="4,7 6,9 10,5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     card.appendChild(tick);
