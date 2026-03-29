@@ -113,7 +113,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .tc{display:none}
 
 /* List */
-.list{padding:2px 14px 160px;height:auto;overflow:visible}
+.list{padding:2px 14px 160px}
 .sec-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-weight:400;font-style:italic;padding:12px 4px 5px;display:flex;align-items:center;gap:10px;letter-spacing:0.01em}
 .sec-hdr::after{content:'';flex:1;height:1px}
 .sec-hdr.i{color:var(--imm)}.sec-hdr.i::after{background:var(--imm-bd)}
@@ -1341,7 +1341,7 @@ function setTab(t){
   if(sw)sw.style.display=(t==='active'||t==='done'||(t==='team'&&teamSession))?'block':'none';
   // Clear list immediately so stale content never shows during transition
   var list=document.getElementById('list');
-  if(list)list.innerHTML='';
+  if(list){list.innerHTML='';list.removeAttribute('style');}
   ['active','done','team'].forEach(function(x){
     var el=document.getElementById('tab-'+x);if(el)el.className='tab'+(t===x?' on':'');
   });
@@ -2091,7 +2091,6 @@ function renderTeamTab(){
   var barColor=barPct>50?'var(--team)':barPct>25?'var(--urg)':'var(--imm)';
 
   list.innerHTML='';
-  list.style.cssText='padding:0;overflow:visible';
   var container=document.createElement('div');container.style.cssText='padding:8px 14px 180px';
 
   // Header
