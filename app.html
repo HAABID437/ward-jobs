@@ -1359,6 +1359,11 @@ function setAddDest(dest){
   }
 }
 function openAddSheet(){
+  // If on team tab with an active ward template, require jobs to be added via beds
+  if(curTab==='team'&&teamSession&&wardTemplate){
+    showBanner('Tap a bed to add jobs','var(--team)');
+    return;
+  }
   addDest='my';
   var toggle=document.getElementById('add-sheet-team-toggle');
   if(toggle)toggle.style.display=teamSession?'block':'none';
@@ -2119,6 +2124,7 @@ function renderTeamTab(){
   var actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;margin-bottom:14px';
   var addBtn=document.createElement('button');
   addBtn.textContent='+ Add job';addBtn.style.cssText='flex:1;padding:10px;background:var(--team-bg);color:var(--team);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
+  if(wardTemplate)addBtn.style.display='none';
   addBtn.onclick=openAddTeamJobSheet;actions.appendChild(addBtn);
   var leaveBtn=document.createElement('button');
   leaveBtn.textContent='Leave';leaveBtn.style.cssText='padding:10px 14px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
