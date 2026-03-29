@@ -2707,10 +2707,13 @@ function renameBed(oldLabel){
 }
 
 function openBedSheet(bedLabel){
-  var allTasks=tasks.filter(function(t){return t.pid&&t.pid.trim().toLowerCase()===bedLabel.trim().toLowerCase();});
-  var teamTasksForBed=Object.values(teamJobs).filter(function(j){return j.pid&&j.pid.trim().toLowerCase()===bedLabel.trim().toLowerCase();});
-  var active=allTasks.filter(function(t){return!t.done;});
-  var done=allTasks.filter(function(t){return t.done;});
+  var lc=bedLabel.trim().toLowerCase();
+  // Team jobs for this bed
+  var teamTasksForBed=Object.values(teamJobs).filter(function(j){return j.pid&&j.pid.trim().toLowerCase()===lc;});
+  // Personal-only tasks (not linked to team)
+  var personalTasks=tasks.filter(function(t){return t.pid&&t.pid.trim().toLowerCase()===lc&&!t.teamJobId;});
+  var active=personalTasks.filter(function(t){return!t.done;});
+  var done=personalTasks.filter(function(t){return t.done;});
 
   var content=document.getElementById('bed-sheet-content');
   content.innerHTML='';
@@ -2851,11 +2854,13 @@ function openBedSheet(bedLabel){
 
   var teamActive=teamTasksForBed.filter(function(j){return!j.done;});
   var teamDone=teamTasksForBed.filter(function(j){return j.done;});
-  // Mark team jobs with a flag so taskSection knows to show assignment controls
-  teamActive.forEach(function(j){j._isTeam=true;});
-  teamDone.forEach(function(j){j._isTeam=true;});
-  taskSection('Active jobs',active.concat(teamActive),false);
-  taskSection('Done',done.concat(teamDone),true);
+  // Build combined lists — team jobs shown with assignment controls
+  var activeAll=active.map(function(t){return Object.assign({},t,{_isTeam:false});})
+    .concat(teamActive.map(function(j){return Object.assign({},j,{_isTeam:true});}));
+  var doneAll=done.map(function(t){return Object.assign({},t,{_isTeam:false});})
+    .concat(teamDone.map(function(j){return Object.assign({},j,{_isTeam:true});}));
+  taskSection('Active jobs',activeAll,false);
+  taskSection('Done',doneAll,true);
 
   if(!active.length&&!teamTasksForBed.filter(function(j){return!j.done;}).length&&!done.length){
     var empty=document.createElement('div');empty.style.cssText='text-align:center;padding:24px 0;color:var(--dim);font-size:13px;font-weight:500';empty.textContent='No jobs for this bed';content.appendChild(empty);
