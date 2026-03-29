@@ -2717,6 +2717,8 @@ function openBedSheet(bedLabel){
 
   var content=document.getElementById('bed-sheet-content');
   content.innerHTML='';
+  // DEBUG
+  showBanner('team:'+Object.values(teamJobs).length+' personal:'+tasks.filter(function(t){return t.pid&&t.pid.trim().toLowerCase()===lc;}).length+' teamForBed:'+teamTasksForBed.length,'#333');
 
   // Header with rename
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:0 0 16px';
