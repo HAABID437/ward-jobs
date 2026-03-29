@@ -1341,7 +1341,9 @@ function setTab(t){
   if(sw)sw.style.display=(t==='active'||t==='done'||(t==='team'&&teamSession))?'block':'none';
   // Clear list immediately so stale content never shows during transition
   var list=document.getElementById('list');
-  if(list){list.innerHTML='';list.removeAttribute('style');}
+  if(list){list.innerHTML='';list.removeAttribute('style');list.style.display='';}
+  var teamDiv=document.getElementById('team-content');
+  if(teamDiv){teamDiv.style.display='none';teamDiv.innerHTML='';}
   ['active','done','team'].forEach(function(x){
     var el=document.getElementById('tab-'+x);if(el)el.className='tab'+(t===x?' on':'');
   });
@@ -2052,10 +2054,23 @@ var _lastTeamHash='';
 function renderTeamTab(){
   var list=document.getElementById('list');
   var sw=document.getElementById('search-wrap');
+  // Use a dedicated team container that's a direct child of scroll-area
+  var scrollArea=document.getElementById('scroll-area');
+  var teamDiv=document.getElementById('team-content');
+  if(!teamDiv){
+    teamDiv=document.createElement('div');
+    teamDiv.id='team-content';
+    teamDiv.style.cssText='padding:8px 14px 180px';
+    scrollArea.appendChild(teamDiv);
+  }
+  list.style.display='none';
+  teamDiv.style.display='block';
+  teamDiv.innerHTML='';
   if(!teamSession){
     if(sw)sw.style.display='none';
     _lastTeamHash='';
     list.innerHTML='';
+    teamDiv.innerHTML='';
     var wrap=document.createElement('div');wrap.style.padding='24px 6px';
     var card=document.createElement('div');
     card.style.cssText='background:var(--team-bg);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px';
@@ -2065,7 +2080,7 @@ function renderTeamTab(){
     btn.textContent='Join or create session';
     btn.style.cssText='background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;width:100%';
     btn.onclick=openTeamSetup;
-    card.appendChild(btn);wrap.appendChild(card);list.appendChild(wrap);
+    card.appendChild(btn);wrap.appendChild(card);teamDiv.appendChild(wrap);
     return;
   }
   var jobs=Object.values(teamJobs).sort(function(a,b){if(a.done!==b.done)return a.done?1:-1;return ORD[a.urg]-ORD[b.urg];});
@@ -2090,8 +2105,7 @@ function renderTeamTab(){
   }
   var barColor=barPct>50?'var(--team)':barPct>25?'var(--urg)':'var(--imm)';
 
-  list.innerHTML='';
-  var container=document.createElement('div');container.style.cssText='padding:8px 14px 180px';
+  var container=teamDiv;
 
   // Header
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
@@ -2197,7 +2211,7 @@ function renderTeamTab(){
   else{cpanel.appendChild(teamJobList(doneFiltered,true));}
   container.appendChild(cpanel);
 
-  list.appendChild(container);
+  // content already in teamDiv
   // Force iOS Safari to recognise the new scroll height
   var sa=document.getElementById('scroll-area');
   if(sa){sa.scrollTop=sa.scrollTop;}
