@@ -2163,48 +2163,42 @@ function renderTeamTab(){
     // No prompt when no ward — ward is set at session creation time
   }
 
-  var unassigned=active.filter(function(j){return!j.assignedTo&&matchesSearch(j);});
-  var assigned=active.filter(function(j){return j.assignedTo&&matchesSearch(j);});
-  var doneFiltered=done.filter(matchesSearch);
+  // When ward template is active, all jobs are accessed via bed tap — no job list here
+  if(!wardTemplate){
+    var unassigned=active.filter(function(j){return!j.assignedTo&&matchesSearch(j);});
+    var assigned=active.filter(function(j){return j.assignedTo&&matchesSearch(j);});
+    var doneFiltered=done.filter(matchesSearch);
 
-  // Sub-tab bar
-  // Hide sub-tabs when ward template is active — jobs are shown per bed
-  var showSubTabs=!wardTemplate;
-  var stbar=document.createElement('div');
-  stbar.style.cssText='display:flex;gap:0;background:var(--surface2);border-radius:16px;padding:4px;margin-bottom:12px';
-  if(!showSubTabs)stbar.style.display='none';
-  function makeSubTab(id,label,count){
-    var b=document.createElement('div');b.id='tst-'+id;
-    b.className='tst'+(teamSubTab===id?' on':'');
-    b.innerHTML=label+(count?'<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:8px;background:var(--surface3);color:var(--muted);font-size:9px;font-weight:600;padding:0 4px;margin-left:4px">'+count+'</span>':'');
-    b.addEventListener('click',function(){setTeamSubTab(id);});
-    return b;
+    // Sub-tab bar
+    var stbar=document.createElement('div');
+    stbar.style.cssText='display:flex;gap:0;background:var(--surface2);border-radius:16px;padding:4px;margin-bottom:12px';
+    function makeSubTab(id,label,count){
+      var b=document.createElement('div');b.id='tst-'+id;
+      b.className='tst'+(teamSubTab===id?' on':'');
+      b.innerHTML=label+(count?'<span style="display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;border-radius:8px;background:var(--surface3);color:var(--muted);font-size:9px;font-weight:600;padding:0 4px;margin-left:4px">'+count+'</span>':'');
+      b.addEventListener('click',function(){setTeamSubTab(id);});
+      return b;
+    }
+    stbar.appendChild(makeSubTab('unassigned','Unassigned',unassigned.length));
+    stbar.appendChild(makeSubTab('assigned','Assigned',assigned.length));
+    stbar.appendChild(makeSubTab('completed','Done',done.length));
+    container.appendChild(stbar);
+
+    var upanel=document.createElement('div');upanel.id='team-jobs-unassigned';upanel.style.display=teamSubTab==='unassigned'?'':'none';
+    if(!unassigned.length){var ue=document.createElement('div');ue.className='team-empty';ue.innerHTML=searchQuery?'No results for &ldquo;'+esc(searchQuery)+'&rdquo;':'No unassigned jobs.<br>All jobs have been picked up.';upanel.appendChild(ue);}
+    else{upanel.appendChild(teamJobList(unassigned));}
+    container.appendChild(upanel);
+
+    var apanel=document.createElement('div');apanel.id='team-jobs-assigned';apanel.style.display=teamSubTab==='assigned'?'':'none';
+    if(!assigned.length){var ae=document.createElement('div');ae.className='team-empty';ae.innerHTML=searchQuery?'No results for &ldquo;'+esc(searchQuery)+'&rdquo;':'No assigned jobs yet.';apanel.appendChild(ae);}
+    else{apanel.appendChild(teamJobList(assigned));}
+    container.appendChild(apanel);
+
+    var cpanel=document.createElement('div');cpanel.id='team-jobs-completed';cpanel.style.display=teamSubTab==='completed'?'':'none';
+    if(!doneFiltered.length){var ce=document.createElement('div');ce.className='team-empty';ce.innerHTML=searchQuery?'No results for &ldquo;'+esc(searchQuery)+'&rdquo;':'No completed jobs yet.';cpanel.appendChild(ce);}
+    else{cpanel.appendChild(teamJobList(doneFiltered,true));}
+    container.appendChild(cpanel);
   }
-  stbar.appendChild(makeSubTab('unassigned','Unassigned',unassigned.length));
-  stbar.appendChild(makeSubTab('assigned','Assigned',assigned.length));
-  stbar.appendChild(makeSubTab('completed','Done',done.length));
-  container.appendChild(stbar);
-
-  // Unassigned panel
-  var showAll=!!wardTemplate;
-  var upanel=document.createElement('div');upanel.id='team-jobs-unassigned';upanel.style.display=(showAll||teamSubTab==='unassigned')?'':'none';
-  if(!unassigned.length){var ue=document.createElement('div');ue.className='team-empty';ue.innerHTML=searchQuery?'No results for &ldquo;'+esc(searchQuery)+'&rdquo;':'No unassigned jobs.<br>All jobs have been picked up.';upanel.appendChild(ue);}
-  else{upanel.appendChild(teamJobList(unassigned));}
-  container.appendChild(upanel);
-
-  // Assigned panel
-  var apanel=document.createElement('div');apanel.id='team-jobs-assigned';apanel.style.display=(showAll||teamSubTab==='assigned')?'':'none';
-  if(!assigned.length){var ae=document.createElement('div');ae.className='team-empty';ae.innerHTML=searchQuery?'No results for &ldquo;'+esc(searchQuery)+'&rdquo;':'No assigned jobs yet.';apanel.appendChild(ae);}
-  else{apanel.appendChild(teamJobList(assigned));}
-  container.appendChild(apanel);
-
-  // Completed panel
-  var cpanel=document.createElement('div');cpanel.id='team-jobs-completed';cpanel.style.display=(showAll?'none':teamSubTab==='completed'?'':'none');
-  if(showAll)cpanel.style.display='none'; // done jobs shown per bed only
-  if(!doneFiltered.length){var ce=document.createElement('div');ce.className='team-empty';ce.innerHTML=searchQuery?'No results for &ldquo;'+esc(searchQuery)+'&rdquo;':'No completed jobs yet.';cpanel.appendChild(ce);}
-  else{cpanel.appendChild(teamJobList(doneFiltered,true));}
-  container.appendChild(cpanel);
-
 }
 
 function teamSectionHeader(text){
@@ -2756,9 +2750,10 @@ function openBedSheet(bedLabel){
     sec.appendChild(wrap);content.appendChild(sec);
   }
 
-  taskSection('Active jobs',active,false);
-  taskSection('Team jobs',teamTasksForBed.filter(function(j){return!j.done;}),false);
-  taskSection('Done',done,true);
+  var teamActive=teamTasksForBed.filter(function(j){return!j.done;});
+  var teamDone=teamTasksForBed.filter(function(j){return j.done;});
+  taskSection('Active jobs',active.concat(teamActive),false);
+  taskSection('Done',done.concat(teamDone),true);
 
   if(!active.length&&!teamTasksForBed.filter(function(j){return!j.done;}).length&&!done.length){
     var empty=document.createElement('div');empty.style.cssText='text-align:center;padding:24px 0;color:var(--dim);font-size:13px;font-weight:500';empty.textContent='No jobs for this bed';content.appendChild(empty);
