@@ -690,7 +690,7 @@ function initFirebase(){
         localStorage.setItem('wj_uid',user.uid);
       }
       updateAuthUI();
-      if(currentUser)syncFromCloud();
+      if(currentUser){syncSessionStart();syncFromCloud();}
     });
   }catch(e){console.warn('Firebase init failed:',e);}
 }
@@ -1014,6 +1014,31 @@ function syncNow(){
   syncToCloud().catch(function(e){console.warn('Sync error:',e);});
 }
 
+function syncSessionStart(){
+  // Sync session start time with cloud — earliest wins
+  if(!currentUser)return;
+  currentUser.getIdToken(false).then(function(token){
+    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
+  }).then(function(data){
+    var localStart=parseInt(localStorage.getItem('wj_start')||'0');
+    var cloudStart=data&&data.sessionStart?data.sessionStart:0;
+    if(cloudStart&&cloudStart<localStart){
+      // Cloud started earlier — adopt it
+      localStorage.setItem('wj_start',''+cloudStart);
+      updateSessionBar();
+    } else if(localStart&&(!cloudStart||localStart<cloudStart)){
+      // Local started earlier — push it to cloud
+      currentUser.getIdToken(false).then(function(token){
+        return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token,{
+          method:'PATCH',
+          body:JSON.stringify({sessionStart:localStart}),
+          headers:{'Content-Type':'application/json'}
+        });
+      }).catch(function(){});
+    }
+  }).catch(function(){});
+}
+
 function syncFromCloud(){
   if(!currentUser)return;
   _lastUserHash=''; // force poll to process
@@ -1324,7 +1349,7 @@ function unassignMyTeamJobs(){
   });
 }
 
-function clearAll(){unassignMyTeamJobs();tasks=[];save();localStorage.setItem('wj_start',''+Date.now());localStorage.removeItem('wj_hint_seen');hideConfirm();render();updateSessionBar();}
+function clearAll(){unassignMyTeamJobs();tasks=[];localStorage.setItem('wj_start',''+Date.now());save();localStorage.removeItem('wj_hint_seen');hideConfirm();render();updateSessionBar();}
 document.getElementById('confirm-bd').addEventListener('click',function(e){if(e.target===document.getElementById('confirm-bd'))hideConfirm();});
 document.getElementById('del-confirm-bd').addEventListener('click',function(e){if(e.target===document.getElementById('del-confirm-bd'))cancelDel();});
 
