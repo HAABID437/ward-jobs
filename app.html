@@ -2054,8 +2054,10 @@ var _lastTeamHash='';
 function renderTeamTab(){
   var list=document.getElementById('list');
   var sw=document.getElementById('search-wrap');
+  if(!list)return;
   // Use a dedicated team container that's a direct child of scroll-area
   var scrollArea=document.getElementById('scroll-area');
+  if(!scrollArea)return;
   var teamDiv=document.getElementById('team-content');
   if(!teamDiv){
     teamDiv=document.createElement('div');
@@ -2091,7 +2093,7 @@ function renderTeamTab(){
   var isCreator=teamCreatorId===myId;
   // Skip full rebuild if nothing changed — just update sub-tab visibility
   var newHash=JSON.stringify(jobs)+JSON.stringify(Object.keys(members))+isCreator;
-  if(newHash===_lastTeamHash&&list.children.length){setTeamSubTab(teamSubTab);return;}
+  if(newHash===_lastTeamHash&&teamDiv.children.length){setTeamSubTab(teamSubTab);return;}
   _lastTeamHash=newHash;
 
   // Session time bar
