@@ -701,18 +701,25 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 var _theme=localStorage.getItem('wj_theme')||'light';
 function applyTheme(t){
   var isDark=t==='dark';
-  var bg=isDark?'#141210':'#f5ece0';
-  // Set everything synchronously so Safari paints correct chrome on the same frame
+  var bg=isDark?'#0f0e0c':'#f5ece0';
   document.documentElement.setAttribute('data-theme',isDark?'dark':'');
   document.documentElement.style.background=bg;
   document.documentElement.style.colorScheme=isDark?'dark':'light';
   document.body.style.background=bg;
-  // Force safe-area fills to the correct colour immediately
   var fills=document.querySelectorAll('.safe-top-fill,.safe-bot-fill');
   for(var i=0;i<fills.length;i++)fills[i].style.background=bg;
-  // Update theme-color meta — controls iOS status bar tint
-  var meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.setAttribute('content',bg);
+  // Force Safari to repaint Dynamic Island + bottom bar by removing/re-adding meta
+  var oldMeta=document.querySelector('meta[name="theme-color"]');
+  if(oldMeta)oldMeta.parentNode.removeChild(oldMeta);
+  var newMeta=document.createElement('meta');
+  newMeta.name='theme-color';
+  newMeta.content=bg;
+  document.head.appendChild(newMeta);
+  // Second frame update to catch Safari's deferred repaint
+  requestAnimationFrame(function(){
+    document.documentElement.style.background=bg;
+    document.body.style.background=bg;
+  });
   var moon=document.getElementById('theme-icon-moon');
   var sun=document.getElementById('theme-icon-sun');
   if(moon)moon.style.display=isDark?'none':'block';
