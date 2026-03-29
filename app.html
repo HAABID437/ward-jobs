@@ -622,18 +622,27 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <div id="team-setup-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-top:12px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
 </div>
 
-<!-- Ward setup sheet -->
+<!-- Ward templates sheet -->
+<div class="sheet" id="ward-templates-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Ward templates</div>
+  <div class="sheet-sub">Your saved layouts. Tap one to insert it into the current team session.</div>
+  <div id="ward-templates-list" style="margin-bottom:12px"></div>
+  <button onclick="openWardBuilder(null)" style="width:100%;padding:14px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:16px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted)">+ New template</button>
+</div>
+
+<!-- Ward builder sheet -->
 <div class="sheet" id="ward-setup-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title" id="ward-setup-title">Ward layout</div>
-  <div class="sheet-sub">Build a visual map of your ward. Beds are matched to tasks by patient ID.</div>
+  <div class="sheet-title" id="ward-setup-title">New ward layout</div>
+  <div class="sheet-sub">Beds are matched to tasks by patient ID field.</div>
   <div class="f-group">
     <div class="f-label">Ward name</div>
     <input type="text" id="ward-name-input" placeholder="e.g. Ward 12, AMU, CCU" maxlength="40" autocomplete="off">
   </div>
   <div id="ward-bays-builder"></div>
   <button onclick="addBayToBuilder()" style="width:100%;padding:13px;background:var(--surface2);border:none;border-radius:16px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted);margin-bottom:10px">+ Add bay / zone</button>
-  <button class="submit-btn" onclick="saveWardTemplate()">Save ward layout</button>
+  <button class="submit-btn" onclick="saveWardTemplate()">Save template</button>
 </div>
 
 <!-- Bed detail sheet -->
@@ -821,7 +830,7 @@ function initFirebase(){
         localStorage.setItem('wj_uid',user.uid);
       }
       updateAuthUI();
-      if(currentUser){syncSessionStart();syncFromCloud();}
+      if(currentUser){syncSessionStart();syncFromCloud();pullWardTemplatesFromCloud();}
     });
   }catch(e){console.warn('Firebase init failed:',e);}
 }
@@ -1052,6 +1061,10 @@ function pollUserTasks(){
         updateSessionBar();
       }
     }
+    if(data.wardTemplates&&data.wardTemplates.length){
+      wardTemplates=data.wardTemplates;
+      saveWardTemplatesToStorage();
+    }
 
     var hash=JSON.stringify(cloudTasks)+cloudSaved+cloudTeamHash;
     if(hash===_lastUserHash)return;
@@ -1134,6 +1147,7 @@ function syncToCloud(){
       tasks:tasks,
       saved:Date.now(),
       sessionStart:parseInt(localStorage.getItem('wj_start')||'0'),
+      wardTemplates:wardTemplates,
       theme:_theme,
       team:teamSession?{
         code:teamSession,
@@ -1687,7 +1701,7 @@ function cardHtml(t){
 }
 
 /* Sheet drag-to-dismiss */
-['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet','ward-setup-sheet','bed-sheet'].forEach(function(sid){
+['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet','ward-setup-sheet','bed-sheet','ward-templates-sheet'].forEach(function(sid){
   var sheet=document.getElementById(sid);
   if(!sheet)return;
   var sy=0,dy=0,on=false;
@@ -1768,6 +1782,16 @@ function fetchTeamData(){
     if(changed){
       if(curTab==='team')renderTeamTab();
       updateCounts();
+    }
+    // Sync ward template from team session if another member inserted one
+    if(data.ward&&(!wardTemplate||wardTemplate.id!==data.ward.id)){
+      wardTemplate=data.ward;
+      try{localStorage.setItem('wj_ward',JSON.stringify(wardTemplate));}catch(e){}
+      // Add to personal templates if not already there
+      if(!wardTemplates.some(function(t){return t.id===data.ward.id;})){
+        wardTemplates.push(data.ward);
+        saveWardTemplatesToStorage();pushWardTemplatesToCloud();
+      }
     }
   }).catch(function(){});
 }
@@ -2237,36 +2261,124 @@ function openMemberProfile(uid){
 }
 
 /* ===== WARD TEMPLATE ===== */
-var wardTemplate=null; // {name, bays:[{name, beds:['Bed 1','Bed 2'...]}]}
-var _builderBays=[]; // draft state during setup
+var wardTemplates=[]; // array of {id, name, bays:[{name, beds:[]}]}
+var wardTemplate=null; // currently active template for THIS team session
+var _builderBays=[];
+var _editingTemplateId=null; // null = new template
 
-function loadWardTemplate(){
-  try{var s=localStorage.getItem('wj_ward');if(s)wardTemplate=JSON.parse(s);}catch(e){}
+function loadWardTemplates(){
+  try{var s=localStorage.getItem('wj_wards');if(s)wardTemplates=JSON.parse(s);}catch(e){}
+  try{var s2=localStorage.getItem('wj_ward');if(s2)wardTemplate=JSON.parse(s2);}catch(e){}
 }
-function saveWardTemplateToStorage(){
-  try{localStorage.setItem('wj_ward',JSON.stringify(wardTemplate));}catch(e){}
+function saveWardTemplatesToStorage(){
+  try{localStorage.setItem('wj_wards',JSON.stringify(wardTemplates));}catch(e){}
+}
+function pushWardTemplatesToCloud(){
+  if(!currentUser)return;
+  currentUser.getIdToken(false).then(function(token){
+    fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token,{
+      method:'PATCH',
+      body:JSON.stringify({wardTemplates:wardTemplates}),
+      headers:{'Content-Type':'application/json'}
+    });
+  }).catch(function(){});
+}
+function pullWardTemplatesFromCloud(){
+  if(!currentUser)return;
+  currentUser.getIdToken(false).then(function(token){
+    return fetch(DB+'/users/'+currentUser.uid+'/tasks.json?auth='+token).then(function(r){return r.json();});
+  }).then(function(data){
+    if(data&&data.wardTemplates&&data.wardTemplates.length){
+      wardTemplates=data.wardTemplates;
+      saveWardTemplatesToStorage();
+      if(curTab==='team')renderTeamTab();
+    }
+  }).catch(function(){});
 }
 
-function openWardSetup(){
-  // Clone current template into builder
-  if(wardTemplate){
-    document.getElementById('ward-name-input').value=wardTemplate.name||'';
-    _builderBays=wardTemplate.bays.map(function(b){return{name:b.name,beds:b.beds.slice()};});
-  }else{
-    document.getElementById('ward-name-input').value='';
-    _builderBays=[];
+function openWardTemplates(){
+  renderWardTemplatesList();
+  openSheet('ward-templates-sheet');
+}
+
+function renderWardTemplatesList(){
+  var wrap=document.getElementById('ward-templates-list');
+  wrap.innerHTML='';
+  if(!wardTemplates.length){
+    var empty=document.createElement('div');
+    empty.style.cssText='text-align:center;padding:24px 0;color:var(--dim);font-size:13px;font-weight:500';
+    empty.textContent='No templates yet. Create one below.';
+    wrap.appendChild(empty);return;
   }
+  wardTemplates.forEach(function(tmpl){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:16px;padding:14px;margin-bottom:8px';
+    var info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
+    var name=document.createElement('div');name.style.cssText='font-size:15px;font-weight:600;color:var(--text)';name.textContent=tmpl.name;
+    var meta=document.createElement('div');meta.style.cssText='font-size:11px;color:var(--muted);margin-top:2px';
+    var totalBeds=tmpl.bays.reduce(function(s,b){return s+b.beds.length;},0);
+    meta.textContent=tmpl.bays.length+' bay'+(tmpl.bays.length!==1?'s':'')+' · '+totalBeds+' bed'+(totalBeds!==1?'s':'');
+    info.appendChild(name);info.appendChild(meta);row.appendChild(info);
+    // Insert button
+    if(teamSession){
+      var insertBtn=document.createElement('button');
+      var isActive=wardTemplate&&wardTemplate.id===tmpl.id;
+      insertBtn.textContent=isActive?'Active':'Insert';
+      insertBtn.style.cssText='padding:8px 14px;border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;background:'+(isActive?'var(--rtn-bg)':'var(--team-bg)')+';color:'+(isActive?'var(--rtn)':'var(--team)');
+      if(!isActive){
+        insertBtn.onclick=function(){insertWardTemplate(tmpl);};
+      }
+      row.appendChild(insertBtn);
+    }
+    // Edit button
+    var editBtn=document.createElement('button');
+    editBtn.textContent='Edit';
+    editBtn.style.cssText='padding:8px 14px;background:var(--surface3);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;color:var(--muted)';
+    editBtn.onclick=function(){openWardBuilder(tmpl);};
+    row.appendChild(editBtn);
+    // Delete
+    var delBtn=document.createElement('button');
+    delBtn.textContent='✕';
+    delBtn.style.cssText='padding:8px 10px;background:var(--imm-bg);border:none;border-radius:12px;font-size:12px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;color:var(--imm)';
+    delBtn.onclick=function(){
+      wardTemplates=wardTemplates.filter(function(t){return t.id!==tmpl.id;});
+      saveWardTemplatesToStorage();pushWardTemplatesToCloud();
+      renderWardTemplatesList();
+    };
+    row.appendChild(delBtn);
+    wrap.appendChild(row);
+  });
+}
+
+function insertWardTemplate(tmpl){
+  if(!teamSession)return;
+  wardTemplate=tmpl;
+  try{localStorage.setItem('wj_ward',JSON.stringify(tmpl));}catch(e){}
+  // Write to Firebase so all team members get it
+  dbUpdate('/sessions/'+teamSession,{ward:tmpl});
+  closeSheet();
+  if(curTab==='team')renderTeamTab();
+  showBanner(esc(tmpl.name)+' inserted into team','var(--team)');
+}
+
+function openWardBuilder(tmpl){
+  _editingTemplateId=tmpl?tmpl.id:null;
+  document.getElementById('ward-setup-title').textContent=tmpl?'Edit layout':'New ward layout';
+  document.getElementById('ward-name-input').value=tmpl?tmpl.name:'';
+  _builderBays=tmpl?tmpl.bays.map(function(b){return{name:b.name,beds:b.beds.slice()};}):[];
   renderBayBuilder();
   openSheet('ward-setup-sheet');
   setTimeout(function(){document.getElementById('ward-name-input').focus();},320);
 }
+
+// Keep openWardSetup as alias for backward compat
+function openWardSetup(){openWardBuilder(wardTemplate||null);}
 
 function renderBayBuilder(){
   var wrap=document.getElementById('ward-bays-builder');
   wrap.innerHTML='';
   _builderBays.forEach(function(bay,bi){
     var row=document.createElement('div');row.className='bay-builder-row';
-    // Bay name input
     var nameRow=document.createElement('div');nameRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:4px';
     var inp=document.createElement('input');
     inp.type='text';inp.placeholder='Bay name (e.g. Bay 1, Side rooms)';
@@ -2277,7 +2389,6 @@ function renderBayBuilder(){
     del.textContent='✕';del.style.cssText='background:var(--imm-bg);color:var(--imm);border:none;border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:DM Sans,sans-serif';
     del.onclick=function(){_builderBays.splice(bi,1);renderBayBuilder();};
     nameRow.appendChild(inp);nameRow.appendChild(del);row.appendChild(nameRow);
-    // Preset buttons
     var presets=document.createElement('div');presets.style.cssText='display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px';
     [[4,'4 beds'],[6,'6 beds'],[2,'2 side rooms']].forEach(function(p){
       var pb=document.createElement('button');
@@ -2292,7 +2403,6 @@ function renderBayBuilder(){
       presets.appendChild(pb);
     });
     row.appendChild(presets);
-    // Bed chips
     var bedsRow=document.createElement('div');bedsRow.className='bay-beds-row';
     bay.beds.forEach(function(bed,bedi){
       var chip=document.createElement('div');chip.className='bay-bed-chip';
@@ -2303,18 +2413,12 @@ function renderBayBuilder(){
       rm.onclick=function(){_builderBays[bi].beds.splice(bedi,1);renderBayBuilder();};
       chip.appendChild(lbl);chip.appendChild(rm);bedsRow.appendChild(chip);
     });
-    // Add custom bed button
     var addBed=document.createElement('button');
     addBed.textContent='+ bed';
     addBed.style.cssText='background:var(--surface);border:1px dashed var(--border-mid);border-radius:10px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
-    addBed.onclick=function(){
-      var n=_builderBays[bi].beds.length+1;
-      _builderBays[bi].beds.push('Bed '+n);
-      renderBayBuilder();
-    };
+    addBed.onclick=function(){_builderBays[bi].beds.push('Bed '+(_builderBays[bi].beds.length+1));renderBayBuilder();};
     bedsRow.appendChild(addBed);
-    row.appendChild(bedsRow);
-    wrap.appendChild(row);
+    row.appendChild(bedsRow);wrap.appendChild(row);
   });
 }
 
@@ -2326,11 +2430,21 @@ function addBayToBuilder(){
 function saveWardTemplate(){
   var name=document.getElementById('ward-name-input').value.trim();
   if(!name){var el=document.getElementById('ward-name-input');el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);return;}
-  wardTemplate={name:name,bays:_builderBays.filter(function(b){return b.beds.length>0;})};
-  saveWardTemplateToStorage();
+  var bays=_builderBays.filter(function(b){return b.beds.length>0;});
+  var tmpl={id:_editingTemplateId||(Date.now()+Math.random().toString(36).slice(2,6)),name:name,bays:bays};
+  if(_editingTemplateId){
+    wardTemplates=wardTemplates.map(function(t){return t.id===_editingTemplateId?tmpl:t;});
+    // Update active template if it was the one being edited
+    if(wardTemplate&&wardTemplate.id===_editingTemplateId)wardTemplate=tmpl;
+  }else{
+    wardTemplates.push(tmpl);
+  }
+  saveWardTemplatesToStorage();
+  pushWardTemplatesToCloud();
   closeSheet();
-  if(curTab==='team')renderTeamTab();
-  showBanner('Ward layout saved','var(--rtn)');
+  // Re-open templates list
+  setTimeout(function(){openWardTemplates();},350);
+  showBanner('Template saved','var(--rtn)');
 }
 
 function renderWardTab(){
@@ -2513,7 +2627,7 @@ function showBanner(msg,bg){
 
 function startApp(){
   load();
-  loadWardTemplate();
+  loadWardTemplates();
   var sw=document.getElementById('search-wrap');
   if(sw)sw.style.display='block';
 
