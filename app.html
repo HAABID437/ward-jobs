@@ -113,7 +113,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .tc{display:none}
 
 /* List */
-.list{padding:2px 14px 160px}
+.list{padding:2px 14px 160px;height:auto;overflow:visible}
 .sec-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-weight:400;font-style:italic;padding:12px 4px 5px;display:flex;align-items:center;gap:10px;letter-spacing:0.01em}
 .sec-hdr::after{content:'';flex:1;height:1px}
 .sec-hdr.i{color:var(--imm)}.sec-hdr.i::after{background:var(--imm-bd)}
@@ -2086,7 +2086,7 @@ function renderTeamTab(){
   var barColor=barPct>50?'var(--team)':barPct>25?'var(--urg)':'var(--imm)';
 
   list.innerHTML='';
-  var container=document.createElement('div');container.style.cssText='padding-bottom:180px';
+  var container=document.createElement('div');container.style.cssText='padding-bottom:180px;min-height:100%';
 
   // Header
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
