@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#f5ece0">
+<meta name="color-scheme" content="light dark">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png">
@@ -42,23 +43,24 @@
   --r:20px;--rs:14px;
 }
 [data-theme="dark"]{
-  --bg:#141210;
-  --surface:#1e1a17;
-  --surface2:#252019;
-  --surface3:#2e271e;
-  --card:#1e1a17;
-  --border:rgba(255,255,255,0.06);
-  --border-mid:rgba(255,255,255,0.09);
-  --text:#f0e8dc;
-  --muted:#8a7f75;
-  --dim:#4a4239;
-  --imm:#e05a4e;--imm-bg:#2a1512;--imm-bd:#5a2420;
-  --urg:#c48a30;--urg-bg:#251a08;--urg-bd:#5a3a10;
-  --rtn:#3d9e6e;--rtn-bg:#0d2018;--rtn-bd:#1e5038;
-  --team:#857eff;--team-bg:#18163a;--team-bd:#3a3480;
-  --green:#3d9e6e;--green-bg:#0d2018;--green-bd:#1e5038;
-  --shadow:0 1px 8px rgba(0,0,0,0.3),0 2px 4px rgba(0,0,0,0.2);
-  --shadow-lg:0 4px 24px rgba(0,0,0,0.4);
+  --bg:#0f0e0c;
+  --surface:#1c1915;
+  --surface2:#232018;
+  --surface3:#2c271f;
+  --card:#1c1915;
+  --border:rgba(255,255,255,0.07);
+  --border-mid:rgba(255,255,255,0.11);
+  --text:#ede4d8;
+  --muted:#7a6f65;
+  --dim:#3d3630;
+  --imm:#e05a4e;--imm-bg:#280f0c;--imm-bd:#4a1f1c;
+  --urg:#cc9040;--urg-bg:#231508;--urg-bd:#52320f;
+  --rtn:#45b07a;--rtn-bg:#0a1e12;--rtn-bd:#1a4830;
+  --team:#8b83ff;--team-bg:#12102e;--team-bd:#302c70;
+  --green:#45b07a;--green-bg:#0a1e12;--green-bd:#1a4830;
+  --shadow:0 1px 6px rgba(0,0,0,0.5),0 2px 3px rgba(0,0,0,0.3);
+  --shadow-lg:0 4px 24px rgba(0,0,0,0.6);
+  --accent:#c0555a;--accent-bg:#280f10;--accent-bd:#4a1f20;
   color-scheme:dark;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
@@ -345,7 +347,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
 /* QR */
 .qr-wrap{display:flex;flex-direction:column;align-items:center;padding:8px 0 18px}
-.qr-box{background:#fff;border-radius:22px;padding:20px;box-shadow:var(--shadow-lg);margin-bottom:16px;display:inline-block}
+.qr-box{background:var(--surface);border-radius:22px;padding:20px;box-shadow:var(--shadow-lg);margin-bottom:16px;display:inline-block}
 .qr-box canvas,.qr-box img{display:block;border-radius:6px}
 .qr-hint{font-size:12px;color:var(--muted);text-align:center;line-height:1.7;max-width:260px;font-weight:500}
 
@@ -699,14 +701,18 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 var _theme=localStorage.getItem('wj_theme')||'light';
 function applyTheme(t){
   var isDark=t==='dark';
-  // Update data-theme and meta synchronously before paint
-  document.documentElement.setAttribute('data-theme',isDark?'dark':'');
   var bg=isDark?'#141210':'#f5ece0';
-  // Force immediate background on html/body so safe areas match instantly
+  // Set everything synchronously so Safari paints correct chrome on the same frame
+  document.documentElement.setAttribute('data-theme',isDark?'dark':'');
   document.documentElement.style.background=bg;
+  document.documentElement.style.colorScheme=isDark?'dark':'light';
   document.body.style.background=bg;
+  // Force safe-area fills to the correct colour immediately
+  var fills=document.querySelectorAll('.safe-top-fill,.safe-bot-fill');
+  for(var i=0;i<fills.length;i++)fills[i].style.background=bg;
+  // Update theme-color meta — controls iOS status bar tint
   var meta=document.querySelector('meta[name="theme-color"]');
-  if(meta)meta.content=bg;
+  if(meta)meta.setAttribute('content',bg);
   var moon=document.getElementById('theme-icon-moon');
   var sun=document.getElementById('theme-icon-sun');
   if(moon)moon.style.display=isDark?'none':'block';
