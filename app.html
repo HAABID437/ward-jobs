@@ -68,7 +68,7 @@
 html{height:100%;overflow:hidden}
 body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;font-size:16px;overflow:hidden;position:fixed;width:100%}
 #shell{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
-#scroll-area{flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0}
+#scroll-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;min-height:0;height:0}
 
 
 /* Tooltips */
@@ -148,10 +148,10 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 
 
 /* Ward */
-.ward-bay{margin-bottom:16px;touch-action:pan-y}
+.ward-bay{margin-bottom:16px;display:block;width:100%}
 .ward-bay-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 8px;display:flex;align-items:center;gap:8px;touch-action:pan-y}
 .ward-bay-hdr::after{content:'';flex:1;height:1px;background:var(--border-mid)}
-.ward-beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;touch-action:pan-y}
+.ward-beds{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;width:100%}
 .ward-bed{background:var(--surface);border-radius:14px;padding:10px 8px 8px;text-align:center;cursor:pointer;border:1.5px solid var(--border);transition:transform 0.12s,border-color 0.2s;position:relative;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 .ward-bed:active{transform:scale(0.95)}
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
@@ -1341,9 +1341,7 @@ function setTab(t){
   if(sw)sw.style.display=(t==='active'||t==='done'||(t==='team'&&teamSession))?'block':'none';
   // Clear list immediately so stale content never shows during transition
   var list=document.getElementById('list');
-  if(list){list.innerHTML='';list.removeAttribute('style');list.style.display='';}
-  var teamDiv=document.getElementById('team-content');
-  if(teamDiv){teamDiv.style.display='none';teamDiv.innerHTML='';}
+  if(list){list.innerHTML='';list.removeAttribute('style');}
   ['active','done','team'].forEach(function(x){
     var el=document.getElementById('tab-'+x);if(el)el.className='tab'+(t===x?' on':'');
   });
@@ -2054,25 +2052,10 @@ var _lastTeamHash='';
 function renderTeamTab(){
   var list=document.getElementById('list');
   var sw=document.getElementById('search-wrap');
-  if(!list)return;
-  // Use a dedicated team container that's a direct child of scroll-area
-  var scrollArea=document.getElementById('scroll-area');
-  if(!scrollArea)return;
-  var teamDiv=document.getElementById('team-content');
-  if(!teamDiv){
-    teamDiv=document.createElement('div');
-    teamDiv.id='team-content';
-    teamDiv.style.cssText='padding:8px 14px 180px';
-    scrollArea.appendChild(teamDiv);
-  }
-  list.style.display='none';
-  teamDiv.style.display='block';
-  teamDiv.innerHTML='';
   if(!teamSession){
     if(sw)sw.style.display='none';
     _lastTeamHash='';
     list.innerHTML='';
-    teamDiv.innerHTML='';
     var wrap=document.createElement('div');wrap.style.padding='24px 6px';
     var card=document.createElement('div');
     card.style.cssText='background:var(--team-bg);border-radius:20px;padding:24px;text-align:center;margin-bottom:16px';
@@ -2082,7 +2065,7 @@ function renderTeamTab(){
     btn.textContent='Join or create session';
     btn.style.cssText='background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;width:100%';
     btn.onclick=openTeamSetup;
-    card.appendChild(btn);wrap.appendChild(card);teamDiv.appendChild(wrap);
+    card.appendChild(btn);wrap.appendChild(card);list.appendChild(wrap);
     return;
   }
   var jobs=Object.values(teamJobs).sort(function(a,b){if(a.done!==b.done)return a.done?1:-1;return ORD[a.urg]-ORD[b.urg];});
@@ -2093,7 +2076,7 @@ function renderTeamTab(){
   var isCreator=teamCreatorId===myId;
   // Skip full rebuild if nothing changed — just update sub-tab visibility
   var newHash=JSON.stringify(jobs)+JSON.stringify(Object.keys(members))+isCreator;
-  if(newHash===_lastTeamHash&&teamDiv.children.length){setTeamSubTab(teamSubTab);return;}
+  if(newHash===_lastTeamHash&&list.children.length){setTeamSubTab(teamSubTab);return;}
   _lastTeamHash=newHash;
 
   // Session time bar
@@ -2107,7 +2090,9 @@ function renderTeamTab(){
   }
   var barColor=barPct>50?'var(--team)':barPct>25?'var(--urg)':'var(--imm)';
 
-  var container=teamDiv;
+  list.innerHTML='';
+  var container=document.createElement('div');container.style.cssText='padding-bottom:160px;width:100%;display:block';
+  list.appendChild(container);
 
   // Header
   var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:6px';
@@ -2213,10 +2198,6 @@ function renderTeamTab(){
   else{cpanel.appendChild(teamJobList(doneFiltered,true));}
   container.appendChild(cpanel);
 
-  // content already in teamDiv
-  // Force iOS Safari to recognise the new scroll height
-  var sa=document.getElementById('scroll-area');
-  if(sa){sa.scrollTop=sa.scrollTop;}
 }
 
 function teamSectionHeader(text){
