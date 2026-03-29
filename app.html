@@ -903,11 +903,8 @@ function pollUserTasks(){
     var cloudTasks=data.tasks||[];
     var cloudSaved=data.saved||0;
     var cloudTeamHash=data.team?data.team.code:'null';
-    var hash=JSON.stringify(cloudTasks)+cloudSaved+cloudTeamHash;
-    if(hash===_lastUserHash)return;
-    _lastUserHash=hash;
 
-    // Sync session start time — use whichever started earlier
+    // Always sync session start — independent of whether tasks changed
     if(data.sessionStart){
       var localStart=parseInt(localStorage.getItem('wj_start')||'0');
       if(!localStart||data.sessionStart<localStart){
@@ -915,6 +912,10 @@ function pollUserTasks(){
         updateSessionBar();
       }
     }
+
+    var hash=JSON.stringify(cloudTasks)+cloudSaved+cloudTeamHash;
+    if(hash===_lastUserHash)return;
+    _lastUserHash=hash;
 
     // Cloud is source of truth for deletions.
     // Local only contributes tasks added AFTER the last cloud write (not yet pushed).
