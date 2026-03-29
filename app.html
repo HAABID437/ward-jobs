@@ -2587,10 +2587,14 @@ function renderWardTab(){
 }
 
 function bedJobsForLabel(bedLabel){
-  // Only team jobs count for ward view (personal tasks added via bed)
-  return Object.values(teamJobs).filter(function(t){
-    return t.pid&&t.pid.trim().toLowerCase()===bedLabel.trim().toLowerCase();
+  var lc=bedLabel.trim().toLowerCase();
+  var personal=tasks.filter(function(t){
+    return t.pid&&t.pid.trim().toLowerCase()===lc;
   });
+  var team=Object.values(teamJobs).filter(function(t){
+    return t.pid&&t.pid.trim().toLowerCase()===lc;
+  });
+  return personal.concat(team);
 }
 function bedTaskUrgency(bedLabel){
   var all=bedJobsForLabel(bedLabel).filter(function(t){return !t.done;});
@@ -2787,7 +2791,7 @@ function openBedSheet(bedLabel){
     var lbl=document.createElement('div');lbl.style.cssText='font-family:DM Serif Display,serif;font-size:13px;font-style:italic;color:var(--muted);margin-bottom:8px';lbl.textContent=title;sec.appendChild(lbl);
     var wrap=document.createElement('div');wrap.style.cssText='background:var(--surface2);border-radius:16px;overflow:hidden;margin-bottom:14px';
     list.forEach(function(t){
-      var isTeamJob=!!t.id&&t.id.charAt(0)==='j'; // team jobs have ids starting with 'j'
+      var isTeamJob=!!t._isTeam;
       var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)'+(isDone?';opacity:0.55':'');
       var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;flex-shrink:0;background:'+(t.urg==='i'?'var(--imm)':t.urg==='u'?'var(--urg)':'var(--rtn)');
       var body=document.createElement('div');body.style.cssText='flex:1;min-width:0';
@@ -2836,6 +2840,9 @@ function openBedSheet(bedLabel){
 
   var teamActive=teamTasksForBed.filter(function(j){return!j.done;});
   var teamDone=teamTasksForBed.filter(function(j){return j.done;});
+  // Mark team jobs with a flag so taskSection knows to show assignment controls
+  teamActive.forEach(function(j){j._isTeam=true;});
+  teamDone.forEach(function(j){j._isTeam=true;});
   taskSection('Active jobs',active.concat(teamActive),false);
   taskSection('Done',done.concat(teamDone),true);
 
