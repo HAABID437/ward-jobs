@@ -1284,14 +1284,14 @@ function decodeHandover(code){
 /* Sheets */
 var activeSheet=null;
 function openSheet(id){
-  if(activeSheet&&activeSheet!==id)document.getElementById(activeSheet).classList.remove('open');
+  if(activeSheet&&activeSheet!==id){var prev=document.getElementById(activeSheet);if(prev)prev.classList.remove('open');}
   activeSheet=id;
-  document.getElementById(id).classList.add('open');
-  document.getElementById('backdrop').classList.add('show');
+  var el=document.getElementById(id);if(el)el.classList.add('open');
+  var bd=document.getElementById('backdrop');if(bd)bd.classList.add('show');
 }
 function closeSheet(){
-  if(activeSheet)document.getElementById(activeSheet).classList.remove('open');
-  document.getElementById('backdrop').classList.remove('show');
+  if(activeSheet){var el=document.getElementById(activeSheet);if(el)el.classList.remove('open');}
+  var bd=document.getElementById('backdrop');if(bd)bd.classList.remove('show');
   stopScanner();
   // Restore normal add button
   var sub=document.getElementById('add-sheet-submit');
