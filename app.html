@@ -1830,11 +1830,13 @@ function renderWardPicker(){
   var opts=document.getElementById('ward-picker-options');
   if(!opts)return;
   opts.innerHTML='';
+  // Filter out any malformed templates
+  wardTemplates=wardTemplates.filter(function(t){return t&&t.id&&t.name&&Array.isArray(t.bays);});
   // "None" option
   var noneRow=makePickerOption(null,'No ward layout','Just jobs, no map');
   opts.appendChild(noneRow);
   wardTemplates.forEach(function(tmpl){
-    var totalBeds=tmpl.bays.reduce(function(s,b){return s+b.beds.length;},0);
+    var totalBeds=tmpl.bays.reduce(function(s,b){return s+(b.beds?b.beds.length:0);},0);
     var meta=tmpl.bays.length+' bay'+(tmpl.bays.length!==1?'s':'')+' · '+totalBeds+' beds';
     opts.appendChild(makePickerOption(tmpl.id,tmpl.name,meta));
   });
@@ -2337,7 +2339,9 @@ var _builderReturnToTeamSetup=false;
 
 function loadWardTemplates(){
   try{var s=localStorage.getItem('wj_wards');if(s)wardTemplates=JSON.parse(s);}catch(e){}
-  try{var s2=localStorage.getItem('wj_ward');if(s2)wardTemplate=JSON.parse(s2);}catch(e){}
+  // Clean up any malformed entries
+  wardTemplates=wardTemplates.filter(function(t){return t&&t.id&&t.name&&Array.isArray(t.bays);});
+  try{var s2=localStorage.getItem('wj_ward');if(s2){var w=JSON.parse(s2);if(w&&w.id&&w.name&&Array.isArray(w.bays))wardTemplate=w;}}catch(e){}
 }
 function saveWardTemplatesToStorage(){
   try{localStorage.setItem('wj_wards',JSON.stringify(wardTemplates));}catch(e){}
