@@ -2763,10 +2763,10 @@ function openBedSheet(bedLabel){
   var qaRow=document.createElement('div');qaRow.style.cssText='display:flex;gap:8px';
   var qaInput=document.createElement('input');
   qaInput.type='text';qaInput.placeholder='Job description…';qaInput.maxLength=200;
-  qaInput.style.cssText='flex:1;padding:10px 12px;font-size:14px;border-radius:12px;background:var(--surface);border:none;color:var(--text);font-family:DM Sans,sans-serif;outline:none';
+  qaInput.style.cssText='flex:1;padding:10px 12px;font-size:14px;border-radius:12px;background:var(--surface);border:1.5px solid var(--border-mid);color:var(--text);font-family:DM Sans,sans-serif;outline:none';
   var qaBtn=document.createElement('button');
   qaBtn.textContent='Add';
-  qaBtn.style.cssText='padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0';
+  qaBtn.style.cssText='padding:10px 18px;background:var(--text);color:var(--bg);border:none;border-radius:12px;font-size:13px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0';
   qaBtn.onclick=function(){
     var desc=qaInput.value.trim();
     if(!desc)return;
