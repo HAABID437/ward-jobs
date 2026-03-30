@@ -507,7 +507,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <div class="sheet-title">New job</div>
   <div id="add-sheet-team-toggle" style="display:none;margin-bottom:16px">
     <div style="background:var(--surface2);border-radius:14px;padding:4px;display:flex;gap:4px">
-      <button id="dest-my" onclick="setAddDest('my')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--accent);color:#fff;transition:all 0.15s">My list</button>
+      <button id="dest-my" onclick="setAddDest('my')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">My list</button>
       <button id="dest-team" onclick="setAddDest('team')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
     </div>
   </div>
@@ -1352,7 +1352,7 @@ function setAddDest(dest){
   addDest=dest;
   var mb=document.getElementById('dest-my'),tb=document.getElementById('dest-team');
   if(dest==='my'){
-    mb.style.background='var(--accent)';mb.style.color='#fff';
+    mb.style.background='var(--text)';mb.style.color='var(--bg)';
     tb.style.background='transparent';tb.style.color='var(--muted)';
   }else{
     tb.style.background='var(--team)';tb.style.color='#fff';
@@ -1369,7 +1369,7 @@ function openAddSheet(){
   var toggle=document.getElementById('add-sheet-team-toggle');
   if(toggle)toggle.style.display=teamSession?'block':'none';
   var mb=document.getElementById('dest-my'),tb=document.getElementById('dest-team');
-  if(mb){mb.style.background='var(--accent)';mb.style.color='#fff';}
+  if(mb){mb.style.background='var(--text)';mb.style.color='var(--bg)';}
   if(tb){tb.style.background='transparent';tb.style.color='var(--muted)';}
   var sub=document.getElementById('add-sheet-submit');
   if(sub){sub.onclick=addTask;sub.textContent='Add job';}
@@ -2871,7 +2871,7 @@ function openAddSheetForBed(bedLabel){
   var toggle=document.getElementById('add-sheet-team-toggle');
   if(toggle)toggle.style.display=teamSession?'block':'none';
   var mb=document.getElementById('dest-my'),tb=document.getElementById('dest-team');
-  if(mb){mb.style.background='var(--accent)';mb.style.color='#fff';}
+  if(mb){mb.style.background='var(--text)';mb.style.color='var(--bg)';}
   if(tb){tb.style.background='transparent';tb.style.color='var(--muted)';}
   var sub=document.getElementById('add-sheet-submit');
   if(sub){sub.onclick=addTask;sub.textContent='Add job';}
