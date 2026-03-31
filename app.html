@@ -488,7 +488,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <svg viewBox="0 0 20 20"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg>
     Add job
   </button>
-  <button class="icon-btn" onclick="openBulkAdd()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;border-radius:14px;min-width:52px">
+  <button id="bulk-fab" class="icon-btn" onclick="openBulkAdd()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;border-radius:14px;min-width:52px">
     <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/><line x1="15" y1="13" x2="15" y2="17"/><line x1="13" y1="15" x2="17" y2="15"/></svg>
     Bulk add
   </button>
@@ -1368,7 +1368,7 @@ function setTab(t){
   var clr=document.getElementById('search-clear');if(clr)clr.style.display='none';
   // Show search only on active/done/team (not when no session)
   var sw=document.getElementById('search-wrap');
-  if(sw)sw.style.display=(t==='active'||t==='done'||(t==='team'&&teamSession))?'block':'none';
+  if(sw)sw.style.display=(t==='active'||t==='done'||(t==='team'&&teamSession&&!wardTemplate))?'block':'none';
   // Clear list immediately so stale content never shows during transition
   var list=document.getElementById('list');
   if(list){list.innerHTML='';list.removeAttribute('style');}
@@ -1378,6 +1378,9 @@ function setTab(t){
   updateSessionBar();
   if(t==='team')renderTeamTab();
   else render();
+  // Hide bulk add on team tab with ward (jobs go via beds)
+  var bf=document.getElementById('bulk-fab');
+  if(bf)bf.style.display=(t==='team'&&wardTemplate)?'none':'flex';
 }
 
 /* Add sheet */
@@ -2104,7 +2107,7 @@ function renderTeamTab(){
     return;
   }
   var jobs=Object.values(teamJobs).sort(function(a,b){if(a.done!==b.done)return a.done?1:-1;return ORD[a.urg]-ORD[b.urg];});
-  if(sw)sw.style.display='block';
+  if(sw)sw.style.display=wardTemplate?'none':'block';
   var active=jobs.filter(function(j){return!j.done;});
   var done=jobs.filter(function(j){return j.done;});
   var members=teamMembers;
@@ -2904,6 +2907,13 @@ function openBedSheet(bedLabel){
     var empty=document.createElement('div');empty.style.cssText='text-align:center;padding:24px 0;color:var(--dim);font-size:13px;font-weight:500';empty.textContent='No jobs for this bed';content.appendChild(empty);
   }
 
+  // Bulk add link
+  var bulkLink=document.createElement('button');
+  bulkLink.style.cssText='width:100%;padding:12px;background:var(--surface2);border:none;border-radius:14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;color:var(--muted);margin-top:8px;margin-bottom:4px';
+  bulkLink.textContent='+ Bulk add jobs for this bed';
+  bulkLink.onclick=function(){closeSheet();setTimeout(function(){openBulkAdd(bedLabel);},320);};
+  content.appendChild(bulkLink);
+
   var closeBtn=document.createElement('button');closeBtn.className='submit-btn';closeBtn.style.marginTop='4px';closeBtn.textContent='Close';closeBtn.onclick=closeSheet;content.appendChild(closeBtn);
   openSheet('bed-sheet');
 }
@@ -2936,22 +2946,22 @@ function setBulkDest(dest){
   if(tb){tb.style.background=dest==='team'?'var(--text)':'transparent';tb.style.color=dest==='team'?'var(--bg)':'var(--muted)';}
 }
 function openBulkAdd(prefillPid){
-  if(curTab==='team'&&teamSession&&wardTemplate){
+  if(curTab==='team'&&teamSession&&wardTemplate&&!prefillPid){
     showBanner('Tap a bed to add jobs','var(--team)');return;
   }
-  bulkDest=teamSession?'team':'my';
+  // If called from a bed in team session, force team dest
+  var fromBed=!!(prefillPid&&teamSession);
+  bulkDest=fromBed?'team':(teamSession?'team':'my');
   setBulkDest(bulkDest);
   var dw=document.getElementById('bulk-dest-wrap');
-  if(dw)dw.style.display=teamSession?'flex':'none';
+  if(dw)dw.style.display=(teamSession&&!fromBed)?'flex':'none';
   var pid=document.getElementById('bulk-pid');
-  if(pid)pid.value=prefillPid||'';
+  if(pid){pid.value=prefillPid||'';pid.readOnly=!!prefillPid;}
   var inp=document.getElementById('bulk-input');
   if(inp)inp.value='';
   openSheet('bulk-sheet');
   setTimeout(function(){
-    var p=document.getElementById('bulk-pid');
-    if(p&&!p.value)p.focus();
-    else{var i=document.getElementById('bulk-input');if(i)i.focus();}
+    var i=document.getElementById('bulk-input');if(i)i.focus();
   },320);
 }
 function parseBulkLines(text){
