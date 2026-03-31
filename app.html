@@ -1864,11 +1864,13 @@ function fetchTeamData(){
     if(data.ward&&(!wardTemplate||wardTemplate.id!==data.ward.id)){
       wardTemplate=data.ward;
       try{localStorage.setItem('wj_ward',JSON.stringify(wardTemplate));}catch(e){}
-      // Add to personal templates if not already there
       if(!wardTemplates.some(function(t){return t.id===data.ward.id;})){
         wardTemplates.push(data.ward);
         saveWardTemplatesToStorage();pushWardTemplatesToCloud();
       }
+      // Force re-render immediately — ward change isn't in job hash
+      _lastTeamHash='';
+      if(curTab==='team')renderTeamTab();
     }
   }).catch(function(){});
 }
@@ -2142,7 +2144,7 @@ function renderTeamTab(){
   var members=teamMembers;
   var isCreator=teamCreatorId===myId;
   // Skip full rebuild if nothing changed — just update sub-tab visibility
-  var newHash=JSON.stringify(jobs)+JSON.stringify(Object.keys(members))+isCreator;
+  var newHash=JSON.stringify(jobs)+JSON.stringify(Object.keys(members))+isCreator+(wardTemplate?wardTemplate.id:'');
   if(newHash===_lastTeamHash&&list.children.length){setTeamSubTab(teamSubTab);return;}
   _lastTeamHash=newHash;
 
