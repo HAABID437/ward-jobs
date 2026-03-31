@@ -1157,18 +1157,20 @@ function pollUserTasks(){
       if(localOnly.length){syncToCloud();}
     }
 
-    // Sync team state — always check, independent of task changes
+    // Sync team state — only restore if not already in a session
     var cloudTeamCode=data.team&&data.team.code?data.team.code:null;
+    var localCode=localStorage.getItem('wj_team');
 
-    if(cloudTeamCode&&!teamSession&&localStorage.getItem('wj_team_left_code')!==cloudTeamCode){
-      // Cloud says joined, we're not — silently join
+    if(cloudTeamCode&&!teamSession&&!localCode&&localStorage.getItem('wj_team_left_code')!==cloudTeamCode){
+      // Cloud says joined, we're not locally — attempt to restore
       var joinName=data.team.name||myName;
-      // Register membership first, then fetch and start polling
-      var joinMd={};joinMd[myId]={name:joinName,color:myColor,joined:Date.now()};
-      dbUpdate('/sessions/'+cloudTeamCode+'/members',joinMd).then(function(){
-        return dbGet('/sessions/'+cloudTeamCode);
-      }).then(function(sess){
-        if(!sess||Date.now()-(sess.created||0)>TEAM_SESSION_MS){
+      dbGet('/sessions/'+cloudTeamCode).then(function(sess){
+        // Only rejoin if session still valid and not expired
+        if(!sess||!sess.members||!sess.members[myId]){
+          // We're not actually a member — clear stale cloud data
+          clearTeamFromCloud();return;
+        }
+        if(Date.now()-(sess.created||0)>TEAM_SESSION_MS){
           clearTeamFromCloud();return;
         }
         teamSession=cloudTeamCode;
@@ -1180,7 +1182,13 @@ function pollUserTasks(){
         localStorage.setItem('wj_name',joinName);
         localStorage.removeItem('wj_team_left_code');
         var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+cloudTeamCode+')';
+        // Pick up ward template if present
+        if(sess.ward&&(!wardTemplate||wardTemplate.id!==sess.ward.id)){
+          wardTemplate=sess.ward;
+          try{localStorage.setItem('wj_ward',JSON.stringify(sess.ward));}catch(e){}
+        }
         updateCounts();startTeamPoll();
+        if(curTab==='team')renderTeamTab();
       }).catch(function(){});
 
     }else if(!cloudTeamCode&&teamSession){
@@ -2197,31 +2205,28 @@ function renderTeamTab(){
   addBtn.onclick=openAddTeamJobSheet;actions.appendChild(addBtn);
   container.appendChild(actions);
 
-  // Ward map section — only for logged-in users
-  if(currentUser){
-    if(wardTemplate){
-      // Ward map inline in team tab
-      var wardSection=document.createElement('div');wardSection.style.cssText='margin-bottom:12px';
-      var wardHdr=document.createElement('div');
-      wardHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
-      wardHdr.innerHTML='<span style="font-family:DM Serif Display,serif;font-size:15px;font-style:italic;color:var(--muted)">'+esc(wardTemplate.name)+'</span>';
+  // Ward map section — show for anyone in the session
+  if(wardTemplate){
+    var wardSection=document.createElement('div');wardSection.style.cssText='margin-bottom:12px';
+    var wardHdr=document.createElement('div');
+    wardHdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px';
+    wardHdr.innerHTML='<span style="font-family:DM Serif Display,serif;font-size:15px;font-style:italic;color:var(--muted)">'+esc(wardTemplate.name)+'</span>';
+    if(currentUser){
       var editWard=document.createElement('button');
       editWard.textContent='Edit layout';
       editWard.style.cssText='background:none;border:none;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:0';
       editWard.onclick=openWardSetup;
       wardHdr.appendChild(editWard);
-      wardSection.appendChild(wardHdr);
-      // Render bays
-      wardTemplate.bays.forEach(function(bay){
-        var bayEl=document.createElement('div');bayEl.className='ward-bay';
-        var bayHdr=document.createElement('div');bayHdr.className='ward-bay-hdr';bayHdr.textContent=bay.name;bayEl.appendChild(bayHdr);
-        var bedsGrid=document.createElement('div');bedsGrid.className='ward-beds';
-        bay.beds.forEach(function(bedLabel){bedsGrid.appendChild(makeBedCard(bedLabel));});
-        bayEl.appendChild(bedsGrid);wardSection.appendChild(bayEl);
-      });
-      container.appendChild(wardSection);
     }
-    // No prompt when no ward — ward is set at session creation time
+    wardSection.appendChild(wardHdr);
+    wardTemplate.bays.forEach(function(bay){
+      var bayEl=document.createElement('div');bayEl.className='ward-bay';
+      var bayHdr=document.createElement('div');bayHdr.className='ward-bay-hdr';bayHdr.textContent=bay.name;bayEl.appendChild(bayHdr);
+      var bedsGrid=document.createElement('div');bedsGrid.className='ward-beds';
+      bay.beds.forEach(function(bedLabel){bedsGrid.appendChild(makeBedCard(bedLabel));});
+      bayEl.appendChild(bedsGrid);wardSection.appendChild(bayEl);
+    });
+    container.appendChild(wardSection);
   }
 
   // When ward template is active, all jobs are accessed via bed tap — no job list here
