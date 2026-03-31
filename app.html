@@ -659,6 +659,11 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
   <!-- Create panel -->
   <div id="team-create-panel">
+    <div id="ward-template-picker" style="display:none;margin-bottom:12px">
+      <div class="f-label" style="margin-bottom:8px">Ward layout <span style="font-weight:400;color:var(--dim)">(optional)</span></div>
+      <div id="ward-picker-options" style="display:flex;flex-direction:column;gap:6px"></div>
+      <button onclick="openWardBuilderFromTeam()" style="width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted);margin-top:6px">+ Create new template</button>
+    </div>
     <button class="submit-btn" onclick="createSession()">Start session</button>
   </div>
 
@@ -1944,6 +1949,15 @@ function openTeamSetup(){
   document.getElementById('team-setup-error').style.display='none';
   _selectedWardTemplateId=null;
   setTeamMode('create');
+  var picker=document.getElementById('ward-template-picker');
+  if(picker){
+    if(currentUser){
+      picker.style.display='block';
+      renderWardPicker();
+    }else{
+      picker.style.display='none';
+    }
+  }
   openSheet('team-setup-sheet');
   setTimeout(function(){document.getElementById('team-name-input').focus();},320);
   }catch(e){showBanner('Error: '+e.message,'#c0392b');console.error('openTeamSetup failed:',e);}
@@ -1953,9 +1967,14 @@ function renderWardPicker(){
   var opts=document.getElementById('ward-picker-options');
   if(!opts)return;
   opts.innerHTML='';
-  // Filter out any malformed templates
   wardTemplates=wardTemplates.filter(function(t){return t&&t.id&&t.name&&Array.isArray(t.bays);});
-  // "None" option
+  if(!wardTemplates.length){
+    var empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--muted);font-weight:500;padding:4px 0 8px';
+    empty.textContent='No saved templates yet — create one below.';
+    opts.appendChild(empty);
+    return;
+  }
   var noneRow=makePickerOption(null,'No ward layout','Just jobs, no map');
   opts.appendChild(noneRow);
   wardTemplates.forEach(function(tmpl){
@@ -2002,7 +2021,7 @@ function createSession(){
   myColor=TEAM_COLORS[0];localStorage.setItem('wj_color',myColor);
   var members={};members[myId]={name:name,color:myColor,joined:Date.now()};
   // Attach selected ward template
-  var selectedWard=null; // Ward imported separately after session creation
+  var selectedWard=wardTemplates.find(function(t){return t.id===_selectedWardTemplateId;})||null;
   var sessionData={code:code,created:Date.now(),createdBy:myId,members:members,jobs:{},ward:selectedWard||null};
   dbSet('/sessions/'+code,sessionData).then(function(){
     teamCreatorId=myId;
