@@ -159,7 +159,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
 .ward-bed.has-rtn{border-color:var(--rtn);background:var(--rtn-bg)}
-.ward-bed.has-chase{border-color:#f0a500;background:#fff8e6}
+.ward-bed.has-chase{border:2.5px dashed #f0a500 !important;background:#fff8e6}
 [data-theme="dark"] .ward-bed.has-chase{background:#2a2000}
 .ward-bed.has-done{border-color:var(--border-mid);background:var(--surface2);opacity:0.7}
 .ward-bed-label{font-size:11px;font-weight:700;color:var(--text);line-height:1.2}
@@ -2724,6 +2724,11 @@ function makeBedCard(bedLabel){
     var tick=document.createElement('div');
     tick.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" fill="var(--rtn)"/><polyline points="4,7 6,9 10,5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     card.appendChild(tick);
+  }else if(hasChase){
+    // Show chase icon — hourglass/clock feel
+    var chaseDot=document.createElement('div');
+    chaseDot.innerHTML='<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="5" stroke="#f0a500" stroke-width="1.5"/><polyline points="6,3 6,6 8,7.5" stroke="#f0a500" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    card.appendChild(chaseDot);
   }else{
     var dot=document.createElement('div');dot.className='ward-bed-dot';card.appendChild(dot);
   }
