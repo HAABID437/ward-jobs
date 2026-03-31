@@ -159,6 +159,8 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bed.has-imm{border-color:var(--imm);background:var(--imm-bg)}
 .ward-bed.has-urg{border-color:var(--urg);background:var(--urg-bg)}
 .ward-bed.has-rtn{border-color:var(--rtn);background:var(--rtn-bg)}
+.ward-bed.has-chase{border-color:#f0a500;background:#fff8e6}
+[data-theme="dark"] .ward-bed.has-chase{background:#2a2000}
 .ward-bed.has-done{border-color:var(--border-mid);background:var(--surface2);opacity:0.7}
 .ward-bed-label{font-size:11px;font-weight:700;color:var(--text);line-height:1.2}
 .ward-bed-count{font-size:9px;font-weight:600;color:var(--muted)}
@@ -2701,16 +2703,22 @@ function bedTaskCount(bedLabel){
   return bedJobsForLabel(bedLabel).filter(function(t){return !t.done;}).length;
 }
 
+function bedHasChase(bedLabel){
+  var lc=bedLabel.trim().toLowerCase().replace(/\s+/g,' ');
+  return Object.values(teamJobs).some(function(t){return t.chase&&!t.done&&t.pid&&t.pid.trim().toLowerCase().replace(/\s+/g,' ')===lc;});
+}
 function makeBedCard(bedLabel){
   var urg=bedTaskUrgency(bedLabel);
   var count=bedTaskCount(bedLabel);
   var allDone=bedAllDone(bedLabel);
+  var hasChase=bedHasChase(bedLabel);
   var card=document.createElement('div');
   var cls='ward-bed';
   if(allDone) cls+=' has-done';
   else if(urg==='i') cls+=' has-imm';
   else if(urg==='u') cls+=' has-urg';
   else if(urg==='r') cls+=' has-rtn';
+  if(hasChase&&!allDone) cls+=' has-chase';
   card.className=cls;
   if(allDone){
     var tick=document.createElement('div');
