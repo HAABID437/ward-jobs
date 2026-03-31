@@ -1975,13 +1975,18 @@ function renderWardPicker(){
     opts.appendChild(empty);
     return;
   }
-  var noneRow=makePickerOption(null,'No ward layout','Just jobs, no map');
-  opts.appendChild(noneRow);
-  wardTemplates.forEach(function(tmpl){
-    var totalBeds=tmpl.bays.reduce(function(s,b){return s+(b.beds?b.beds.length:0);},0);
-    var meta=tmpl.bays.length+' bay'+(tmpl.bays.length!==1?'s':'')+' · '+totalBeds+' beds';
-    opts.appendChild(makePickerOption(tmpl.id,tmpl.name,meta));
+  // Pill-style horizontal selector
+  var pills=document.createElement('div');pills.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px';
+  // None pill
+  [{id:null,name:'None'}].concat(wardTemplates).forEach(function(tmpl){
+    var isSelected=_selectedWardTemplateId===tmpl.id;
+    var pill=document.createElement('button');
+    pill.textContent=tmpl.name;
+    pill.style.cssText='padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;transition:all 0.15s;border:2px solid '+(isSelected?'var(--team)':'var(--border-mid)')+';background:'+(isSelected?'var(--team)':'transparent')+';color:'+(isSelected?'#fff':'var(--muted)');
+    pill.onclick=function(){_selectedWardTemplateId=tmpl.id;renderWardPicker();};
+    pills.appendChild(pill);
   });
+  opts.appendChild(pills);
 }
 
 function makePickerOption(id,label,sub){
