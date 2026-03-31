@@ -433,11 +433,11 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         <div class="brand-sub">Shift task manager</div>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
-        <button id="theme-btn" onclick="toggleTheme()" data-tip="Switch to dark mode" class="tip" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:opacity 0.15s" aria-label="Toggle dark mode">
+        <button id="theme-btn" onclick="toggleTheme()" data-tip="Switch to dark mode" class="tip" style="background:var(--surface2);border:2px solid var(--border-mid);cursor:pointer;padding:6px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.15s;width:36px;height:36px;flex-shrink:0" aria-label="Toggle dark mode">
           <svg id="theme-icon-moon" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M17.5 11.5A7.5 7.5 0 0 1 8.5 2.5a7.5 7.5 0 1 0 9 9z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <svg id="theme-icon-sun" width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:none"><circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="2" x2="10" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="16" x2="10" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="10" x2="4" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="16" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="14.36" y1="14.36" x2="15.78" y2="15.78" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.22" y1="15.78" x2="5.64" y2="14.36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="14.36" y1="5.64" x2="15.78" y2="4.22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
-        <button id="auth-btn" onclick="openAuthSheet()" data-tip="Sign in" class="tip" style="background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:opacity 0.15s" aria-label="Sign in">
+        <button id="auth-btn" onclick="openAuthSheet()" data-tip="Sign in" class="tip" style="background:var(--team-bg);border:2px solid var(--team);cursor:pointer;padding:6px;color:var(--team);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.15s;width:36px;height:36px;flex-shrink:0" aria-label="Sign in">
           <svg id="auth-icon" width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
         <div class="hdr-clock" id="clock">--:--</div>
@@ -659,11 +659,6 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
   <!-- Create panel -->
   <div id="team-create-panel">
-    <div id="ward-template-picker" style="display:none;margin-bottom:12px">
-      <div class="f-label" style="margin-bottom:8px">Ward layout <span style="font-weight:400;color:var(--dim)">(optional)</span></div>
-      <div id="ward-picker-options" style="display:flex;flex-direction:column;gap:6px"></div>
-      <button onclick="openWardBuilderFromTeam()" style="width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted);margin-top:6px">+ Create new template</button>
-    </div>
     <button class="submit-btn" onclick="createSession()">Start session</button>
   </div>
 
@@ -904,15 +899,17 @@ function updateAuthUI(){
   var icon=document.getElementById('auth-icon');
   if(!btn)return;
   if(currentUser){
-    // Show coloured avatar initial
+    // Show coloured avatar initial — no ring needed
     var initials=(currentUser.displayName||currentUser.email||'U').charAt(0).toUpperCase();
     var col=TEAM_COLORS[Math.abs(hashStr(currentUser.uid))%TEAM_COLORS.length];
     btn.innerHTML='<div class="auth-avatar" style="width:26px;height:26px;font-size:11px;background:'+col+'">'+initials+'</div>';
+    btn.style.background='none';btn.style.border='none';btn.style.padding='4px';btn.style.color='var(--muted)';btn.style.width='36px';btn.style.height='36px';
     btn.setAttribute('data-tip',currentUser.displayName||currentUser.email||'Account');
     if(!syncInterval)syncInterval=setInterval(pollUserTasks,3000);
-    pollUserTasks(); // immediate pull on sign-in
+    pollUserTasks();
   }else{
-    btn.innerHTML='<svg id="auth-icon" width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    btn.innerHTML='<svg id="auth-icon" width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    btn.style.background='var(--team-bg)';btn.style.border='2px solid var(--team)';btn.style.padding='6px';btn.style.color='var(--team)';btn.style.width='36px';btn.style.height='36px';
     btn.setAttribute('data-tip','Sign in');
     if(syncInterval){clearInterval(syncInterval);syncInterval=null;}
   }
@@ -1552,9 +1549,9 @@ var scanStream=null,scanRAF=null,scanCanvas=null,scanCtx=null,nativeScanInterval
 function renderRecvPanel(){
   document.getElementById('ho-recv-panel').innerHTML='<div style="background:var(--surface2);border-radius:16px;padding:16px;margin-bottom:16px">'
     +'<div style="font-family:DM Serif Display,serif;font-size:17px;font-weight:400;margin-bottom:10px">How to receive jobs</div>'
-    +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Open your iPhone <strong>Camera app</strong></div></div>'
-    +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Point at the sender\'s QR code</div></div>'
-    +'<div style="display:flex;align-items:flex-start;gap:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Tap the <strong>axonal.co.uk</strong> link &mdash; jobs import automatically</div></div>'
+    +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">1</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Open your iPhone <strong>Camera app</strong></div></div>'
+    +'<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">2</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Point at the sender\'s QR code</div></div>'
+    +'<div style="display:flex;align-items:flex-start;gap:10px"><div style="width:22px;height:22px;border-radius:50%;background:var(--text);color:var(--bg);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">3</div><div style="font-size:13px;font-weight:500;color:var(--text);line-height:1.5">Tap the <strong>axonal.co.uk</strong> link &mdash; jobs import automatically</div></div>'
     +'</div>'
     +'<div id="scan-feedback"></div>'
     +'<div class="divider-row"><span>or paste code manually</span></div>'
@@ -1947,15 +1944,6 @@ function openTeamSetup(){
   document.getElementById('team-setup-error').style.display='none';
   _selectedWardTemplateId=null;
   setTeamMode('create');
-  var picker=document.getElementById('ward-template-picker');
-  if(picker){
-    if(currentUser&&wardTemplates.length){
-      picker.style.display='block';
-      renderWardPicker();
-    }else{
-      picker.style.display='none';
-    }
-  }
   openSheet('team-setup-sheet');
   setTimeout(function(){document.getElementById('team-name-input').focus();},320);
   }catch(e){showBanner('Error: '+e.message,'#c0392b');console.error('openTeamSetup failed:',e);}
@@ -2014,7 +2002,7 @@ function createSession(){
   myColor=TEAM_COLORS[0];localStorage.setItem('wj_color',myColor);
   var members={};members[myId]={name:name,color:myColor,joined:Date.now()};
   // Attach selected ward template
-  var selectedWard=wardTemplates.find(function(t){return t.id===_selectedWardTemplateId;})||null;
+  var selectedWard=null; // Ward imported separately after session creation
   var sessionData={code:code,created:Date.now(),createdBy:myId,members:members,jobs:{},ward:selectedWard||null};
   dbSet('/sessions/'+code,sessionData).then(function(){
     teamCreatorId=myId;
@@ -2266,9 +2254,9 @@ function renderTeamTab(){
     wardHdr.innerHTML='<span style="font-family:DM Serif Display,serif;font-size:15px;font-style:italic;color:var(--muted)">'+esc(wardTemplate.name)+'</span>';
     if(currentUser){
       var editWard=document.createElement('button');
-      editWard.textContent='Edit layout';
+      editWard.textContent='Change layout';
       editWard.style.cssText='background:none;border:none;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:0';
-      editWard.onclick=openWardSetup;
+      editWard.onclick=openWardTemplates;
       wardHdr.appendChild(editWard);
     }
     wardSection.appendChild(wardHdr);
@@ -2280,6 +2268,13 @@ function renderTeamTab(){
       bayEl.appendChild(bedsGrid);wardSection.appendChild(bayEl);
     });
     container.appendChild(wardSection);
+  }else if(currentUser){
+    // Prompt to import ward layout
+    var importBtn=document.createElement('button');
+    importBtn.style.cssText='width:100%;padding:14px;background:var(--surface2);border:1.5px dashed var(--border-mid);border-radius:16px;font-size:14px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;color:var(--team);display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px';
+    importBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="1" width="14" height="14" rx="2"/><line x1="1" y1="6" x2="15" y2="6"/><line x1="6" y1="6" x2="6" y2="15"/></svg> Import ward layout';
+    importBtn.onclick=openWardTemplates;
+    container.appendChild(importBtn);
   }
 
   // When ward template is active, all jobs are accessed via bed tap — no job list here
