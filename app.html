@@ -488,6 +488,10 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <svg viewBox="0 0 20 20"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg>
     Add job
   </button>
+  <button class="icon-btn" onclick="openBulkAdd()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;border-radius:14px;min-width:52px">
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/><line x1="15" y1="13" x2="15" y2="17"/><line x1="13" y1="15" x2="17" y2="15"/></svg>
+    Bulk add
+  </button>
   <button class="icon-btn handover-btn" onclick="openHandover()">
     <svg viewBox="0 0 20 20"><path d="M3 10 L3 16 L17 16 L17 10"/><polyline points="7,6 10,3 13,6"/><line x1="10" y1="3" x2="10" y2="13"/></svg>
     Handover
@@ -500,6 +504,24 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
 <!-- Shared backdrop -->
 <div class="backdrop" id="backdrop"></div>
+
+<!-- Bulk add sheet -->
+<div class="sheet" id="bulk-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Bulk add jobs</div>
+  <div class="sheet-sub">Enter a patient ID then list their jobs — one per line. Prefix with <strong>!</strong> for Immediate or <strong>~</strong> for Urgent.</div>
+  <div id="bulk-dest-wrap" style="display:flex;gap:4px;background:var(--surface2);border-radius:14px;padding:4px;margin-bottom:14px">
+    <button id="bulk-dest-my" onclick="setBulkDest('my')" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">My list</button>
+    <button id="bulk-dest-team" onclick="setBulkDest('team')" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
+  </div>
+  <div class="f-group">
+    <div class="f-label">Patient ID / Bed</div>
+    <input type="text" id="bulk-pid" placeholder="e.g. Bed 4, MRN 123456" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+  </div>
+  <div class="f-label" style="margin-bottom:6px">Jobs (one per line)</div>
+  <textarea id="bulk-input" placeholder="Chase bloods&#10;! Arrest bloods — urgent&#10;~ Insert cannula&#10;Drug chart review" rows="7" style="width:100%;box-sizing:border-box;padding:14px;border-radius:16px;border:1.5px solid var(--border-mid);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;margin-bottom:12px"></textarea>
+  <button class="submit-btn" onclick="submitBulkAdd()">Add jobs</button>
+</div>
 
 <!-- Add job sheet -->
 <div class="sheet" id="add-sheet">
@@ -666,15 +688,20 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <!-- Auth sheet -->
 <div class="sheet" id="auth-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title" id="auth-sheet-title">Sign in</div>
-  <div class="sheet-sub" id="auth-sheet-sub">Sync your jobs across devices.</div>
   <div id="auth-signed-out">
-    <div style="background:var(--team-bg);border-radius:14px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
+    <!-- Mode tabs -->
+    <div style="display:flex;gap:4px;background:var(--surface2);border-radius:16px;padding:4px;margin-bottom:20px">
+      <button id="auth-tab-signin" onclick="setAuthMode('signin')" style="flex:1;padding:10px;border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">Sign in</button>
+      <button id="auth-tab-signup" onclick="setAuthMode('signup')" style="flex:1;padding:10px;border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Sign up</button>
+    </div>
+    <div id="auth-mode-label" style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-bottom:4px">Welcome back</div>
+    <div id="auth-mode-sub" style="font-size:13px;color:var(--muted);font-weight:500;margin-bottom:18px">Sign in to sync your jobs across devices.</div>
+    <div id="auth-nhs-notice" style="display:none;background:var(--team-bg);border-radius:14px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="var(--team)" stroke-width="1.4"/><line x1="7" y1="4.5" x2="7" y2="7.5" stroke="var(--team)" stroke-width="1.4" stroke-linecap="round"/><circle cx="7" cy="9.5" r="0.7" fill="var(--team)"/></svg>
-      <span style="font-size:12px;font-weight:600;color:var(--team)">NHS staff only &mdash; sign up requires an <strong>@nhs.net</strong> email</span>
+      <span style="font-size:12px;font-weight:600;color:var(--team)">Sign up requires an <strong>@nhs.net</strong> email</span>
     </div>
     <div class="f-group">
-      <div class="f-label">NHS email</div>
+      <div class="f-label">Email</div>
       <input type="email" id="auth-email" placeholder="yourname@nhs.net" autocomplete="email" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
     <div class="f-group">
@@ -683,7 +710,6 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     </div>
     <div id="auth-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-bottom:14px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
     <button class="submit-btn" id="auth-action-btn" onclick="authAction()">Sign in</button>
-    <button onclick="toggleAuthMode()" id="auth-toggle-btn" style="width:100%;padding:14px;background:none;border:none;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer;margin-top:2px">Don't have an account? <span style="color:var(--text);font-weight:600">Sign up</span></button>
   </div>
   <div id="auth-verification-pending" style="display:none">
     <div style="text-align:center;padding:12px 0 20px">
@@ -871,8 +897,7 @@ function openAuthSheet(){
   var inn=document.getElementById('auth-signed-in');
   if(currentUser){
     out.style.display='none';inn.style.display='block';
-    document.getElementById('auth-sheet-title').textContent='Account';
-    document.getElementById('auth-sheet-sub').textContent='Your jobs sync automatically when signed in.';
+    // Signed in
     var initials=(currentUser.displayName||currentUser.email||'U').charAt(0).toUpperCase();
     var col=TEAM_COLORS[Math.abs(hashStr(currentUser.uid))%TEAM_COLORS.length];
     var av=document.getElementById('auth-user-avatar');if(av){av.textContent=initials;av.style.background=col;}
@@ -884,30 +909,39 @@ function openAuthSheet(){
     ['auth-name-msg','auth-pw-msg'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
   }else{
     out.style.display='block';inn.style.display='none';
-    document.getElementById('auth-sheet-title').textContent='Sign in';
-    document.getElementById('auth-sheet-sub').textContent='Sync your jobs across devices.';
     authMode='signin';updateAuthModeUI();
   }
   document.getElementById('auth-error').style.display='none';
   openSheet('auth-sheet');
 }
 
-function toggleAuthMode(){
-  authMode=authMode==='signin'?'signup':'signin';
+function setAuthMode(mode){
+  authMode=mode;
   updateAuthModeUI();
+}
+function toggleAuthMode(){
+  setAuthMode(authMode==='signin'?'signup':'signin');
 }
 function updateAuthModeUI(){
   var btn=document.getElementById('auth-action-btn');
-  var tog=document.getElementById('auth-toggle-btn');
-  if(btn)btn.textContent=authMode==='signin'?'Sign in':'Create account';
-  if(tog){
-    if(authMode==='signin'){
-      tog.innerHTML="Don't have an account? <span style='color:var(--text);font-weight:600'>Sign up</span>";
-    }else{
-      tog.innerHTML="Already have an account? <span style='color:var(--text);font-weight:600'>Sign in</span>";
-    }
+  var tabSignin=document.getElementById('auth-tab-signin');
+  var tabSignup=document.getElementById('auth-tab-signup');
+  var lbl=document.getElementById('auth-mode-label');
+  var sub=document.getElementById('auth-mode-sub');
+  var notice=document.getElementById('auth-nhs-notice');
+  var isSignin=authMode==='signin';
+  if(btn)btn.textContent=isSignin?'Sign in':'Create account';
+  if(tabSignin){
+    tabSignin.style.background=isSignin?'var(--text)':'transparent';
+    tabSignin.style.color=isSignin?'var(--bg)':'var(--muted)';
   }
-}
+  if(tabSignup){
+    tabSignup.style.background=!isSignin?'var(--text)':'transparent';
+    tabSignup.style.color=!isSignin?'var(--bg)':'var(--muted)';
+  }
+  if(lbl)lbl.textContent=isSignin?'Welcome back':'Create account';
+  if(sub)sub.textContent=isSignin?'Sign in to sync your jobs across devices.':'NHS staff only. Use your @nhs.net email.';
+  if(notice)notice.style.display=isSignin?'none':'flex';}
 
 function isNHSEmail(email){
   return email.toLowerCase().endsWith('@nhs.net');
@@ -1712,7 +1746,7 @@ function cardHtml(t){
 }
 
 /* Sheet drag-to-dismiss */
-['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet','ward-setup-sheet','bed-sheet','ward-templates-sheet'].forEach(function(sid){
+['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet','ward-setup-sheet','bed-sheet','ward-templates-sheet','bulk-sheet'].forEach(function(sid){
   var sheet=document.getElementById(sid);
   if(!sheet)return;
   var sy=0,dy=0,on=false;
@@ -2121,20 +2155,12 @@ function renderTeamTab(){
     container.appendChild(mrow);
   }
 
-  // Action buttons
+  // Action buttons — add job only at top
   var actions=document.createElement('div');actions.style.cssText='display:flex;gap:6px;margin-bottom:14px';
   var addBtn=document.createElement('button');
   addBtn.textContent='+ Add job';addBtn.style.cssText='flex:1;padding:10px;background:var(--team-bg);color:var(--team);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
   if(wardTemplate)addBtn.style.display='none';
   addBtn.onclick=openAddTeamJobSheet;actions.appendChild(addBtn);
-  var leaveBtn=document.createElement('button');
-  leaveBtn.textContent='Leave';leaveBtn.style.cssText='padding:10px 14px;background:var(--surface2);color:var(--muted);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
-  leaveBtn.onclick=leaveSession;actions.appendChild(leaveBtn);
-  if(isCreator){
-    var closeBtn=document.createElement('button');
-    closeBtn.textContent='Close';closeBtn.style.cssText='padding:10px 14px;background:var(--imm-bg);color:var(--imm);border:none;border-radius:12px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
-    closeBtn.onclick=closeSession;actions.appendChild(closeBtn);
-  }
   container.appendChild(actions);
 
   // Ward map section — only for logged-in users
@@ -2200,6 +2226,23 @@ function renderTeamTab(){
     else{cpanel.appendChild(teamJobList(doneFiltered,true));}
     container.appendChild(cpanel);
   }
+
+  // Leave / Close at bottom center
+  var bottomActions=document.createElement('div');
+  bottomActions.style.cssText='display:flex;justify-content:center;gap:10px;padding-top:20px;margin-top:4px';
+  var leaveBtn=document.createElement('button');
+  leaveBtn.textContent='Leave session';
+  leaveBtn.style.cssText='padding:11px 22px;background:var(--surface2);color:var(--muted);border:none;border-radius:14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
+  leaveBtn.onclick=leaveSession;
+  bottomActions.appendChild(leaveBtn);
+  if(isCreator){
+    var closeBtn=document.createElement('button');
+    closeBtn.textContent='Close session';
+    closeBtn.style.cssText='padding:11px 22px;background:var(--imm-bg);color:var(--imm);border:none;border-radius:14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer';
+    closeBtn.onclick=closeSession;
+    bottomActions.appendChild(closeBtn);
+  }
+  container.appendChild(bottomActions);
 }
 
 function teamSectionHeader(text){
@@ -2881,6 +2924,75 @@ function openAddSheetForBed(bedLabel){
     if(pidEl){pidEl.value=bedLabel;}
     document.getElementById('f-desc').focus();
   },320);
+}
+
+/* ===== BULK ADD ===== */
+var bulkDest='my';
+function setBulkDest(dest){
+  bulkDest=dest;
+  var mb=document.getElementById('bulk-dest-my');
+  var tb=document.getElementById('bulk-dest-team');
+  if(mb){mb.style.background=dest==='my'?'var(--text)':'transparent';mb.style.color=dest==='my'?'var(--bg)':'var(--muted)';}
+  if(tb){tb.style.background=dest==='team'?'var(--text)':'transparent';tb.style.color=dest==='team'?'var(--bg)':'var(--muted)';}
+}
+function openBulkAdd(prefillPid){
+  if(curTab==='team'&&teamSession&&wardTemplate){
+    showBanner('Tap a bed to add jobs','var(--team)');return;
+  }
+  bulkDest=teamSession?'team':'my';
+  setBulkDest(bulkDest);
+  var dw=document.getElementById('bulk-dest-wrap');
+  if(dw)dw.style.display=teamSession?'flex':'none';
+  var pid=document.getElementById('bulk-pid');
+  if(pid)pid.value=prefillPid||'';
+  var inp=document.getElementById('bulk-input');
+  if(inp)inp.value='';
+  openSheet('bulk-sheet');
+  setTimeout(function(){
+    var p=document.getElementById('bulk-pid');
+    if(p&&!p.value)p.focus();
+    else{var i=document.getElementById('bulk-input');if(i)i.focus();}
+  },320);
+}
+function parseBulkLines(text){
+  return text.split('\n').map(function(line){return line.trim();}).filter(function(line){return line.length>0;}).map(function(line){
+    var urg='r';
+    if(line.startsWith('!')){urg='i';line=line.slice(1).trim();}
+    else if(line.startsWith('~')){urg='u';line=line.slice(1).trim();}
+    return {desc:line,urg:urg};
+  });
+}
+function submitBulkAdd(){
+  var pidEl=document.getElementById('bulk-pid');
+  var inp=document.getElementById('bulk-input');
+  var pid=(pidEl?pidEl.value.trim():'');
+  if(!inp||!inp.value.trim()){closeSheet();return;}
+  var lines=parseBulkLines(inp.value);
+  if(!lines.length){closeSheet();return;}
+  if(bulkDest==='team'&&teamSession){
+    var updates={};
+    lines.forEach(function(item){
+      var jobId='j'+Date.now()+Math.random().toString(36).slice(2,6);
+      var job={id:jobId,pid:pid,desc:item.desc,urg:item.urg,
+        addedBy:myId,addedByName:myName,
+        assignedTo:null,assignedToName:null,assignedColor:null,
+        done:false,doneBy:null,created:Date.now()};
+      teamJobs[jobId]=job;
+      updates[jobId]=job;
+    });
+    dbUpdate('/sessions/'+teamSession+'/jobs',updates).catch(function(){});
+    closeSheet();
+    setTab('team');
+    showBanner(lines.length+' job'+(lines.length!==1?'s':'')+' added to team','var(--team)');
+  }else{
+    lines.forEach(function(item){
+      tasks.unshift({id:''+Date.now()+Math.random(),pid:pid,desc:item.desc,urg:item.urg,added:Date.now(),done:false,completed:null});
+    });
+    save();
+    closeSheet();
+    setTab('active');
+    showBanner(lines.length+' job'+(lines.length!==1?'s':'')+' added','var(--rtn)');
+  }
 }
 
 function showBanner(msg,bg){
