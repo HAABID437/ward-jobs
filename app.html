@@ -2760,7 +2760,7 @@ function assignTeamJobFromBed(jobId){
 function chaseTeamJobFromBed(jobId){
   if(!teamSession)return;
   var job=teamJobs[jobId];if(!job)return;
-  var upd={chase:true};
+  var upd={chase:!job.chase};
   dbUpdate('/sessions/'+teamSession+'/jobs/'+jobId,upd).then(function(){
     teamJobs[jobId]=Object.assign({},job,upd);
     if(curTab==='team')renderTeamTab();
@@ -2919,58 +2919,38 @@ function openBedSheet(bedLabel){
         body.appendChild(asgn);
       }
       row.appendChild(dot);row.appendChild(body);
-      // Action buttons for team jobs
+      // Action buttons — all on one horizontal row
       if(isTeamJob&&!isDone){
         var canAssign=!t.assignedTo||(t.assignedTo===myId);
+        var btnRow=document.createElement('div');btnRow.style.cssText='display:flex;gap:4px;flex-shrink:0;align-items:center';
         var aBtn=document.createElement('button');
-        aBtn.style.cssText='padding:5px 10px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;';
-        if(t.assignedTo===myId){
-          aBtn.textContent='Mine ✓';aBtn.style.cssText+='background:var(--team);color:#fff';
-        }else if(t.assignedTo){
-          aBtn.textContent='Taken';aBtn.style.cssText+='background:var(--surface3);color:var(--dim);cursor:not-allowed';
-        }else{
-          aBtn.textContent='Assign me';aBtn.style.cssText+='background:var(--team-bg);color:var(--team)';
-        }
-        if(canAssign){aBtn.onclick=function(){assignTeamJobFromBed(t.id);};}
-        var btnWrap=document.createElement('div');btnWrap.style.cssText='display:flex;flex-direction:column;gap:4px;flex-shrink:0';
-        btnWrap.appendChild(aBtn);
-        // Chase button (only if not already chasing)
-        if(!t.chase){
-          var chBtn=document.createElement('button');
-          chBtn.textContent='Chase';
-          chBtn.style.cssText='padding:5px 10px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:var(--urg-bg);color:var(--urg)';
-          chBtn.onclick=function(){chaseTeamJobFromBed(t.id);};
-          btnWrap.appendChild(chBtn);
-        }else{
-          var chLbl=document.createElement('div');
-          chLbl.style.cssText='font-size:10px;font-weight:700;color:var(--urg);text-align:center;padding:2px 0';
-          chLbl.textContent='Chasing…';
-          btnWrap.appendChild(chLbl);
-        }
-        // Done button
+        aBtn.style.cssText='padding:5px 8px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;white-space:nowrap';
+        if(t.assignedTo===myId){aBtn.textContent='Mine ✓';aBtn.style.cssText+='background:var(--team);color:#fff';}
+        else if(t.assignedTo){aBtn.textContent='Taken';aBtn.style.cssText+='background:var(--surface3);color:var(--dim);cursor:not-allowed';}
+        else{aBtn.textContent='Assign';aBtn.style.cssText+='background:var(--team-bg);color:var(--team)';}
+        if(canAssign)aBtn.onclick=function(){assignTeamJobFromBed(t.id);};
+        var chBtn=document.createElement('button');
+        chBtn.textContent=t.chase?'Chasing ✕':'Chase';
+        chBtn.style.cssText='padding:5px 8px;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;white-space:nowrap;background:'+(t.chase?'#f0a500':'transparent')+';color:'+(t.chase?'#fff':'#f0a500');
+        chBtn.onclick=function(){chaseTeamJobFromBed(t.id);};
         var dBtn=document.createElement('button');
         dBtn.textContent='Done';
-        dBtn.style.cssText='padding:5px 10px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:var(--rtn-bg);color:var(--rtn)';
+        dBtn.style.cssText='padding:5px 8px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:var(--rtn-bg);color:var(--rtn);white-space:nowrap';
         dBtn.onclick=function(){completeTeamJobFromBed(t.id);};
-        btnWrap.appendChild(dBtn);
-        row.appendChild(btnWrap);
+        btnRow.appendChild(aBtn);btnRow.appendChild(chBtn);btnRow.appendChild(dBtn);
+        row.appendChild(btnRow);
       }else if(!isDone&&!isTeamJob){
-        // Personal task — chase + complete buttons
-        var pWrap=document.createElement('div');pWrap.style.cssText='display:flex;flex-direction:column;gap:4px;flex-shrink:0;align-items:center';
-        if(!t.chase){
-          var pcBtn=document.createElement('button');
-          pcBtn.textContent='Chase';
-          pcBtn.style.cssText='padding:5px 9px;border:none;border-radius:9px;font-size:10px;font-weight:700;cursor:pointer;background:var(--urg-bg);color:var(--urg);font-family:DM Sans,sans-serif';
-          pcBtn.onclick=function(){markChase(t.id);closeSheet();setTimeout(function(){openBedSheet(bedLabel);},50);};
-          pWrap.appendChild(pcBtn);
-        }else{
-          var pcLbl=document.createElement('div');pcLbl.style.cssText='font-size:10px;font-weight:700;color:var(--urg)';pcLbl.textContent='Chasing…';pWrap.appendChild(pcLbl);
-        }
-        var cb=document.createElement('button');cb.style.cssText='background:none;border:none;cursor:pointer;color:var(--muted);padding:4px;flex-shrink:0';
-        cb.innerHTML='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.4"/></svg>';
-        cb.onclick=function(){complete(t.id);closeSheet();setTimeout(function(){openBedSheet(bedLabel);},50);};
-        pWrap.appendChild(cb);
-        row.appendChild(pWrap);
+        var pRow=document.createElement('div');pRow.style.cssText='display:flex;gap:4px;flex-shrink:0;align-items:center';
+        var pcBtn=document.createElement('button');
+        pcBtn.textContent=t.chase?'Chasing ✕':'Chase';
+        pcBtn.style.cssText='padding:5px 8px;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;white-space:nowrap;background:'+(t.chase?'#f0a500':'transparent')+';color:'+(t.chase?'#fff':'#f0a500');
+        pcBtn.onclick=function(){markChase(t.id);closeSheet();setTimeout(function(){openBedSheet(bedLabel);},50);};
+        var doneBtn=document.createElement('button');
+        doneBtn.textContent='Done';
+        doneBtn.style.cssText='padding:5px 8px;border:none;border-radius:10px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;background:var(--rtn-bg);color:var(--rtn);white-space:nowrap';
+        doneBtn.onclick=function(){complete(t.id);closeSheet();setTimeout(function(){openBedSheet(bedLabel);},50);};
+        pRow.appendChild(pcBtn);pRow.appendChild(doneBtn);
+        row.appendChild(pRow);
       }
       wrap.appendChild(row);
     });
