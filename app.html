@@ -1811,18 +1811,29 @@ function updateSessionBar(){
       var start=parseInt(localStorage.getItem('wj_start')||'0');
       if(start){
         var rem=Math.max(0,SHIFT_MS-(Date.now()-start));
-        var h=Math.floor(rem/3600000),m=Math.floor((rem%3600000)/60000);
-        at.textContent=rem<=0?'expired':h>0?'clears in '+h+'h '+m+'m':'clears in '+m+'m';
+        if(rem<=0){
+          // Shift expired — auto-reset the clock silently
+          localStorage.setItem('wj_start',''+Date.now());
+          at.textContent='';
+        }else{
+          var h=Math.floor(rem/3600000),m=Math.floor((rem%3600000)/60000);
+          at.textContent=h>0?'clears in '+h+'h '+m+'m':'clears in '+m+'m';
+        }
       }
     }
 
-    // Team session time
+    // Team session time — use fetched data.created stored in window, OR re-fetch from teamJobs
     var tt=document.getElementById('tab-team-time');
     if(tt){
-      if(teamSession&&window.teamSessionCreated){
-        var trem=Math.max(0,TEAM_SESSION_MS-(Date.now()-window.teamSessionCreated));
-        var th=Math.floor(trem/3600000),tm=Math.floor((trem%3600000)/60000);
-        tt.textContent=trem<=0?'expired':th>0?'clears in '+th+'h '+tm+'m':'clears in '+tm+'m';
+      if(teamSession){
+        var created=window.teamSessionCreated||0;
+        if(created){
+          var trem=Math.max(0,TEAM_SESSION_MS-(Date.now()-created));
+          var th=Math.floor(trem/3600000),tm=Math.floor((trem%3600000)/60000);
+          tt.textContent=trem<=0?'':th>0?'clears in '+th+'h '+tm+'m':'clears in '+tm+'m';
+        }else{
+          tt.textContent='';
+        }
       }else{tt.textContent='';}
     }
   }catch(e){}
