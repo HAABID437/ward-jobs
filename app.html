@@ -636,21 +636,44 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <!-- Team session sheet -->
 <div class="sheet" id="team-setup-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">Team session</div>
-  <div class="sheet-sub">Share a live job list with your ward team in real time.</div>
+
+  <!-- Mode selector -->
+  <div style="display:flex;gap:8px;margin-bottom:20px">
+    <div id="team-mode-create" onclick="setTeamMode('create')" style="flex:1;background:var(--team-bg);border:2px solid var(--team);border-radius:18px;padding:16px 12px;text-align:center;cursor:pointer">
+      <div style="font-size:22px;margin-bottom:4px">➕</div>
+      <div style="font-size:14px;font-weight:700;color:var(--team);margin-bottom:2px">Start a session</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:500">Create a new team</div>
+    </div>
+    <div id="team-mode-join" onclick="setTeamMode('join')" style="flex:1;background:var(--surface2);border:2px solid transparent;border-radius:18px;padding:16px 12px;text-align:center;cursor:pointer">
+      <div style="font-size:22px;margin-bottom:4px">🔗</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px">Join a session</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:500">Enter a team code</div>
+    </div>
+  </div>
+
+  <!-- Shared name field -->
   <div class="f-group">
     <div class="f-label">Your name</div>
     <input type="text" id="team-name-input" placeholder="e.g. Dr Ahmed" maxlength="30" autocomplete="off">
   </div>
-  <div id="ward-template-picker" style="display:none;margin-bottom:12px">
-    <div class="f-label" style="margin-bottom:8px">Ward layout <span style="font-weight:400;color:var(--dim)">(optional)</span></div>
-    <div id="ward-picker-options" style="display:flex;flex-direction:column;gap:6px"></div>
-    <button onclick="openWardBuilderFromTeam()" style="width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted);margin-top:6px">+ Create new template</button>
+
+  <!-- Create panel -->
+  <div id="team-create-panel">
+    <div id="ward-template-picker" style="display:none;margin-bottom:12px">
+      <div class="f-label" style="margin-bottom:8px">Ward layout <span style="font-weight:400;color:var(--dim)">(optional)</span></div>
+      <div id="ward-picker-options" style="display:flex;flex-direction:column;gap:6px"></div>
+      <button onclick="openWardBuilderFromTeam()" style="width:100%;padding:10px;background:var(--surface2);border:1px dashed var(--border-mid);border-radius:12px;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;color:var(--muted);margin-top:6px">+ Create new template</button>
+    </div>
+    <button class="submit-btn" onclick="createSession()">Start session</button>
   </div>
-  <button class="submit-btn" onclick="createSession()" style="margin-bottom:10px">Create new session</button>
-  <div class="divider-row"><span>or join with a code</span></div>
-  <input type="text" id="join-code-input" placeholder="Enter 6-letter code" maxlength="6" style="text-transform:uppercase;letter-spacing:0.14em;font-family:'Courier New',monospace;font-size:18px;text-align:center;margin-bottom:10px" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-  <button onclick="joinSession()" style="width:100%;padding:17px;background:var(--surface2);color:var(--text);border:none;border-radius:18px;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Join session</button>
+
+  <!-- Join panel -->
+  <div id="team-join-panel" style="display:none">
+    <div class="f-label" style="margin-bottom:8px">Team code</div>
+    <input type="text" id="join-code-input" placeholder="e.g. ABC123" maxlength="6" style="width:100%;box-sizing:border-box;text-transform:uppercase;letter-spacing:0.18em;font-family:'Courier New',monospace;font-size:24px;text-align:center;margin-bottom:12px;padding:16px;border-radius:16px;border:1.5px solid var(--border-mid);background:var(--surface);color:var(--text);outline:none" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+    <button class="submit-btn" onclick="joinSession()">Join session</button>
+  </div>
+
   <div id="team-setup-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-top:12px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
 </div>
 
@@ -1898,7 +1921,24 @@ function fetchTeamData(){
 
 /* Team setup */
 function genCode(){var c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',s='';for(var i=0;i<6;i++)s+=c[Math.floor(Math.random()*c.length)];return s;}
-var _selectedWardTemplateId=null;
+var _teamMode='create';
+function setTeamMode(mode){
+  _teamMode=mode;
+  var mc=document.getElementById('team-mode-create');
+  var mj=document.getElementById('team-mode-join');
+  var cp=document.getElementById('team-create-panel');
+  var jp=document.getElementById('team-join-panel');
+  if(mc){mc.style.background=mode==='create'?'var(--team-bg)':'var(--surface2)';mc.style.borderColor=mode==='create'?'var(--team)':'transparent';}
+  if(mj){
+    mj.style.background=mode==='join'?'var(--team-bg)':'var(--surface2)';
+    mj.style.borderColor=mode==='join'?'var(--team)':'transparent';
+    var mjLabel=mj.querySelector('div[style*="font-weight:700"]');
+    if(mjLabel)mjLabel.style.color=mode==='join'?'var(--team)':'var(--text)';
+  }
+  if(cp)cp.style.display=mode==='create'?'block':'none';
+  if(jp)jp.style.display=mode==='join'?'block':'none';
+  if(mode==='join')setTimeout(function(){var el=document.getElementById('join-code-input');if(el)el.focus();},100);
+}
 
 function openTeamSetup(){
   try{
@@ -1906,7 +1946,7 @@ function openTeamSetup(){
   document.getElementById('join-code-input').value='';
   document.getElementById('team-setup-error').style.display='none';
   _selectedWardTemplateId=null;
-  // Show ward picker only if logged in and has templates
+  setTeamMode('create');
   var picker=document.getElementById('ward-template-picker');
   if(picker){
     if(currentUser&&wardTemplates.length){
