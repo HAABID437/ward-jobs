@@ -1462,7 +1462,9 @@ function setTab(t){
   var list=document.getElementById('list');
   if(list){list.innerHTML='';list.removeAttribute('style');}
   ['active','done','team'].forEach(function(x){
-    var el=document.getElementById('tab-'+x);if(el)el.className='tab'+(t===x?' on':'');
+    var el=document.getElementById('tab-'+x);if(!el)return;
+    var extra=el.classList.contains('team-in-session')?' team-in-session':'';
+    el.className='tab'+(t===x?' on':'')+extra;
   });
   updateSessionBar();
   if(t==='team')renderTeamTab();
