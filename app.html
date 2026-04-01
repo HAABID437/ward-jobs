@@ -107,6 +107,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 #team-live-dot{animation:pulse-dot 1.8s ease-in-out infinite}
 #team-tab-icon{animation:team-attract 2.4s ease-in-out infinite;color:var(--team)}
 .tab.on #team-tab-icon{animation:team-active 1.6s ease-in-out infinite}
+.team-in-session #team-tab-icon{animation:none !important;opacity:0.5}
 .tab-label{font-size:12px;font-weight:600}
 .tab-count{font-size:18px;font-weight:400;font-family:"DM Serif Display",serif;line-height:1;color:var(--muted)}
 .tab.on .tab-count{color:var(--text)}
@@ -1054,6 +1055,7 @@ function signOut(){
     teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
     var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
   var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+  var tt=document.getElementById('tab-team');if(tt)tt.classList.remove('team-in-session');
   }
   // Clear all local data
   tasks=[];wardTemplate=null;
@@ -1917,6 +1919,7 @@ function fetchTeamData(){
         stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
         var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
         var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+  var tt=document.getElementById('tab-team');if(tt)tt.classList.remove('team-in-session');
         if(curTab==='team')renderTeamTab();render();
         showBanner('Team session unavailable','#c0392b');
       }
@@ -1930,6 +1933,7 @@ function fetchTeamData(){
       teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
       var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+  var tt=document.getElementById('tab-team');if(tt)tt.classList.remove('team-in-session');
       if(curTab==='team')renderTeamTab();render();showBanner('Team session expired','#c0392b');return;
     }
     // Check membership — re-register if missing (race condition on app restart)
@@ -2140,6 +2144,7 @@ function joinSessionByCode(code,name){
   }).catch(function(){});
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
   var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='inline-block';
+  var tt=document.getElementById('tab-team');if(tt)tt.classList.add('team-in-session');
   showBanner('Joined session '+code,'var(--team)');
 }
 function clearTeamFromCloud(){
@@ -2249,6 +2254,7 @@ function leaveSession(){
   localStorage.setItem('wj_team_left_code',leftCode);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
   var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+  var tt=document.getElementById('tab-team');if(tt)tt.classList.remove('team-in-session');
   save();clearTeamFromCloud();
   setTab('active');
 }
@@ -2263,6 +2269,7 @@ function closeSession(){
   localStorage.setItem('wj_team_left_code',leftCode2);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
   var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+  var tt=document.getElementById('tab-team');if(tt)tt.classList.remove('team-in-session');
   save();clearTeamFromCloud();
   showBanner('Session closed','#c0392b');setTab('active');
 }
@@ -3384,7 +3391,10 @@ function startApp(){
 
   render();tick();setInterval(tick,15000);
   // Save current session to recents (in case browser closed without leaving)
-  if(teamSession)saveRecentSession(teamSession,myName);
+  if(teamSession){
+    saveRecentSession(teamSession,myName);
+    var tt=document.getElementById('tab-team');if(tt)tt.classList.add('team-in-session');
+  }
   // Show welcome on first visit — wait for Firebase auth to resolve first
   if(!localStorage.getItem('wj_welcomed')&&!localStorage.getItem('wj_tasks')){
     setTimeout(function(){
