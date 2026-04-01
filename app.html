@@ -1048,6 +1048,7 @@ function signOut(){
   if(teamSession){
     stopTeamPoll();
     unassignMyTeamJobs();
+    saveRecentSession(teamSession, myName);
     dbRemove('/sessions/'+teamSession+'/members/'+myId);
     teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
     var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
@@ -1241,6 +1242,8 @@ function pollUserTasks(){
           wardTemplate=sess.ward;
           try{localStorage.setItem('wj_ward',JSON.stringify(sess.ward));}catch(e){}
         }
+        // Save to recents when (re)joining
+        saveRecentSession(cloudTeamCode, joinName);
         updateCounts();startTeamPoll();
         if(curTab==='team')renderTeamTab();
       }).catch(function(){});
@@ -1909,6 +1912,7 @@ function fetchTeamData(){
       _fetchFailCount=(_fetchFailCount||0)+1;
       if(_fetchFailCount>=5){
         _fetchFailCount=0;
+        saveRecentSession(teamSession,myName);
         stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
         var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
         var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
@@ -1920,6 +1924,7 @@ function fetchTeamData(){
     _fetchFailCount=0;
     if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
       tasks=tasks.filter(function(t){return!t.teamJobId;});save();
+      saveRecentSession(teamSession,myName);
       dbRemove('/sessions/'+teamSession);stopTeamPoll();
       teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
@@ -2125,6 +2130,7 @@ function joinSessionByCode(code,name){
         wardTemplates.push(data.ward);saveWardTemplatesToStorage();pushWardTemplatesToCloud();
       }
     }
+    saveRecentSession(code, name);
     syncToCloud();
     setTab('team');startTeamPoll();
   }).catch(function(){});
@@ -3307,6 +3313,8 @@ function startApp(){
   })();
 
   render();tick();setInterval(tick,15000);
+  // Save current session to recents (in case browser closed without leaving)
+  if(teamSession)saveRecentSession(teamSession,myName);
   // Show welcome on first visit — wait for Firebase auth to resolve first
   if(!localStorage.getItem('wj_welcomed')&&!localStorage.getItem('wj_tasks')){
     setTimeout(function(){
