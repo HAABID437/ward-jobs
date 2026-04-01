@@ -2160,9 +2160,14 @@ function renderRecentSessionsList(){
   wrap.innerHTML='';
   var recent=getRecentSessions().filter(function(s){return Date.now()-s.left<TEAM_SESSION_MS;});
   if(!recent.length){
-    wrap.style.display='none';return;
+    wrap.style.display='none';
+  var lbl=document.getElementById('join-code-label');
+  if(lbl){lbl.style.display='';lbl.textContent='Team code';}
+  return;
   }
   wrap.style.display='block';
+  var lbl=document.getElementById('join-code-label');
+  if(lbl)lbl.style.display='none';
   var hdr=document.createElement('div');
   hdr.style.cssText='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px';
   hdr.textContent='Recent sessions';
@@ -2221,7 +2226,15 @@ function saveRecentSession(code,name){
   }catch(e){}
 }
 function getRecentSessions(){
-  try{return JSON.parse(localStorage.getItem('wj_recent_sessions')||'[]');}catch(e){return [];}
+  try{
+    var sessions=JSON.parse(localStorage.getItem('wj_recent_sessions')||'[]');
+    // Also include wj_team_left_code as a fallback if not already in list
+    var leftCode=localStorage.getItem('wj_team_left_code');
+    if(leftCode&&!sessions.some(function(s){return s.code===leftCode;})){
+      sessions.push({code:leftCode,name:myName||'',left:Date.now()-60000});
+    }
+    return sessions;
+  }catch(e){return [];}
 }
 function leaveSession(){
   if(!teamSession)return;
