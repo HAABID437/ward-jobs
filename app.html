@@ -98,9 +98,15 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .pn{font-family:'DM Serif Display',serif;font-size:15px;font-weight:400;line-height:1}
 
 /* Tabs */
-.tabs{display:flex;padding:0 14px 10px;gap:6px;background:var(--bg);position:sticky;top:72px;z-index:19}
-.tab{flex:1;padding:9px 8px 8px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:18px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.2s;background:transparent;min-height:54px}
-.tab.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.tabs{display:flex;padding:6px 14px 10px;gap:6px;background:var(--bg);position:sticky;top:72px;z-index:19}
+.tab{flex:1;padding:10px 8px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:16px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.2s;background:transparent;min-height:54px;border:1.5px solid transparent}
+.tab.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow);border-color:var(--border-mid)}
+@keyframes pulse-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.6}}
+@keyframes team-attract{0%,100%{transform:translateY(0);opacity:0.6}50%{transform:translateY(-2px);opacity:1}}
+@keyframes team-active{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+#team-live-dot{animation:pulse-dot 1.8s ease-in-out infinite}
+#team-tab-icon{animation:team-attract 2.4s ease-in-out infinite;color:var(--team)}
+.tab.on #team-tab-icon{animation:team-active 1.6s ease-in-out infinite}
 .tab-label{font-size:12px;font-weight:600}
 .tab-count{font-size:18px;font-weight:400;font-family:"DM Serif Display",serif;line-height:1;color:var(--muted)}
 .tab.on .tab-count{color:var(--text)}
@@ -462,6 +468,16 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
     </div>
     <div class="tab" id="tab-team" onclick="setTab('team')">
+      <div style="position:relative;display:inline-flex;align-items:center;justify-content:center">
+        <svg id="team-tab-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" style="margin-bottom:1px">
+          <circle cx="9" cy="9" r="2" fill="currentColor"/>
+          <path d="M5.5 12.5a5 5 0 0 1 0-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M12.5 12.5a5 5 0 0 0 0-7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M3 15a9 9 0 0 1 0-12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M15 15a9 9 0 0 0 0-12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <span id="team-live-dot" style="display:none;position:absolute;top:-2px;right:-6px;width:7px;height:7px;border-radius:50%;background:var(--team)"></span>
+      </div>
       <span class="tab-label" id="tab-team-label">Team</span>
       <span class="tab-count" id="tc-team">0</span>
       <div class="tab-pills" id="tab-team-pills" style="display:none">
@@ -470,7 +486,6 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         <span class="tab-pill r" id="tp-team-rtn">0 Rtn</span>
       </div>
       <span class="tab-time" id="tab-team-time"></span>
-
     </div>
   </div>
   <div id="scroll-area">
@@ -504,6 +519,17 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <svg viewBox="0 0 20 20"><path d="M8 4H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-3"/><polyline points="11,8 16,8 16,13"/><line x1="8" y1="12" x2="16" y2="8"/></svg>
     End shift
   </button>
+</div>
+
+<!-- Welcome modal -->
+<div id="welcome-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:flex-end;justify-content:center">
+  <div style="background:var(--surface);border-radius:28px 28px 0 0;padding:28px 24px calc(32px + var(--safe-bot));width:100%;max-width:480px;box-sizing:border-box">
+    <div style="width:36px;height:4px;background:var(--border-mid);border-radius:2px;margin:0 auto 24px"></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:28px;font-weight:400;margin-bottom:6px">Welcome to Axonal</div>
+    <div style="font-size:14px;color:var(--muted);font-weight:500;line-height:1.6;margin-bottom:24px">Your shift task manager. Sign in to sync across devices and use team features, or jump straight in.</div>
+    <button onclick="closeWelcome();openAuthSheet();" style="width:100%;padding:16px;background:var(--team);color:#fff;border:none;border-radius:18px;font-size:16px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;margin-bottom:10px">Sign in / Create account</button>
+    <button onclick="closeWelcome();" style="width:100%;padding:16px;background:var(--surface2);color:var(--muted);border:none;border-radius:18px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Continue without account</button>
+  </div>
 </div>
 
 <!-- Shared backdrop -->
@@ -1023,6 +1049,7 @@ function signOut(){
     dbRemove('/sessions/'+teamSession+'/members/'+myId);
     teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
     var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
   }
   // Clear all local data
   tasks=[];wardTemplate=null;
@@ -1227,6 +1254,7 @@ function pollUserTasks(){
       localStorage.removeItem('wj_team');
       localStorage.setItem('wj_team_left_code',leftCode);
       var tl2=document.getElementById('tab-team-label');if(tl2)tl2.textContent='Team';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
       try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
       if(curTab==='team')setTab('active');else{render();updateCounts();}
     }
@@ -1386,6 +1414,16 @@ function closeSheet(){
   activeSheet=null;
 }
 document.getElementById('backdrop').addEventListener('click',closeSheet);
+// Enter key to submit forms
+(function(){
+  function onEnter(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();fn();}});}
+  onEnter('team-name-input',function(){if(_teamMode==='create')createSession();else joinSession();});
+  onEnter('join-code-input',joinSession);
+  onEnter('ward-name-input',saveWardTemplate);
+  onEnter('auth-email',authAction);
+  onEnter('auth-password',authAction);
+  onEnter('bulk-pid',function(){var i=document.getElementById('bulk-input');if(i)i.focus();});
+})();
 
 /* Tabs */
 var searchQuery='';
@@ -1878,6 +1916,7 @@ function fetchTeamData(){
       dbRemove('/sessions/'+teamSession);stopTeamPoll();
       teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
       if(curTab==='team')renderTeamTab();render();showBanner('Team session expired — jobs returned to pool','#c0392b');return;
     }
     // Check if we're still a member — another device may have left
@@ -1890,6 +1929,7 @@ function fetchTeamData(){
       localStorage.removeItem('wj_team');
       localStorage.setItem('wj_team_left_code',kickedFrom);
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
       clearTeamFromCloud();
       if(curTab==='team')setTab('active');else render();
       return;
@@ -2090,6 +2130,7 @@ function joinSessionByCode(code,name){
     setTab('team');startTeamPoll();
   }).catch(function(){});
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team ('+code+')';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='inline-block';
   showBanner('Joined session '+code,'var(--team)');
 }
 function clearTeamFromCloud(){
@@ -2114,6 +2155,7 @@ function leaveSession(){
   localStorage.removeItem('wj_team');
   localStorage.setItem('wj_team_left_code',leftCode);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
   save();clearTeamFromCloud();
   setTab('active');
 }
@@ -2126,6 +2168,7 @@ function closeSession(){
   localStorage.removeItem('wj_team');
   localStorage.setItem('wj_team_left_code',leftCode2);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
   save();clearTeamFromCloud();
   showBanner('Session closed','#c0392b');setTab('active');
 }
@@ -2871,27 +2914,37 @@ function completeTeamJobFromBed(jobId){
 
 
 function renameBed(oldLabel){
-  // Find the bed in the active template and rename it
   var newLabel=prompt('Rename bed:',oldLabel);
   if(!newLabel||!newLabel.trim()||newLabel.trim()===oldLabel)return;
   newLabel=newLabel.trim();
   if(!wardTemplate)return;
-  // Update template
+  // Update template bays
   wardTemplate.bays.forEach(function(bay){
     bay.beds=bay.beds.map(function(b){return b===oldLabel?newLabel:b;});
   });
-  // Also rename in wardTemplates library
-  wardTemplates=wardTemplates.map(function(t){
-    if(t.id===wardTemplate.id)return wardTemplate;
-    return t;
-  });
-  // Update tasks that referenced old label
-  tasks.forEach(function(t){if(t.pid===oldLabel)t.pid=newLabel;});
+  wardTemplates=wardTemplates.map(function(t){return t.id===wardTemplate.id?wardTemplate:t;});
+  // Update personal tasks
+  tasks.forEach(function(t){if(t.pid&&t.pid.trim()===oldLabel.trim())t.pid=newLabel;});
   save();
   saveWardTemplatesToStorage();
   pushWardTemplatesToCloud();
-  // If in a team session, update the session ward
-  if(teamSession){dbUpdate('/sessions/'+teamSession,{ward:wardTemplate});}
+  // Update team jobs in Firebase
+  if(teamSession){
+    var updates={};
+    Object.keys(teamJobs).forEach(function(jid){
+      var j=teamJobs[jid];
+      if(j.pid&&j.pid.trim()===oldLabel.trim()){
+        teamJobs[jid]=Object.assign({},j,{pid:newLabel});
+        updates[jid]={pid:newLabel};
+      }
+    });
+    if(Object.keys(updates).length){
+      Object.keys(updates).forEach(function(jid){
+        dbUpdate('/sessions/'+teamSession+'/jobs/'+jid,updates[jid]);
+      });
+    }
+    dbUpdate('/sessions/'+teamSession,{ward:wardTemplate});
+  }
   closeSheet();
   if(curTab==='team')renderTeamTab();
   showBanner('Bed renamed to '+newLabel,'var(--rtn)');
@@ -3195,6 +3248,20 @@ function startApp(){
   })();
 
   render();tick();setInterval(tick,15000);
+  // Show welcome on first visit (not signed in, not seen before)
+  if(!localStorage.getItem('wj_welcomed')&&!localStorage.getItem('wj_tasks')){
+    setTimeout(function(){
+      if(!currentUser){
+        var m=document.getElementById('welcome-modal');
+        if(m)m.style.display='flex';
+      }
+    },600);
+  }
+}
+function closeWelcome(){
+  localStorage.setItem('wj_welcomed','1');
+  var m=document.getElementById('welcome-modal');
+  if(m)m.style.display='none';
 }
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',startApp);}
 else{startApp();}
