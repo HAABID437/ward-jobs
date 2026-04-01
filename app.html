@@ -936,6 +936,8 @@ function updateAuthUI(){
     btn.setAttribute('data-tip',currentUser.displayName||currentUser.email||'Account');
     if(!syncInterval)syncInterval=setInterval(pollUserTasks,3000);
     pollUserTasks();
+    // Dismiss welcome modal if showing
+    closeWelcome();
   }else{
     btn.innerHTML='<svg id="auth-icon" width="20" height="20" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
     btn.style.background='var(--team-bg)';btn.style.border='2px solid var(--team)';btn.style.padding='6px';btn.style.color='var(--team)';btn.style.width='36px';btn.style.height='36px';
@@ -1244,19 +1246,10 @@ function pollUserTasks(){
       }).catch(function(){});
 
     }else if(!cloudTeamCode&&teamSession){
-      // Cloud says not in a team, but we are — silently leave
-      stopTeamPoll();
-      dbRemove('/sessions/'+teamSession+'/members/'+myId);
-      unassignMyTeamJobs();
-      tasks=tasks.filter(function(t){return!t.teamJobId;});
-      var leftCode=teamSession;
-      teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
-      localStorage.removeItem('wj_team');
-      localStorage.setItem('wj_team_left_code',leftCode);
-      var tl2=document.getElementById('tab-team-label');if(tl2)tl2.textContent='Team';
-  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
-      try{localStorage.setItem('wj',JSON.stringify(tasks));}catch(e){}
-      if(curTab==='team')setTab('active');else{render();updateCounts();}
+      // Cloud says not in a team, but we are locally.
+      // Don't drop the session — instead push our current state back to cloud.
+      // This handles cases where cloud data lagged or was cleared incorrectly.
+      syncToCloud();
     }
   }).catch(function(){});
 }
@@ -1907,32 +1900,39 @@ function startTeamPoll(){
   teamPollInterval=setInterval(fetchTeamData,2000);
 }
 function stopTeamPoll(){if(teamPollInterval){clearInterval(teamPollInterval);teamPollInterval=null;}}
+var _fetchFailCount=0;
 function fetchTeamData(){
   if(!teamSession)return;
   dbGet('/sessions/'+teamSession).then(function(data){
-    if(!data){stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');if(curTab==='team')renderTeamTab();render();return;}
+    if(!data){
+      // Don't immediately drop — could be a network blip. Retry up to 5 times.
+      _fetchFailCount=(_fetchFailCount||0)+1;
+      if(_fetchFailCount>=5){
+        _fetchFailCount=0;
+        stopTeamPoll();teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
+        var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
+        var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+        if(curTab==='team')renderTeamTab();render();
+        showBanner('Team session unavailable','#c0392b');
+      }
+      return;
+    }
+    _fetchFailCount=0;
     if(data.created&&Date.now()-data.created>TEAM_SESSION_MS){
       tasks=tasks.filter(function(t){return!t.teamJobId;});save();
       dbRemove('/sessions/'+teamSession);stopTeamPoll();
       teamSession=null;teamJobs={};teamMembers={};localStorage.removeItem('wj_team');
       var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
-  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
-      if(curTab==='team')renderTeamTab();render();showBanner('Team session expired — jobs returned to pool','#c0392b');return;
+      var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
+      if(curTab==='team')renderTeamTab();render();showBanner('Team session expired','#c0392b');return;
     }
-    // Check if we're still a member — another device may have left
+    // Check membership — re-register if missing (race condition on app restart)
     var members=data.members||{};
     if(!members[myId]){
-      var kickedFrom=teamSession;
-      stopTeamPoll();
-      tasks=tasks.filter(function(t){return!t.teamJobId;});save();
-      teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
-      localStorage.removeItem('wj_team');
-      localStorage.setItem('wj_team_left_code',kickedFrom);
-      var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
-  var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
-      clearTeamFromCloud();
-      if(curTab==='team')setTab('active');else render();
-      return;
+      // Re-register silently instead of kicking out
+      var md={};md[myId]={name:myName,color:myColor,joined:Date.now()};
+      dbUpdate('/sessions/'+teamSession+'/members',md).catch(function(){});
+      return; // wait for next poll cycle
     }
     var newHash=JSON.stringify(data.jobs)+JSON.stringify(members);
     var changed=newHash!==_lastTeamHash;
@@ -1952,7 +1952,6 @@ function fetchTeamData(){
         wardTemplates.push(data.ward);
         saveWardTemplatesToStorage();pushWardTemplatesToCloud();
       }
-      // Force re-render immediately — ward change isn't in job hash
       _lastTeamHash='';
       if(curTab==='team')renderTeamTab();
     }
@@ -3248,14 +3247,16 @@ function startApp(){
   })();
 
   render();tick();setInterval(tick,15000);
-  // Show welcome on first visit (not signed in, not seen before)
+  // Show welcome on first visit (no saved tasks, not signed in)
   if(!localStorage.getItem('wj_welcomed')&&!localStorage.getItem('wj_tasks')){
     setTimeout(function(){
       if(!currentUser){
         var m=document.getElementById('welcome-modal');
         if(m)m.style.display='flex';
+      }else{
+        localStorage.setItem('wj_welcomed','1');
       }
-    },600);
+    },800);
   }
 }
 function closeWelcome(){
