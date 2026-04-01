@@ -522,8 +522,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 </div>
 
 <!-- Welcome modal -->
-<div id="welcome-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:flex-end;justify-content:center">
-  <div style="background:var(--surface);border-radius:28px 28px 0 0;padding:28px 24px calc(32px + var(--safe-bot));width:100%;max-width:480px;box-sizing:border-box">
+<div id="welcome-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0);z-index:200;align-items:flex-end;justify-content:center;transition:background 0.3s ease">
+  <div id="welcome-panel" style="background:var(--surface);border-radius:28px 28px 0 0;padding:28px 24px calc(32px + var(--safe-bot));width:100%;max-width:480px;box-sizing:border-box;transform:translateY(100%);transition:transform 0.35s cubic-bezier(0.32,0.72,0,1)">
     <div style="width:36px;height:4px;background:var(--border-mid);border-radius:2px;margin:0 auto 24px"></div>
     <div style="font-family:'DM Serif Display',serif;font-size:28px;font-weight:400;margin-bottom:6px">Welcome to Axonal</div>
     <div style="font-size:14px;color:var(--muted);font-weight:500;line-height:1.6;margin-bottom:24px">Your shift task manager. Sign in to sync across devices and use team features, or jump straight in.</div>
@@ -2143,14 +2143,32 @@ function clearTeamFromCloud(){
     });
   }).catch(function(){});
 }
+
+function saveRecentSession(code,name){
+  if(!code)return;
+  try{
+    var recent=JSON.parse(localStorage.getItem('wj_recent_sessions')||'[]');
+    // Remove existing entry for this code
+    recent=recent.filter(function(s){return s.code!==code;});
+    // Add to front
+    recent.unshift({code:code,name:name,left:Date.now()});
+    // Keep last 5
+    recent=recent.slice(0,5);
+    localStorage.setItem('wj_recent_sessions',JSON.stringify(recent));
+  }catch(e){}
+}
+function getRecentSessions(){
+  try{return JSON.parse(localStorage.getItem('wj_recent_sessions')||'[]');}catch(e){return [];}
+}
 function leaveSession(){
   if(!teamSession)return;
+  var leftCode=teamSession;
   stopTeamPoll();
   unassignMyTeamJobs();
   dbRemove('/sessions/'+teamSession+'/members/'+myId);
   tasks=tasks.filter(function(t){return!t.teamJobId;});
+  saveRecentSession(leftCode,myName);
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
-  var leftCode=teamSession;
   localStorage.removeItem('wj_team');
   localStorage.setItem('wj_team_left_code',leftCode);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
@@ -2160,10 +2178,11 @@ function leaveSession(){
 }
 function closeSession(){
   if(!teamSession||teamCreatorId!==myId)return;
+  var leftCode2=teamSession;
   stopTeamPoll();dbRemove('/sessions/'+teamSession);
   tasks=tasks.filter(function(t){return!t.teamJobId;});
+  saveRecentSession(leftCode2,myName);
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
-  var leftCode2=teamSession;
   localStorage.removeItem('wj_team');
   localStorage.setItem('wj_team_left_code',leftCode2);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
@@ -2263,7 +2282,48 @@ function renderTeamTab(){
     btn.textContent='Join or create session';
     btn.style.cssText='background:var(--team);color:#fff;border:none;border-radius:16px;padding:14px 28px;font-size:15px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;width:100%';
     btn.onclick=openTeamSetup;
-    card.appendChild(btn);wrap.appendChild(card);list.appendChild(wrap);
+    card.appendChild(btn);wrap.appendChild(card);
+    // Recent sessions
+    var recent=getRecentSessions().filter(function(s){return Date.now()-s.left<TEAM_SESSION_MS;});
+    if(recent.length){
+      var rHdr=document.createElement('div');
+      rHdr.style.cssText='font-family:DM Serif Display,serif;font-size:13px;font-style:italic;color:var(--muted);margin-bottom:8px;padding-left:2px';
+      rHdr.textContent='Recent sessions';
+      wrap.appendChild(rHdr);
+      recent.forEach(function(s){
+        var row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:14px;padding:12px 16px;margin-bottom:8px';
+        var info=document.createElement('div');
+        var code=document.createElement('div');
+        code.style.cssText='font-family:Courier New,monospace;font-size:15px;font-weight:700;color:var(--text);letter-spacing:0.1em';
+        code.textContent=s.code;
+        var meta=document.createElement('div');
+        meta.style.cssText='font-size:11px;color:var(--muted);margin-top:2px';
+        var minsAgo=Math.floor((Date.now()-s.left)/60000);
+        meta.textContent='Left '+(minsAgo<1?'just now':minsAgo<60?minsAgo+'m ago':Math.floor(minsAgo/60)+'h ago');
+        info.appendChild(code);info.appendChild(meta);
+        var rejoinBtn=document.createElement('button');
+        rejoinBtn.textContent='Rejoin';
+        rejoinBtn.style.cssText='padding:9px 18px;background:var(--team);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer';
+        rejoinBtn.onclick=(function(code){return function(){
+          // Check session still exists before rejoining
+          dbGet('/sessions/'+code).then(function(data){
+            if(!data||Date.now()-(data.created||0)>TEAM_SESSION_MS){
+              showBanner('Session '+code+' has ended','#c0392b');
+              // Remove from recents
+              var r=getRecentSessions().filter(function(s){return s.code!==code;});
+              localStorage.setItem('wj_recent_sessions',JSON.stringify(r));
+              renderTeamTab();return;
+            }
+            var name=localStorage.getItem('wj_name')||myName;
+            joinSessionByCode(code,name);
+          }).catch(function(){showBanner('Could not connect','#c0392b');});
+        };})(s.code);
+        row.appendChild(info);row.appendChild(rejoinBtn);
+        wrap.appendChild(row);
+      });
+    }
+    list.appendChild(wrap);
     return;
   }
   var jobs=Object.values(teamJobs).sort(function(a,b){if(a.done!==b.done)return a.done?1:-1;return ORD[a.urg]-ORD[b.urg];});
@@ -3247,22 +3307,35 @@ function startApp(){
   })();
 
   render();tick();setInterval(tick,15000);
-  // Show welcome on first visit (no saved tasks, not signed in)
+  // Show welcome on first visit — wait for Firebase auth to resolve first
   if(!localStorage.getItem('wj_welcomed')&&!localStorage.getItem('wj_tasks')){
     setTimeout(function(){
-      if(!currentUser){
-        var m=document.getElementById('welcome-modal');
-        if(m)m.style.display='flex';
-      }else{
+      if(currentUser){
         localStorage.setItem('wj_welcomed','1');
+      }else{
+        var m=document.getElementById('welcome-modal');
+        var p=document.getElementById('welcome-panel');
+        if(m&&p){
+          m.style.display='flex';
+          requestAnimationFrame(function(){
+            requestAnimationFrame(function(){
+              m.style.background='rgba(0,0,0,0.5)';
+              p.style.transform='translateY(0)';
+            });
+          });
+        }
       }
-    },800);
+    },1200); // Wait longer so Firebase auth resolves for signed-in users
   }
 }
 function closeWelcome(){
   localStorage.setItem('wj_welcomed','1');
   var m=document.getElementById('welcome-modal');
-  if(m)m.style.display='none';
+  var p=document.getElementById('welcome-panel');
+  if(!m)return;
+  if(p)p.style.transform='translateY(100%)';
+  m.style.background='rgba(0,0,0,0)';
+  setTimeout(function(){m.style.display='none';},350);
 }
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',startApp);}
 else{startApp();}
