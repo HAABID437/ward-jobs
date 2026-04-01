@@ -693,7 +693,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 
   <!-- Join panel -->
   <div id="team-join-panel" style="display:none">
-    <div class="f-label" style="margin-bottom:8px">Team code</div>
+    <div id="recent-sessions-list"></div>
+    <div class="f-label" style="margin-bottom:8px" id="join-code-label">Or enter a code</div>
     <input type="text" id="join-code-input" placeholder="e.g. ABC123" maxlength="6" style="width:100%;box-sizing:border-box;text-transform:uppercase;letter-spacing:0.18em;font-family:'Courier New',monospace;font-size:24px;text-align:center;margin-bottom:12px;padding:16px;border-radius:16px;border:1.5px solid var(--border-mid);background:var(--surface);color:var(--text);outline:none" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
     <button class="submit-btn" onclick="joinSession()">Join session</button>
   </div>
@@ -1980,7 +1981,10 @@ function setTeamMode(mode){
     if(mjLabel)mjLabel.style.color=mode==='join'?'var(--team)':'var(--text)';
   }
   if(cp)cp.style.display=mode==='create'?'block':'none';
-  if(jp)jp.style.display=mode==='join'?'block':'none';
+  if(jp){
+    jp.style.display=mode==='join'?'block':'none';
+    if(mode==='join')renderRecentSessionsList();
+  }
   if(mode==='join')setTimeout(function(){var el=document.getElementById('join-code-input');if(el)el.focus();},100);
 }
 
@@ -2148,6 +2152,59 @@ function clearTeamFromCloud(){
       headers:{'Content-Type':'application/json'}
     });
   }).catch(function(){});
+}
+
+function renderRecentSessionsList(){
+  var wrap=document.getElementById('recent-sessions-list');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  var recent=getRecentSessions().filter(function(s){return Date.now()-s.left<TEAM_SESSION_MS;});
+  if(!recent.length){
+    wrap.style.display='none';return;
+  }
+  wrap.style.display='block';
+  var hdr=document.createElement('div');
+  hdr.style.cssText='font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px';
+  hdr.textContent='Recent sessions';
+  wrap.appendChild(hdr);
+  recent.forEach(function(s){
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border-radius:14px;padding:12px 14px;margin-bottom:8px;cursor:pointer';
+    var left=document.createElement('div');
+    var code=document.createElement('div');
+    code.style.cssText='font-family:Courier New,monospace;font-size:16px;font-weight:700;color:var(--text);letter-spacing:0.1em';
+    code.textContent=s.code;
+    var meta=document.createElement('div');
+    meta.style.cssText='font-size:11px;color:var(--muted);margin-top:2px';
+    var minsAgo=Math.floor((Date.now()-s.left)/60000);
+    var timeStr=minsAgo<1?'just now':minsAgo<60?minsAgo+'m ago':Math.floor(minsAgo/60)+'h ago';
+    meta.textContent='Left '+timeStr;
+    left.appendChild(code);left.appendChild(meta);
+    var btn=document.createElement('button');
+    btn.textContent='Rejoin →';
+    btn.style.cssText='padding:9px 16px;background:var(--team);color:#fff;border:none;border-radius:12px;font-size:13px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0';
+    btn.onclick=function(){
+      var name=document.getElementById('team-name-input').value.trim()||myName;
+      if(!name){showBanner('Enter your name first','#c0392b');return;}
+      dbGet('/sessions/'+s.code).then(function(data){
+        if(!data||Date.now()-(data.created||0)>TEAM_SESSION_MS){
+          showBanner('Session '+s.code+' has ended','#c0392b');
+          var r=getRecentSessions().filter(function(x){return x.code!==s.code;});
+          localStorage.setItem('wj_recent_sessions',JSON.stringify(r));
+          renderRecentSessionsList();return;
+        }
+        myName=name;localStorage.setItem('wj_name',name);
+        closeSheet();
+        joinSessionByCode(s.code,name);
+      }).catch(function(){showBanner('Could not connect','#c0392b');});
+    };
+    row.appendChild(left);row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+  var divider=document.createElement('div');
+  divider.style.cssText='display:flex;align-items:center;gap:10px;margin-bottom:12px';
+  divider.innerHTML='<div style="flex:1;height:1px;background:var(--border-mid)"></div><span style="font-size:11px;color:var(--dim);font-weight:500">or enter a code</span><div style="flex:1;height:1px;background:var(--border-mid)"></div>';
+  wrap.appendChild(divider);
 }
 
 function saveRecentSession(code,name){
