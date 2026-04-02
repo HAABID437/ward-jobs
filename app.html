@@ -509,10 +509,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <svg viewBox="0 0 20 20"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg>
     Add job
   </button>
-  <button id="bulk-fab" class="icon-btn" onclick="openBulkAdd()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;border-radius:14px;min-width:52px">
-    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4" y1="6" x2="16" y2="6"/><line x1="4" y1="10" x2="16" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/><line x1="15" y1="13" x2="15" y2="17"/><line x1="13" y1="15" x2="17" y2="15"/></svg>
-    Bulk add
-  </button>
+
   <button class="icon-btn handover-btn" onclick="openHandover()">
     <svg viewBox="0 0 20 20"><path d="M3 10 L3 16 L17 16 L17 10"/><polyline points="7,6 10,3 13,6"/><line x1="10" y1="3" x2="10" y2="13"/></svg>
     Handover
@@ -537,49 +534,54 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
 <!-- Shared backdrop -->
 <div class="backdrop" id="backdrop"></div>
 
-<!-- Bulk add sheet -->
-<div class="sheet" id="bulk-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title">Bulk add jobs</div>
-  <div class="sheet-sub">Enter a patient ID then list their jobs — one per line. Prefix with <strong>!</strong> for Immediate or <strong>~</strong> for Urgent.</div>
-  <div id="bulk-dest-wrap" style="display:flex;gap:4px;background:var(--surface2);border-radius:14px;padding:4px;margin-bottom:14px">
-    <button id="bulk-dest-my" onclick="setBulkDest('my')" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">My list</button>
-    <button id="bulk-dest-team" onclick="setBulkDest('team')" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
-  </div>
-  <div class="f-group">
-    <div class="f-label">Patient ID / Bed</div>
-    <input type="text" id="bulk-pid" placeholder="e.g. Bed 4, MRN 123456" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
-  </div>
-  <div class="f-label" style="margin-bottom:6px">Jobs (one per line)</div>
-  <textarea id="bulk-input" placeholder="Chase bloods&#10;! Arrest bloods — urgent&#10;~ Insert cannula&#10;Drug chart review" rows="7" style="width:100%;box-sizing:border-box;padding:14px;border-radius:16px;border:1.5px solid var(--border-mid);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;margin-bottom:12px"></textarea>
-  <button class="submit-btn" onclick="submitBulkAdd()">Add jobs</button>
-</div>
-
 <!-- Add job sheet -->
 <div class="sheet" id="add-sheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-title">New job</div>
-  <div id="add-sheet-team-toggle" style="display:none;margin-bottom:16px">
-    <div style="background:var(--surface2);border-radius:14px;padding:4px;display:flex;gap:4px">
-      <button id="dest-my" onclick="setAddDest('my')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">My list</button>
-      <button id="dest-team" onclick="setAddDest('team')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
+  <!-- Mode toggle -->
+  <div style="display:flex;gap:4px;background:var(--surface2);border-radius:14px;padding:4px;margin-bottom:16px">
+    <button id="add-mode-single" onclick="setAddMode('single')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">Single</button>
+    <button id="add-mode-bulk" onclick="setAddMode('bulk')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Multiple jobs</button>
+  </div>
+
+  <!-- Single job panel -->
+  <div id="add-single-panel">
+    <div id="add-sheet-team-toggle" style="display:none;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:14px;padding:4px;display:flex;gap:4px">
+        <button id="dest-my" onclick="setAddDest('my')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">My list</button>
+        <button id="dest-team" onclick="setAddDest('team')" style="flex:1;padding:9px;border:none;border-radius:11px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
+      </div>
     </div>
+    <div class="f-group">
+      <div class="f-label">Patient identifier</div>
+      <input type="text" id="f-pid" class="pid-input" placeholder="Bed / ward / hospital number" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <div class="f-group">
+      <div class="f-label">Job description</div>
+      <input type="text" id="f-desc" placeholder="e.g. Cannula, bloods, drug chart" maxlength="200" autocomplete="off">
+    </div>
+    <div class="f-label" style="margin-bottom:8px">Urgency</div>
+    <div class="urg-grid">
+      <button class="ub" id="ub-i" onclick="setUrg('i')"><span class="ub-icon imm"></span>Immediate</button>
+      <button class="ub" id="ub-u" onclick="setUrg('u')"><span class="ub-icon urg"></span>Urgent</button>
+      <button class="ub sel-r" id="ub-r" onclick="setUrg('r')"><span class="ub-icon rtn"></span>Routine</button>
+    </div>
+    <button class="submit-btn" id="add-sheet-submit" onclick="addTask()">Add job</button>
   </div>
-  <div class="f-group">
-    <div class="f-label">Patient identifier</div>
-    <input type="text" id="f-pid" class="pid-input" placeholder="Bed / ward / hospital number" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+
+  <!-- Multiple jobs panel -->
+  <div id="add-bulk-panel" style="display:none">
+    <div id="bulk-dest-wrap" style="display:none;gap:4px;background:var(--surface2);border-radius:14px;padding:4px;margin-bottom:14px">
+      <button id="bulk-dest-my" onclick="setBulkDest('my')" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:var(--text);color:var(--bg);transition:all 0.15s">My list</button>
+      <button id="bulk-dest-team" onclick="setBulkDest('team')" style="flex:1;padding:8px;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--muted);transition:all 0.15s">Team list</button>
+    </div>
+    <div class="f-group">
+      <div class="f-label">Patient ID / Bed</div>
+      <input type="text" id="bulk-pid" placeholder="e.g. Bed 4, MRN 123456" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+    </div>
+    <div class="f-label" style="margin-bottom:6px">Jobs — one per line. <span style="color:var(--muted);font-weight:400">Prefix <strong>!</strong> immediate, <strong>~</strong> urgent</span></div>
+    <textarea id="bulk-input" placeholder="Chase bloods&#10;! Arrest bloods — urgent&#10;~ Insert cannula&#10;Drug chart review" rows="6" style="width:100%;box-sizing:border-box;padding:14px;border-radius:16px;border:1.5px solid var(--border-mid);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;margin-bottom:12px"></textarea>
+    <button class="submit-btn" onclick="submitBulkAdd()">Add jobs</button>
   </div>
-  <div class="f-group">
-    <div class="f-label">Job description</div>
-    <input type="text" id="f-desc" placeholder="e.g. Cannula, bloods, drug chart" maxlength="200" autocomplete="off">
-  </div>
-  <div class="f-label" style="margin-bottom:8px">Urgency</div>
-  <div class="urg-grid">
-    <button class="ub" id="ub-i" onclick="setUrg('i')"><span class="ub-icon imm"></span>Immediate</button>
-    <button class="ub" id="ub-u" onclick="setUrg('u')"><span class="ub-icon urg"></span>Urgent</button>
-    <button class="ub sel-r" id="ub-r" onclick="setUrg('r')"><span class="ub-icon rtn"></span>Routine</button>
-  </div>
-  <button class="submit-btn" id="add-sheet-submit" onclick="addTask()">Add job</button>
 </div>
 
 <!-- Handover sheet -->
@@ -1488,12 +1490,28 @@ function setAddDest(dest){
     mb.style.background='transparent';mb.style.color='var(--muted)';
   }
 }
+function setAddMode(mode){
+  var sp=document.getElementById('add-single-panel');
+  var bp=document.getElementById('add-bulk-panel');
+  var ms=document.getElementById('add-mode-single');
+  var mb=document.getElementById('add-mode-bulk');
+  if(sp)sp.style.display=mode==='single'?'block':'none';
+  if(bp)bp.style.display=mode==='bulk'?'block':'none';
+  if(ms){ms.style.background=mode==='single'?'var(--text)':'transparent';ms.style.color=mode==='single'?'var(--bg)':'var(--muted)';}
+  if(mb){mb.style.background=mode==='bulk'?'var(--text)':'transparent';mb.style.color=mode==='bulk'?'var(--bg)':'var(--muted)';}
+  if(mode==='bulk'){
+    var dw=document.getElementById('bulk-dest-wrap');
+    if(dw)dw.style.display=teamSession?'flex':'none';
+    setTimeout(function(){var p=document.getElementById('bulk-pid');if(p&&!p.value)p.focus();else{var i=document.getElementById('bulk-input');if(i)i.focus();}},100);
+  }
+}
 function openAddSheet(){
   // If on team tab with an active ward template, require jobs to be added via beds
   if(curTab==='team'&&teamSession&&wardTemplate){
     showBanner('Tap a bed to add jobs','var(--team)');
     return;
   }
+  setAddMode('single');
   addDest='my';
   var toggle=document.getElementById('add-sheet-team-toggle');
   if(toggle)toggle.style.display=teamSession?'block':'none';
@@ -1503,7 +1521,7 @@ function openAddSheet(){
   var sub=document.getElementById('add-sheet-submit');
   if(sub){sub.onclick=addTask;sub.textContent='Add job';}
   openSheet('add-sheet');
-  setTimeout(function(){document.getElementById('f-desc').focus();},320);
+  setTimeout(function(){var d=document.getElementById('f-desc');if(d)d.focus();},320);
 }
 function openHandover(){
   hoTab='send';
@@ -1851,7 +1869,7 @@ function markChase(id){
 }
 
 /* Sheet drag-to-dismiss */
-['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet','ward-setup-sheet','bed-sheet','ward-templates-sheet','bulk-sheet'].forEach(function(sid){
+['add-sheet','ho-sheet','detail-sheet','about-sheet','team-setup-sheet','member-sheet','auth-sheet','ward-setup-sheet','bed-sheet','ward-templates-sheet'].forEach(function(sid){
   var sheet=document.getElementById(sid);
   if(!sheet)return;
   var sy=0,dy=0,on=false;
@@ -3297,17 +3315,15 @@ function openBulkAdd(prefillPid){
   if(curTab==='team'&&teamSession&&wardTemplate&&!prefillPid){
     showBanner('Tap a bed to add jobs','var(--team)');return;
   }
-  // If called from a bed in team session, force team dest
   var fromBed=!!(prefillPid&&teamSession);
   bulkDest=fromBed?'team':(teamSession?'team':'my');
   setBulkDest(bulkDest);
-  var dw=document.getElementById('bulk-dest-wrap');
-  if(dw)dw.style.display=(teamSession&&!fromBed)?'flex':'none';
   var pid=document.getElementById('bulk-pid');
   if(pid){pid.value=prefillPid||'';pid.readOnly=!!prefillPid;}
   var inp=document.getElementById('bulk-input');
   if(inp)inp.value='';
-  openSheet('bulk-sheet');
+  setAddMode('bulk');
+  openSheet('add-sheet');
   setTimeout(function(){
     var i=document.getElementById('bulk-input');if(i)i.focus();
   },320);
