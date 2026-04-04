@@ -1628,6 +1628,8 @@ function setTab(t){
       uf.style.display='none';
     }
   }
+  var sb=document.getElementById('select-mode-bar');
+  if(sb)sb.style.display='none';
   // Clear list immediately so stale content never shows during transition
   var list=document.getElementById('list');
   if(list){list.innerHTML='';list.removeAttribute('style');}
@@ -2072,6 +2074,13 @@ function render(){
   var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
   updateCounts();
   if(curTab==='team')return;
+  // Always enforce filter/select visibility based on current tab
+  var uf=document.getElementById('urgency-filter-wrap');
+  if(uf)uf.style.display=curTab==='active'?'flex':'none';
+  var sb=document.getElementById('select-mode-bar');
+  if(sb)sb.style.display=(_selectMode&&curTab==='active')?'flex':'none';
+  var sf=document.getElementById('select-fab');
+  if(sf)sf.style.display=curTab==='active'?'flex':'none';
   var show=(curTab==='active'?active:done).filter(matchesSearch);
   var all=curTab==='active'?active:done;
   var list=document.getElementById('list');
