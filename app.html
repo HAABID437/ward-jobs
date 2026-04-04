@@ -1642,6 +1642,10 @@ function setTab(t){
   // Hide bulk add on team tab with ward (jobs go via beds)
   var bf=document.getElementById('bulk-fab');
   if(bf)bf.style.display=(t==='team'&&wardTemplate)?'none':'flex';
+  // Select button only on active tab
+  var sf=document.getElementById('select-fab');
+  if(sf)sf.style.display=t==='active'?'flex':'none';
+  if(t!=='active')exitSelectMode();
 }
 
 /* Add sheet */
@@ -2241,6 +2245,8 @@ function cardHtml(t){
   var pidMeta='<span class="cmeta-time">'+meta+'</span>'+(t.pid?'<span class="cmeta-sep"> – </span><span class="cpid">'+esc(t.pid)+'</span>':'')+teamBadge;
   var chaseBadge='';
   var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
+  var returnIcon='<svg viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4H6a3 3 0 0 0 0 6h7"/><polyline points="10,11 13,14 10,17" transform="translate(0,-3)"/></svg>';
+  var chkContent=t.done?returnIcon:tick;
   var chaseBtn=(!t.done&&!t.chase)?'<button onclick="markChase(\''+t.id+'\')" style="padding:6px 11px;background:transparent;color:#f0a500;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px">Chase</button>':(!t.done?'<button onclick="markChase(\''+t.id+'\')" style="padding:6px 11px;background:#f0a500;color:#fff;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px">Chasing ✕</button>':'');
   var isSelected=_selectMode&&_selectedIds.has(t.id);
   var selectCb=_selectMode
@@ -2251,7 +2257,7 @@ function cardHtml(t){
     +(_selectMode?'':('<div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div>'
     +'<div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div>'))
     +'<div class="card '+cls+'" data-id="'+t.id+'" style="position:relative;'+(isSelected?'background:var(--rtn-bg);border-left:3px solid var(--rtn);':'')+'">'
-    +(_selectMode?'':('<div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div>'))
+    +(_selectMode?'':('<div class="chk-wrap" onclick="complete(\''+t.id+'\')" title="'+(t.done?'Return to active':'Mark done')+'"><div class="chk">'+chkContent+'</div></div>'))
     +'<div class="cbody" style="cursor:pointer"><div class="cleft">'
     +'<div class="cmeta">'+pidMeta+'</div>'
     +'<div class="cdesc">'+esc(t.desc)+chaseBadge+'</div>'
