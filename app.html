@@ -2209,12 +2209,25 @@ function render(){
       clearWrap.style.cssText='padding:12px 14px 4px;text-align:center';
       var clearBtn=document.createElement('button');
       clearBtn.textContent='Clear all done jobs';
-      clearBtn.style.cssText='padding:12px 24px;background:none;border:1.5px solid var(--border-mid);border-radius:14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer;width:100%';
+      clearBtn.style.cssText='padding:12px 24px;background:none;border:1.5px solid var(--border-mid);border-radius:14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer;width:100%;transition:all 0.15s';
+      var confirmed=false;
       clearBtn.onclick=function(){
-        if(!confirm('Remove all '+done.length+' completed jobs?'))return;
+        if(!confirmed){
+          confirmed=true;
+          clearBtn.textContent='Tap again to confirm';
+          clearBtn.style.borderColor='var(--imm)';
+          clearBtn.style.color='var(--imm)';
+          setTimeout(function(){
+            confirmed=false;
+            clearBtn.textContent='Clear all done jobs';
+            clearBtn.style.borderColor='var(--border-mid)';
+            clearBtn.style.color='var(--muted)';
+          },2500);
+          return;
+        }
         tasks=tasks.filter(function(x){return!x.done;});
         save();render();
-        showBanner('Done jobs cleared','var(--muted)');
+        showBanner('Done jobs cleared','var(--rtn)');
       };
       clearWrap.appendChild(clearBtn);
       list.appendChild(clearWrap);
