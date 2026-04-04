@@ -77,8 +77,8 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .tip:hover::after{opacity:1;transform:translateX(-50%) translateY(0)}
 
 /* Safe area fills — match browser chrome instantly */
-.safe-top-fill{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:100;pointer-events:none}
-.safe-bot-fill{position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:var(--bg);z-index:100;pointer-events:none}
+.safe-top-fill{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:transparent;z-index:100;pointer-events:none}
+.safe-bot-fill{position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:transparent;z-index:100;pointer-events:none}
 /* Header */
 .hdr{padding:16px 20px 12px;background:var(--bg);position:sticky;top:0;z-index:20}
 .hdr-row{display:flex;align-items:flex-start;justify-content:space-between}
@@ -99,7 +99,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 
 /* Tabs */
 .tabs{display:flex;padding:6px 14px 10px;gap:6px;background:var(--bg);position:sticky;top:72px;z-index:19}
-.tab{flex:1;padding:10px 8px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:16px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.2s;background:transparent;min-height:54px;border:1.5px solid transparent}
+.tab{flex:1;padding:10px 8px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:16px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.2s;background:var(--surface2);min-height:54px;border:1.5px solid var(--border-mid)}
 .tab.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow);border-color:var(--border-mid)}
 @keyframes pulse-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.6}}
 @keyframes team-attract{0%,100%{transform:translateY(0);opacity:0.6}50%{transform:translateY(-2px);opacity:1}}
@@ -636,6 +636,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   </div>
   <div class="edit-actions">
     <button class="submit-btn" onclick="saveEdit()">Save changes</button>
+    <button id="add-another-job-btn" onclick="addAnotherJobForPatient()" style="width:100%;padding:15px;background:var(--surface2);color:var(--text);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">+ Add another job for this patient</button>
     <button id="move-to-team-btn" onclick="moveToTeam()" style="display:none;width:100%;padding:15px;background:var(--team-bg);color:var(--team);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Move to team list</button>
     <button style="width:100%;padding:15px;background:none;border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer" onclick="closeSheet()">Cancel</button>
   </div>
@@ -783,6 +784,23 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     </div>
     <div id="auth-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-bottom:14px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
     <button class="submit-btn" id="auth-action-btn" onclick="authAction()">Sign in</button>
+    <button id="forgot-pw-btn" onclick="showForgotPassword()" style="width:100%;padding:12px;background:none;border:none;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;margin-top:2px">Forgot password?</button>
+  </div>
+
+  <!-- Forgot password panel -->
+  <div id="auth-forgot-panel" style="display:none">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;margin-bottom:6px">Reset password</div>
+      <div style="font-size:13px;color:var(--muted);font-weight:500;line-height:1.6">Enter your email and we'll send a reset link.</div>
+    </div>
+    <div class="f-group">
+      <div class="f-label">Email</div>
+      <input type="email" id="forgot-email" placeholder="yourname@nhs.net" autocomplete="email" autocorrect="off" autocapitalize="off" spellcheck="false">
+    </div>
+    <div id="forgot-error" style="display:none;color:var(--imm);font-size:13px;font-weight:600;margin-bottom:14px;padding:10px 14px;background:var(--imm-bg);border-radius:12px"></div>
+    <div id="forgot-success" style="display:none;color:var(--rtn);font-size:13px;font-weight:600;margin-bottom:14px;padding:10px 14px;background:var(--rtn-bg);border-radius:12px">Reset email sent — check your inbox.</div>
+    <button class="submit-btn" onclick="sendPasswordReset()">Send reset email</button>
+    <button onclick="hideForgotPassword()" style="width:100%;padding:12px;background:none;border:none;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;margin-top:2px">← Back to sign in</button>
   </div>
   <div id="auth-verification-pending" style="display:none">
     <div style="text-align:center;padding:12px 0 20px">
@@ -1018,7 +1036,55 @@ function updateAuthModeUI(){
   }
   if(lbl)lbl.textContent=isSignin?'Welcome back':'Create account';
   if(sub)sub.textContent=isSignin?'Sign in to sync your jobs across devices.':'NHS staff only. Use your @nhs.net email.';
-  if(notice)notice.style.display=isSignin?'none':'flex';}
+  if(notice)notice.style.display=isSignin?'none':'flex';
+  // Only show forgot password on sign in
+  var fpBtn=document.getElementById('forgot-pw-btn');
+  if(fpBtn)fpBtn.style.display=isSignin?'block':'none';
+  hideForgotPassword();
+}
+
+function showForgotPassword(){
+  var out=document.getElementById('auth-signed-out');
+  var fp=document.getElementById('auth-forgot-panel');
+  if(out)out.style.display='none';
+  if(fp){fp.style.display='block';}
+  var fe=document.getElementById('forgot-error');if(fe)fe.style.display='none';
+  var fs=document.getElementById('forgot-success');if(fs)fs.style.display='none';
+  // Pre-fill email from sign in field
+  var email=document.getElementById('auth-email');
+  var femail=document.getElementById('forgot-email');
+  if(email&&femail&&email.value)femail.value=email.value;
+  setTimeout(function(){var el=document.getElementById('forgot-email');if(el)el.focus();},100);
+}
+
+function hideForgotPassword(){
+  var out=document.getElementById('auth-signed-out');
+  var fp=document.getElementById('auth-forgot-panel');
+  if(out)out.style.display='block';
+  if(fp)fp.style.display='none';
+}
+
+function sendPasswordReset(){
+  var email=document.getElementById('forgot-email');
+  if(!email||!email.value.trim()){
+    var err=document.getElementById('forgot-error');
+    if(err){err.textContent='Please enter your email address.';err.style.display='block';}
+    return;
+  }
+  var fe=document.getElementById('forgot-error');if(fe)fe.style.display='none';
+  var fs=document.getElementById('forgot-success');if(fs)fs.style.display='none';
+  _fbAuth.sendPasswordResetEmail(email.value.trim(),{url:'https://axonal.co.uk/app.html'})
+    .then(function(){
+      if(fs)fs.style.display='block';
+      showBanner('Reset email sent','var(--rtn)');
+    })
+    .catch(function(e){
+      var msg=e.code==='auth/user-not-found'?'No account found with that email.':
+              e.code==='auth/invalid-email'?'Please enter a valid email address.':
+              'Could not send reset email. Try again.';
+      if(fe){fe.textContent=msg;fe.style.display='block';}
+    });
+}
 
 function isNHSEmail(email){
   return email.toLowerCase().endsWith('@nhs.net');
@@ -1730,10 +1796,26 @@ function openDetail(id){
   document.getElementById('edit-pid').value=t.pid||'';
   document.getElementById('edit-desc').value=t.desc;
   ['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===editUrg?' sel-'+x:'');});
+  var addAnotherBtn=document.getElementById('add-another-job-btn');
+  if(addAnotherBtn)addAnotherBtn.style.display=t.done?'none':'block';
   var moveBtn=document.getElementById('move-to-team-btn');
   if(moveBtn)moveBtn.style.display=(teamSession&&!t.teamJobId&&!t.done)?'block':'none';
   openSheet('detail-sheet');
   setTimeout(function(){document.getElementById('edit-desc').focus();},320);
+}
+function addAnotherJobForPatient(){
+  var t=tasks.find(function(x){return x.id===editId;});
+  var pid=t?t.pid:'';
+  closeSheet();
+  setTimeout(function(){
+    openAddSheet();
+    setTimeout(function(){
+      var pidEl=document.getElementById('f-pid');
+      if(pidEl&&pid){pidEl.value=pid;}
+      var descEl=document.getElementById('f-desc');
+      if(descEl)descEl.focus();
+    },320);
+  },50);
 }
 function setEditUrg(u){editUrg=u;['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:'');});}
 function saveEdit(){
@@ -1816,6 +1898,17 @@ function updateCounts(){
 }
 
 var _expandedGroups={};
+var _allCollapsed=false;
+
+function toggleAllGroups(){
+  _allCollapsed=!_allCollapsed;
+  document.querySelectorAll('.pt-group').forEach(function(g){
+    if(_allCollapsed){g.classList.remove('open');_expandedGroups[g.id]=false;}
+    else{g.classList.add('open');_expandedGroups[g.id]=true;}
+  });
+  var btn=document.getElementById('toggle-all-groups-btn');
+  if(btn)btn.textContent=_allCollapsed?'Expand all':'Collapse all';
+}
 
 function render(){
   var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
@@ -1836,7 +1929,7 @@ function render(){
 
   if(curTab==='active'){
     list.innerHTML='';
-    // Group by patient ID
+    // Group by patient ID — grouped patients first, then singles
     var groups={};
     var groupOrder=[];
     show.forEach(function(t){
@@ -1844,6 +1937,27 @@ function render(){
       if(!groups[key]){groups[key]=[];groupOrder.push(key);}
       groups[key].push(t);
     });
+    // Sort: multi-job patients first (by highest urgency), then singles
+    groupOrder.sort(function(a,b){
+      var aLen=groups[a].length;var bLen=groups[b].length;
+      if(aLen>1&&bLen<=1)return -1;
+      if(bLen>1&&aLen<=1)return 1;
+      var aUrg=groups[a].reduce(function(best,t){return ORD[t.urg]<ORD[best]?t.urg:best;},'r');
+      var bUrg=groups[b].reduce(function(best,t){return ORD[t.urg]<ORD[best]?t.urg:best;},'r');
+      return ORD[aUrg]-ORD[bUrg];
+    });
+    var hasGroups=groupOrder.some(function(k){return groups[k].length>1;});
+    if(hasGroups){
+      var toggleBar=document.createElement('div');
+      toggleBar.style.cssText='display:flex;justify-content:flex-end;padding:0 2px 8px';
+      var toggleBtn=document.createElement('button');
+      toggleBtn.id='toggle-all-groups-btn';
+      toggleBtn.textContent=_allCollapsed?'Expand all':'Collapse all';
+      toggleBtn.style.cssText='background:none;border:none;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:4px 8px;border-radius:8px;background:var(--surface2)';
+      toggleBtn.onclick=toggleAllGroups;
+      toggleBar.appendChild(toggleBtn);
+      list.appendChild(toggleBar);
+    }
     groupOrder.forEach(function(key){
       var jobs=groups[key];
       var hasPid=key!=='__none__';
@@ -1864,15 +1978,25 @@ function render(){
         var meta=document.createElement('div');meta.className='pt-group-meta';
         // Show urgency breakdown
         var urgCounts={i:0,u:0,r:0};
-        jobs.forEach(function(t){urgCounts[t.urg]++;});
-        ['i','u'].forEach(function(u){
+        var hasChase=false;
+        jobs.forEach(function(t){urgCounts[t.urg]++;if(t.chase&&!t.done)hasChase=true;});
+        ['i','u','r'].forEach(function(u){
           if(urgCounts[u]>0){
             var pill=document.createElement('span');
-            pill.style.cssText='font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;background:'+(u==='i'?'var(--imm-bg)':'var(--urg-bg)')+';color:'+(u==='i'?'var(--imm)':'var(--urg)');
-            pill.textContent=urgCounts[u]+(u==='i'?' Imm':' Urg');
+            var col=u==='i'?'var(--imm)':u==='u'?'var(--urg)':'var(--rtn)';
+            var bg=u==='i'?'var(--imm-bg)':u==='u'?'var(--urg-bg)':'var(--rtn-bg)';
+            pill.style.cssText='font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;background:'+bg+';color:'+col;
+            pill.textContent=urgCounts[u]+(u==='i'?' Imm':u==='u'?' Urg':' Rtn');
             meta.appendChild(pill);
           }
         });
+        // Chase indicator
+        if(hasChase){
+          var chasePill=document.createElement('span');
+          chasePill.style.cssText='font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;border:1.5px solid #f0a500;color:#f0a500;background:transparent';
+          chasePill.textContent='Chase';
+          meta.appendChild(chasePill);
+        }
         var cnt=document.createElement('div');cnt.className='pt-group-count';
         cnt.textContent=jobs.length+' job'+(jobs.length!==1?'s':'');
         var chev=document.createElement('div');
