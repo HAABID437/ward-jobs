@@ -1994,14 +1994,16 @@ function enterSelectMode(){
   _selectMode=true;_selectedIds.clear();
   var sb=document.getElementById('select-mode-bar');if(sb)sb.style.display='flex';
   var uf=document.getElementById('urgency-filter-wrap');if(uf)uf.style.display='none';
-  var sf=document.getElementById('select-fab');if(sf)sf.style.display='none';
+  var sf=document.getElementById('select-fab');
+  if(sf){sf.textContent='Cancel';sf.style.color='var(--imm)';sf.onclick=exitSelectMode;}
   updateSelectBar();render();
 }
 function exitSelectMode(){
   _selectMode=false;_selectedIds.clear();
   var sb=document.getElementById('select-mode-bar');if(sb)sb.style.display='none';
   var uf=document.getElementById('urgency-filter-wrap');if(uf)uf.style.display='flex';
-  var sf=document.getElementById('select-fab');if(sf)sf.style.display='flex';
+  var sf=document.getElementById('select-fab');
+  if(sf){sf.textContent='Select';sf.style.color='var(--muted)';sf.onclick=enterSelectMode;}
   var mb=document.getElementById('multi-complete-bar');if(mb)mb.style.display='none';
   render();
 }
@@ -2201,6 +2203,22 @@ function render(){
     var html='';
     show.forEach(function(t){html+=cardHtml(t);});
     list.innerHTML=html;
+    // Add clear all button at bottom of done tab
+    if(curTab==='done'&&show.length>0){
+      var clearWrap=document.createElement('div');
+      clearWrap.style.cssText='padding:12px 14px 4px;text-align:center';
+      var clearBtn=document.createElement('button');
+      clearBtn.textContent='Clear all done jobs';
+      clearBtn.style.cssText='padding:12px 24px;background:none;border:1.5px solid var(--border-mid);border-radius:14px;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer;width:100%';
+      clearBtn.onclick=function(){
+        if(!confirm('Remove all '+done.length+' completed jobs?'))return;
+        tasks=tasks.filter(function(x){return!x.done;});
+        save();render();
+        showBanner('Done jobs cleared','var(--muted)');
+      };
+      clearWrap.appendChild(clearBtn);
+      list.appendChild(clearWrap);
+    }
   }
 }
 
@@ -3138,12 +3156,13 @@ function renderWardTemplatesList(){
   }
   wardTemplates.forEach(function(tmpl){
     var row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:16px;padding:14px;margin-bottom:8px';
+    row.style.cssText='display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:16px;padding:14px;margin-bottom:8px;cursor:pointer';
+    row.onclick=function(e){if(e.target.tagName!=='BUTTON')openWardBuilder(tmpl);};
     var info=document.createElement('div');info.style.cssText='flex:1;min-width:0';
     var name=document.createElement('div');name.style.cssText='font-size:15px;font-weight:600;color:var(--text)';name.textContent=tmpl.name;
     var meta=document.createElement('div');meta.style.cssText='font-size:11px;color:var(--muted);margin-top:2px';
     var totalBeds=tmpl.bays.reduce(function(s,b){return s+b.beds.length;},0);
-    meta.textContent=tmpl.bays.length+' bay'+(tmpl.bays.length!==1?'s':'')+' · '+totalBeds+' bed'+(totalBeds!==1?'s':'');
+    meta.textContent=tmpl.bays.length+' bay'+(tmpl.bays.length!==1?'s':'')+' · '+totalBeds+' bed'+(totalBeds!==1?'s':'')+' · tap to edit';
     info.appendChild(name);info.appendChild(meta);row.appendChild(info);
     // Insert button
     if(teamSession){
@@ -3151,15 +3170,14 @@ function renderWardTemplatesList(){
       var isActive=wardTemplate&&wardTemplate.id===tmpl.id;
       insertBtn.textContent=isActive?'Active':'Insert';
       insertBtn.style.cssText='padding:8px 14px;border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;background:'+(isActive?'var(--rtn-bg)':'var(--team-bg)')+';color:'+(isActive?'var(--rtn)':'var(--team)');
-      if(!isActive){
-        insertBtn.onclick=function(){insertWardTemplate(tmpl);};
-      }
+      if(!isActive){insertBtn.onclick=function(){insertWardTemplate(tmpl);};}
       row.appendChild(insertBtn);
     }
     // Edit button
     var editBtn=document.createElement('button');
-    editBtn.textContent='Edit';
-    editBtn.style.cssText='padding:8px 14px;background:var(--surface3);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;color:var(--muted)';
+    editBtn.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z"/></svg>';
+    editBtn.title='Edit template';
+    editBtn.style.cssText='padding:8px 10px;background:var(--surface);border:none;border-radius:12px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;color:var(--muted);display:flex;align-items:center;justify-content:center';
     editBtn.onclick=function(){openWardBuilder(tmpl);};
     row.appendChild(editBtn);
     // Delete
@@ -3167,6 +3185,7 @@ function renderWardTemplatesList(){
     delBtn.textContent='✕';
     delBtn.style.cssText='padding:8px 10px;background:var(--imm-bg);border:none;border-radius:12px;font-size:12px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0;color:var(--imm)';
     delBtn.onclick=function(){
+      if(!confirm('Delete "'+tmpl.name+'"?'))return;
       wardTemplates=wardTemplates.filter(function(t){return t.id!==tmpl.id;});
       saveWardTemplatesToStorage();pushWardTemplatesToCloud();
       renderWardTemplatesList();
