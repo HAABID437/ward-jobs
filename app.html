@@ -518,12 +518,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         </button>
       </div>
     </div>
-    <div id="select-mode-bar" style="display:none;padding:0 14px 8px;align-items:center;justify-content:space-between">
-      <span id="select-count-label" style="font-size:13px;font-weight:600;color:var(--muted)">0 selected</span>
-      <div style="display:flex;gap:8px">
-        <button onclick="selectAll()" style="padding:6px 12px;background:var(--surface2);border:none;border-radius:10px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer">All</button>
-        <button onclick="exitSelectMode()" style="padding:6px 12px;background:var(--surface2);border:none;border-radius:10px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer">Cancel</button>
-      </div>
+    <div id="select-mode-bar" style="display:none;padding:0 14px 8px;align-items:center;justify-content:flex-end">
+      <span id="select-count-label" style="font-size:13px;font-weight:600;color:var(--muted)">Tap jobs to select</span>
     </div>
     <div id="urgency-filter-wrap" style="display:none;gap:6px;padding:0 14px 8px;flex-wrap:nowrap;align-items:center">
     </div>
@@ -2033,7 +2029,8 @@ function selectAll(){
 }
 function updateSelectBar(){
   var n=_selectedIds.size;
-  var lbl=document.getElementById('select-count-label');if(lbl)lbl.textContent=n+' selected';
+  var lbl=document.getElementById('select-count-label');
+  if(lbl)lbl.textContent=n>0?n+' selected':'Tap jobs to select';
   var ml=document.getElementById('multi-complete-label');if(ml)ml.textContent=n+' job'+(n!==1?'s':'')+' selected';
   var mb=document.getElementById('multi-complete-bar');
   if(mb)mb.style.display=n>0?'flex':'none';
