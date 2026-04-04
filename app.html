@@ -598,8 +598,16 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
       <div class="f-label">Patient ID / Bed</div>
       <input type="text" id="bulk-pid" placeholder="e.g. Bed 4, MRN 123456" maxlength="30" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
     </div>
-    <div class="f-label" style="margin-bottom:6px">Jobs — one per line. <span style="color:var(--muted);font-weight:400">Prefix <strong>!</strong> immediate, <strong>~</strong> urgent</span></div>
-    <textarea id="bulk-input" placeholder="Chase bloods&#10;! Arrest bloods — urgent&#10;~ Insert cannula&#10;Drug chart review" rows="6" style="width:100%;box-sizing:border-box;padding:14px;border-radius:16px;border:1.5px solid var(--border-mid);background:var(--surface);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;margin-bottom:12px"></textarea>
+    <div class="f-label" style="margin-bottom:8px">Jobs — one per line</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--rtn-bg)"><span style="font-size:12px;color:var(--muted)">no prefix</span><span style="font-size:11px;font-weight:600;color:var(--rtn)">Routine</span></div>
+      <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--urg-bg)"><span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--urg)">!</span><span style="font-size:11px;font-weight:600;color:var(--urg)">Urgent</span></div>
+      <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--imm-bg)"><span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--imm)">!!</span><span style="font-size:11px;font-weight:600;color:var(--imm)">Immediate</span></div>
+    </div>
+    <div style="position:relative;margin-bottom:12px;border-radius:16px;border:1.5px solid var(--border-mid);overflow:hidden;background:var(--surface)">
+      <div id="bulk-highlight" aria-hidden="true" style="position:absolute;inset:0;padding:14px;font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;pointer-events:none;white-space:pre-wrap;word-break:break-word;overflow:hidden;color:transparent"></div>
+      <textarea id="bulk-input" oninput="onBulkInput()" placeholder="!! Arrest call — immediate&#10;! Review obs — urgent&#10;Chase discharge bloods" rows="6" style="position:relative;width:100%;box-sizing:border-box;padding:14px;background:transparent;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;border:none;display:block;caret-color:var(--text)"></textarea>
+    </div>
     <button class="submit-btn" onclick="submitBulkAdd()">Add jobs</button>
   </div>
 </div>
@@ -3595,10 +3603,28 @@ function openBulkAdd(prefillPid){
 function parseBulkLines(text){
   return text.split('\n').map(function(line){return line.trim();}).filter(function(line){return line.length>0;}).map(function(line){
     var urg='r';
-    if(line.startsWith('!')){urg='i';line=line.slice(1).trim();}
-    else if(line.startsWith('~')){urg='u';line=line.slice(1).trim();}
+    if(line.startsWith('!!')){urg='i';line=line.slice(2).trim();}
+    else if(line.startsWith('!')){urg='u';line=line.slice(1).trim();}
     return {desc:line,urg:urg};
   });
+}
+function onBulkInput(){
+  var ta=document.getElementById('bulk-input');
+  var hl=document.getElementById('bulk-highlight');
+  if(!ta||!hl)return;
+  var lines=ta.value.split('\n');
+  var html=lines.map(function(line){
+    var trimmed=line.trim();
+    if(trimmed.startsWith('!!')){
+      return '<span style="background:var(--imm-bg);color:var(--imm);border-radius:4px;display:block">'+esc(line)+'</span>';
+    }else if(trimmed.startsWith('!')){
+      return '<span style="background:var(--urg-bg);color:var(--urg);border-radius:4px;display:block">'+esc(line)+'</span>';
+    }else{
+      return '<span style="display:block;color:transparent">'+esc(line)+'</span>';
+    }
+  }).join('');
+  // Add trailing newline to match textarea scroll height
+  hl.innerHTML=html+'<span> </span>';
 }
 function submitBulkAdd(){
   var pidEl=document.getElementById('bulk-pid');
@@ -3619,6 +3645,7 @@ function submitBulkAdd(){
       updates[jobId]=job;
     });
     dbUpdate('/sessions/'+teamSession+'/jobs',updates).catch(function(){});
+    if(pidEl&&!pidEl.readOnly)pidEl.value='';if(inp)inp.value='';
     closeSheet();
     setTab('team');
     showBanner(lines.length+' job'+(lines.length!==1?'s':'')+' added to team','var(--team)');
@@ -3627,6 +3654,7 @@ function submitBulkAdd(){
       tasks.unshift({id:''+Date.now()+Math.random(),pid:pid,desc:item.desc,urg:item.urg,added:Date.now(),done:false,completed:null});
     });
     save();
+    if(pidEl&&!pidEl.readOnly)pidEl.value='';if(inp)inp.value='';
     closeSheet();
     setTab('active');
     showBanner(lines.length+' job'+(lines.length!==1?'s':'')+' added','var(--rtn)');
