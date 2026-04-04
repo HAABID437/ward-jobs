@@ -157,6 +157,23 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .edit-actions{display:flex;flex-direction:column;gap:8px}
 
 
+/* Patient groups */
+.pt-group{margin-bottom:8px;border-radius:16px;overflow:hidden;background:var(--surface);border:1px solid var(--border)}
+.pt-group-hdr{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;user-select:none;background:var(--surface)}
+.pt-group-hdr:active{opacity:0.7}
+.pt-group-pid{font-size:14px;font-weight:700;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pt-group-meta{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.pt-group-count{font-size:11px;font-weight:600;color:var(--muted)}
+.pt-group-chevron{width:16px;height:16px;color:var(--muted);transition:transform 0.2s;flex-shrink:0}
+.pt-group.open .pt-group-chevron{transform:rotate(180deg)}
+.pt-group-jobs{display:none;border-top:1px solid var(--border)}
+.pt-group.open .pt-group-jobs{display:block}
+.pt-group-jobs .card-wrap{margin-bottom:0;border-radius:0;border-top:1px solid var(--border)}
+.pt-group-jobs .card-wrap:first-child{border-top:none}
+.pt-group-jobs .card-wrap .card{border-radius:0}
+.pt-group-jobs .card-wrap{overflow:hidden}
+/* Hide pid in meta when inside group */
+.pt-group-jobs .cpid{display:none}
 /* Ward */
 .ward-bay{margin-bottom:16px;display:block;width:100%}
 .ward-bay-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 8px;display:flex;align-items:center;gap:8px;touch-action:pan-y}
@@ -1798,12 +1815,13 @@ function updateCounts(){
   updateSessionBar();
 }
 
+var _expandedGroups={};
+
 function render(){
   var active=tasks.filter(function(x){return!x.done;}).sort(function(a,b){return ORD[a.urg]-ORD[b.urg];});
   var done=tasks.filter(function(x){return x.done;}).sort(function(a,b){return b.completed-a.completed;});
   updateCounts();
   if(curTab==='team')return;
-  // Apply search filter
   var show=(curTab==='active'?active:done).filter(matchesSearch);
   var all=curTab==='active'?active:done;
   var list=document.getElementById('list');
@@ -1815,25 +1833,85 @@ function render(){
     list.innerHTML='<div class="empty"><svg viewBox="0 0 40 40" fill="none"><circle cx="20" cy="18" r="10" stroke="currentColor" stroke-width="1.2"/><line x1="28" y1="26" x2="36" y2="34" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg><div class="empty-title">No results</div><p>No jobs match &ldquo;'+esc(searchQuery)+'&rdquo;</p></div>';
     return;
   }
-  var html='';
+
   if(curTab==='active'){
-    ['i','u','r'].forEach(function(urg){
-      var g=show.filter(function(x){return x.urg===urg;});
-      if(!g.length)return;
-      html+='<div class="sec-hdr '+urg+'">'+LBL[urg]+'</div>';
-      g.forEach(function(t){html+=cardHtml(t);});
-    });
-  }else{show.forEach(function(t){html+=cardHtml(t);});}
-  list.innerHTML=html;
-  if(curTab==='active'){
+    list.innerHTML='';
+    // Group by patient ID
+    var groups={};
+    var groupOrder=[];
     show.forEach(function(t){
-      var w=list.querySelector('[data-wrap="'+t.id+'"]');
-      if(w){
-        if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}
-        initSwipe(w,t.id);
+      var key=t.pid?t.pid.trim():'__none__';
+      if(!groups[key]){groups[key]=[];groupOrder.push(key);}
+      groups[key].push(t);
+    });
+    groupOrder.forEach(function(key){
+      var jobs=groups[key];
+      var hasPid=key!=='__none__';
+      var topUrg=jobs.reduce(function(best,t){return ORD[t.urg]<ORD[best]?t.urg:best;},'r');
+      var urgCol=topUrg==='i'?'var(--imm)':topUrg==='u'?'var(--urg)':'var(--rtn)';
+      if(hasPid&&jobs.length>1){
+        // Grouped collapsible
+        var gid='grp-'+key.replace(/\s+/g,'-');
+        var isOpen=_expandedGroups[gid]!==false; // open by default
+        var grp=document.createElement('div');
+        grp.className='pt-group'+(isOpen?' open':'');
+        grp.id=gid;
+        // Header
+        var hdr=document.createElement('div');hdr.className='pt-group-hdr';
+        var dot=document.createElement('div');
+        dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+urgCol+';flex-shrink:0';
+        var pid=document.createElement('div');pid.className='pt-group-pid';pid.textContent=key;
+        var meta=document.createElement('div');meta.className='pt-group-meta';
+        // Show urgency breakdown
+        var urgCounts={i:0,u:0,r:0};
+        jobs.forEach(function(t){urgCounts[t.urg]++;});
+        ['i','u'].forEach(function(u){
+          if(urgCounts[u]>0){
+            var pill=document.createElement('span');
+            pill.style.cssText='font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;background:'+(u==='i'?'var(--imm-bg)':'var(--urg-bg)')+';color:'+(u==='i'?'var(--imm)':'var(--urg)');
+            pill.textContent=urgCounts[u]+(u==='i'?' Imm':' Urg');
+            meta.appendChild(pill);
+          }
+        });
+        var cnt=document.createElement('div');cnt.className='pt-group-count';
+        cnt.textContent=jobs.length+' job'+(jobs.length!==1?'s':'');
+        var chev=document.createElement('div');
+        chev.className='pt-group-chevron';
+        chev.innerHTML='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4,6 8,10 12,6"/></svg>';
+        meta.appendChild(cnt);meta.appendChild(chev);
+        hdr.appendChild(dot);hdr.appendChild(pid);hdr.appendChild(meta);
+        hdr.addEventListener('click',function(){
+          var open=grp.classList.toggle('open');
+          _expandedGroups[gid]=open;
+        });
+        grp.appendChild(hdr);
+        // Jobs
+        var jobsWrap=document.createElement('div');jobsWrap.className='pt-group-jobs';
+        jobs.forEach(function(t){
+          jobsWrap.innerHTML+=cardHtml(t);
+        });
+        grp.appendChild(jobsWrap);
+        list.appendChild(grp);
+        // Init swipes
+        jobs.forEach(function(t){
+          var w=jobsWrap.querySelector('[data-wrap="'+t.id+'"]');
+          if(w){if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}initSwipe(w,t.id);}
+        });
+      }else{
+        // Single job or no pid — render normally with urgency header if needed
+        jobs.forEach(function(t){
+          var wrap=document.createElement('div');
+          wrap.innerHTML=cardHtml(t);
+          var w=wrap.firstChild;
+          if(w){list.appendChild(w);if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}initSwipe(w,t.id);}
+        });
       }
     });
     window._renderedIds=new Set(show.map(function(t){return t.id;}));
+  }else{
+    var html='';
+    show.forEach(function(t){html+=cardHtml(t);});
+    list.innerHTML=html;
   }
 }
 
