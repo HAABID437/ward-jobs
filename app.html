@@ -518,6 +518,13 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
         </button>
       </div>
     </div>
+    <div id="select-mode-bar" style="display:none;padding:0 14px 8px;align-items:center;justify-content:space-between">
+      <span id="select-count-label" style="font-size:13px;font-weight:600;color:var(--muted)">0 selected</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="selectAll()" style="padding:6px 12px;background:var(--surface2);border:none;border-radius:10px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer">All</button>
+        <button onclick="exitSelectMode()" style="padding:6px 12px;background:var(--surface2);border:none;border-radius:10px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;color:var(--muted);cursor:pointer">Cancel</button>
+      </div>
+    </div>
     <div id="urgency-filter-wrap" style="display:none;gap:6px;padding:0 14px 8px;flex-wrap:nowrap;align-items:center">
     </div>
     <div class="list" id="list"></div>
@@ -528,6 +535,10 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <button class="add-fab" onclick="openAddSheet()">
     <svg viewBox="0 0 20 20"><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="10" x2="17" y2="10"/></svg>
     Add job
+  </button>
+  <button id="select-fab" class="icon-btn" onclick="enterSelectMode()" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;border-radius:14px;min-width:52px">
+    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="10" r="2.5"/><polyline points="11,7 19,7"/><polyline points="11,13 19,13"/><polyline points="4,4 4,4"/></svg>
+    Select
   </button>
 
   <button class="icon-btn handover-btn" onclick="openHandover()">
@@ -549,6 +560,12 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <button onclick="closeWelcome();openAuthSheet();" style="width:100%;padding:16px;background:var(--team);color:#fff;border:none;border-radius:18px;font-size:16px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;margin-bottom:10px">Sign in / Create account</button>
     <button onclick="closeWelcome();" style="width:100%;padding:16px;background:var(--surface2);color:var(--muted);border:none;border-radius:18px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">Continue without account</button>
   </div>
+</div>
+
+<!-- Floating multi-complete bar -->
+<div id="multi-complete-bar" style="display:none;position:fixed;bottom:calc(80px + var(--safe-bot));left:14px;right:14px;background:var(--text);border-radius:20px;padding:14px 20px;z-index:40;display:none;align-items:center;justify-content:space-between;box-shadow:0 8px 32px rgba(0,0,0,0.2)">
+  <span id="multi-complete-label" style="font-size:14px;font-weight:600;color:var(--bg)">0 jobs selected</span>
+  <button onclick="completeSelected()" style="padding:10px 20px;background:var(--rtn);color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;font-family:DM Sans,sans-serif;cursor:pointer">Mark done</button>
 </div>
 
 <!-- Shared backdrop -->
@@ -605,10 +622,13 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
       <div style="display:flex;align-items:center;gap:5px;padding:5px 10px;border-radius:8px;background:var(--imm-bg)"><span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--imm)">!!</span><span style="font-size:11px;font-weight:600;color:var(--imm)">Immediate</span></div>
     </div>
     <div style="position:relative;margin-bottom:12px;border-radius:16px;border:1.5px solid var(--border-mid);overflow:hidden;background:var(--surface)">
-      <div id="bulk-highlight" aria-hidden="true" style="position:absolute;inset:0;padding:14px;font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;pointer-events:none;white-space:pre-wrap;word-break:break-word;overflow:hidden;color:transparent"></div>
-      <textarea id="bulk-input" oninput="onBulkInput()" placeholder="!! Arrest call — immediate&#10;! Review obs — urgent&#10;Chase discharge bloods" rows="6" style="position:relative;width:100%;box-sizing:border-box;padding:14px;background:transparent;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;border:none;display:block;caret-color:var(--text)"></textarea>
+      <div id="bulk-highlight" aria-hidden="true" style="position:absolute;top:0;left:0;right:0;padding:14px;font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.6;pointer-events:none;white-space:pre-wrap;word-break:break-word;overflow:hidden"></div>
+      <textarea id="bulk-input" oninput="onBulkInput()" placeholder="!! Arrest call — immediate&#10;! Review obs — urgent&#10;Chase discharge bloods" rows="6" style="position:relative;width:100%;box-sizing:border-box;padding:14px;background:transparent;color:transparent;caret-color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;resize:none;line-height:1.6;outline:none;border:none;display:block;z-index:1"></textarea>
     </div>
-    <button class="submit-btn" onclick="submitBulkAdd()">Add jobs</button>
+    <div style="display:flex;gap:8px">
+      <button class="submit-btn" onclick="submitBulkAdd()" style="flex:1">Add jobs</button>
+      <button onclick="clearBulkForm()" style="padding:15px 18px;background:var(--surface2);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;color:var(--muted);cursor:pointer;flex-shrink:0">Clear</button>
+    </div>
   </div>
 </div>
 
@@ -1425,7 +1445,7 @@ function dbRemove(p){return fetch(DB+p+'.json',{method:'DELETE'});}
 
 /* Team state */
 var teamSession=null,teamJobs={},teamMembers={},teamCreatorId=null,teamPollInterval=null,teamSubTab="unassigned",_lastTeamHash="";
-var TEAM_SESSION_MS=12*60*60*1000;
+var TEAM_SESSION_MS=14*60*60*1000;
 var TEAM_COLORS=['#6c63ff','#e05a7a','#2d9b6f','#d4830a','#2e86c1','#8e44ad','#16a085','#c0392b'];
 var myName=localStorage.getItem('wj_name')||'';
 var myColor=localStorage.getItem('wj_color')||TEAM_COLORS[0];
@@ -1914,6 +1934,7 @@ function confirmDelFinal(){if(pendingDelId)del(pendingDelId);pendingDelId=null;d
 
 /* Swipe */
 function initSwipe(wrap,id){
+  if(_selectMode)return;
   var card=wrap.querySelector('.card');
   var completeBg=wrap.querySelector('.card-complete-bg');
   var deleteBg=wrap.querySelector('.card-delete-bg');
@@ -1965,7 +1986,72 @@ function updateCounts(){
   updateSessionBar();
 }
 
+var _selectMode=false;
+var _selectedIds=new Set();
 var _expandedGroups={};
+
+function enterSelectMode(){
+  _selectMode=true;_selectedIds.clear();
+  var sb=document.getElementById('select-mode-bar');if(sb)sb.style.display='flex';
+  var uf=document.getElementById('urgency-filter-wrap');if(uf)uf.style.display='none';
+  var sf=document.getElementById('select-fab');if(sf)sf.style.display='none';
+  updateSelectBar();render();
+}
+function exitSelectMode(){
+  _selectMode=false;_selectedIds.clear();
+  var sb=document.getElementById('select-mode-bar');if(sb)sb.style.display='none';
+  var uf=document.getElementById('urgency-filter-wrap');if(uf)uf.style.display='flex';
+  var sf=document.getElementById('select-fab');if(sf)sf.style.display='flex';
+  var mb=document.getElementById('multi-complete-bar');if(mb)mb.style.display='none';
+  render();
+}
+function toggleSelect(id){
+  if(_selectedIds.has(id))_selectedIds.delete(id);else _selectedIds.add(id);
+  var isNowSelected=_selectedIds.has(id);
+  var w=document.querySelector('[data-wrap="'+id+'"]');
+  if(w){
+    var card=w.querySelector('.card');
+    if(card){
+      card.style.background=isNowSelected?'var(--rtn-bg)':'';
+      card.style.borderLeft=isNowSelected?'3px solid var(--rtn)':'';
+    }
+    var cb=w.querySelector('[data-cb]');
+    if(cb){
+      cb.style.border='2px solid '+(isNowSelected?'var(--rtn)':'var(--border-mid)');
+      cb.style.background=isNowSelected?'var(--rtn)':'transparent';
+      cb.innerHTML=isNowSelected?'<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>':'';
+    }
+  }
+  updateSelectBar();
+}
+function selectAll(){
+  var active=tasks.filter(function(x){return!x.done;}).filter(matchesSearch);
+  active.forEach(function(t){_selectedIds.add(t.id);});
+  updateSelectBar();render();
+}
+function updateSelectBar(){
+  var n=_selectedIds.size;
+  var lbl=document.getElementById('select-count-label');if(lbl)lbl.textContent=n+' selected';
+  var ml=document.getElementById('multi-complete-label');if(ml)ml.textContent=n+' job'+(n!==1?'s':'')+' selected';
+  var mb=document.getElementById('multi-complete-bar');
+  if(mb)mb.style.display=n>0?'flex':'none';
+}
+function completeSelected(){
+  _selectedIds.forEach(function(id){
+    var t=tasks.find(function(x){return x.id===id;});
+    if(!t||t.done)return;
+    t.done=true;t.completed=Date.now();
+    if(t.teamJobId&&teamSession){
+      var upd={done:true,doneBy:myId,doneByName:myName,completedAt:t.completed};
+      dbUpdate('/sessions/'+teamSession+'/jobs/'+t.teamJobId,upd).catch(function(){});
+    }
+  });
+  var n=_selectedIds.size;
+  save();
+  exitSelectMode();
+  showBanner(n+' job'+(n!==1?'s':'')+' completed','var(--rtn)');
+}
+
 var _allCollapsed=true;
 
 function toggleAllGroups(){
@@ -2086,10 +2172,14 @@ function render(){
         });
         grp.appendChild(jobsWrap);
         list.appendChild(grp);
-        // Init swipes
+        // Init swipes / select taps
         jobs.forEach(function(t){
           var w=jobsWrap.querySelector('[data-wrap="'+t.id+'"]');
-          if(w){if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}initSwipe(w,t.id);}
+          if(w){
+            if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}
+            if(_selectMode){w.addEventListener('click',function(){toggleSelect(t.id);});}
+            else{initSwipe(w,t.id);}
+          }
         });
       }else{
         // Single job or no pid — render normally with urgency header if needed
@@ -2097,7 +2187,12 @@ function render(){
           var wrap=document.createElement('div');
           wrap.innerHTML=cardHtml(t);
           var w=wrap.firstChild;
-          if(w){list.appendChild(w);if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}initSwipe(w,t.id);}
+          if(w){
+            list.appendChild(w);
+            if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}
+            if(_selectMode){w.addEventListener('click',function(){toggleSelect(t.id);});}
+            else{initSwipe(w,t.id);}
+          }
         });
       }
     });
@@ -2119,17 +2214,22 @@ function cardHtml(t){
   var chaseBadge='';
   var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
   var chaseBtn=(!t.done&&!t.chase)?'<button onclick="markChase(\''+t.id+'\')" style="padding:6px 11px;background:transparent;color:#f0a500;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px">Chase</button>':(!t.done?'<button onclick="markChase(\''+t.id+'\')" style="padding:6px 11px;background:#f0a500;color:#fff;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px">Chasing ✕</button>':'');
+  var isSelected=_selectMode&&_selectedIds.has(t.id);
+  var selectCb=_selectMode
+    ?'<div data-cb onclick="event.stopPropagation();toggleSelect(\''+t.id+'\')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);z-index:5;cursor:pointer;width:22px;height:22px;border-radius:50%;border:2px solid '+(isSelected?'var(--rtn)':'var(--border-mid)')+';background:'+(isSelected?'var(--rtn)':'transparent')+';display:flex;align-items:center;justify-content:center;transition:all 0.15s">'
+    +(isSelected?'<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>':'')
+    +'</div>':'';
   return '<div class="card-wrap" data-wrap="'+t.id+'">'
-    +'<div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div>'
-    +'<div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div>'
-    +'<div class="card '+cls+'" data-id="'+t.id+'">'
-    +'<div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div>'
-    +'<div class="cbody" onclick="openDetail(\''+t.id+'\')" style="cursor:pointer"><div class="cleft">'
+    +(_selectMode?'':('<div class="card-complete-bg"><svg viewBox="0 0 18 18"><polyline points="3,9 7,13 15,5"/></svg></div>'
+    +'<div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div>'))
+    +'<div class="card '+cls+'" data-id="'+t.id+'" style="position:relative;'+(isSelected?'background:var(--rtn-bg);border-left:3px solid var(--rtn);':'')+'">'
+    +(_selectMode?'':('<div class="chk-wrap" onclick="complete(\''+t.id+'\')"><div class="chk">'+tick+'</div></div>'))
+    +'<div class="cbody" style="cursor:pointer"><div class="cleft">'
     +'<div class="cmeta">'+pidMeta+'</div>'
     +'<div class="cdesc">'+esc(t.desc)+chaseBadge+'</div>'
     +'</div></div>'
-    +chaseBtn
-    +'<div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div>'
+    +(_selectMode?selectCb:chaseBtn)
+    +(_selectMode?'':('<div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div>'))
     +'</div></div>';
 }
 
@@ -3608,6 +3708,15 @@ function parseBulkLines(text){
     return {desc:line,urg:urg};
   });
 }
+function clearBulkForm(){
+  var pid=document.getElementById('bulk-pid');
+  var inp=document.getElementById('bulk-input');
+  var hl=document.getElementById('bulk-highlight');
+  if(pid&&!pid.readOnly)pid.value='';
+  if(inp)inp.value='';
+  if(hl)hl.innerHTML='';
+  if(inp)inp.focus();
+}
 function onBulkInput(){
   var ta=document.getElementById('bulk-input');
   var hl=document.getElementById('bulk-highlight');
@@ -3615,16 +3724,19 @@ function onBulkInput(){
   var lines=ta.value.split('\n');
   var html=lines.map(function(line){
     var trimmed=line.trim();
-    if(trimmed.startsWith('!!')){
-      return '<span style="background:var(--imm-bg);color:var(--imm);border-radius:4px;display:block">'+esc(line)+'</span>';
-    }else if(trimmed.startsWith('!')){
-      return '<span style="background:var(--urg-bg);color:var(--urg);border-radius:4px;display:block">'+esc(line)+'</span>';
-    }else{
-      return '<span style="display:block;color:transparent">'+esc(line)+'</span>';
-    }
+    var col,bg;
+    if(trimmed.startsWith('!!')){col='var(--imm)';bg='var(--imm-bg)';}
+    else if(trimmed.startsWith('!')){col='var(--urg)';bg='var(--urg-bg)';}
+    else{col='var(--text)';bg='transparent';}
+    return '<div style="background:'+bg+';color:'+col+';border-radius:4px;min-height:1.6em">'+esc(line||' ')+'</div>';
   }).join('');
-  // Add trailing newline to match textarea scroll height
-  hl.innerHTML=html+'<span> </span>';
+  hl.innerHTML=html;
+  // Match textarea height
+  ta.style.height='auto';
+  hl.style.height='auto';
+  var h=Math.max(ta.scrollHeight,120)+'px';
+  ta.style.height=h;
+  hl.style.height=h;
 }
 function submitBulkAdd(){
   var pidEl=document.getElementById('bulk-pid');
@@ -3706,6 +3818,7 @@ function startApp(){
   if(sw)sw.style.display='block';
   var uf=document.getElementById('urgency-filter-wrap');
   if(uf)uf.style.display='flex';
+  var sf=document.getElementById('select-fab');if(sf)sf.style.display='flex';
 
   initUrgencyFilterPills();
   // Save current session to recents (in case browser closed without leaving)
