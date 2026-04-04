@@ -174,6 +174,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .pt-group-jobs .card-wrap{overflow:hidden}
 /* Hide pid in meta when inside group */
 .pt-group-jobs .cpid{display:none}
+.pt-group-jobs .cmeta-sep{display:none}
 /* Ward */
 .ward-bay{margin-bottom:16px;display:block;width:100%}
 .ward-bay-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-style:italic;color:var(--muted);padding:2px 4px 8px;display:flex;align-items:center;gap:8px;touch-action:pan-y}
@@ -516,6 +517,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
       </div>
+    </div>
+    <div id="urgency-filter-wrap" style="display:none;gap:6px;padding:0 14px 8px;flex-wrap:nowrap;align-items:center">
     </div>
     <div class="list" id="list"></div>
   </div>
@@ -1512,6 +1515,51 @@ document.getElementById('backdrop').addEventListener('click',closeSheet);
 
 /* Tabs */
 var searchQuery='';
+var urgFilter='all';
+
+function initUrgencyFilterPills(){
+  // Called from render - the toggle button is added by render after this
+  // So just rebuild pills only
+  var uf=document.getElementById('urgency-filter-wrap');
+  if(!uf)return;
+  uf.innerHTML='';
+  var pill=function(id,label){
+    var b=document.createElement('button');
+    b.id=id;b.textContent=label;
+    b.style.cssText='padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:1.5px solid var(--border-mid);background:transparent;color:var(--muted);transition:all 0.15s';
+    b.onclick=function(){setUrgFilter(b.id.replace('uf-',''));};
+    return b;
+  };
+  uf.appendChild(pill('uf-all','All'));
+  uf.appendChild(pill('uf-i','Immediate'));
+  uf.appendChild(pill('uf-u','Urgent'));
+  uf.appendChild(pill('uf-r','Routine'));
+  applyUrgFilterStyles();
+}
+
+function applyUrgFilterStyles(){
+  var cols={i:'var(--imm)',u:'var(--urg)',r:'var(--rtn)'};
+  var bgs={i:'var(--imm-bg)',u:'var(--urg-bg)',r:'var(--rtn-bg)'};
+  ['all','i','u','r'].forEach(function(x){
+    var btn=document.getElementById('uf-'+x);
+    if(!btn)return;
+    var isActive=x===urgFilter;
+    if(isActive){
+      btn.style.background=x==='all'?'var(--text)':bgs[x];
+      btn.style.color=x==='all'?'var(--bg)':cols[x];
+      btn.style.borderColor=x==='all'?'var(--text)':cols[x];
+    }else{
+      btn.style.background='transparent';
+      btn.style.color='var(--muted)';
+      btn.style.borderColor='var(--border-mid)';
+    }
+  });
+}
+function setUrgFilter(f){
+  urgFilter=f;
+  applyUrgFilterStyles();
+  render();
+}
 
 function onSearch(){
   var inp=document.getElementById('search-input');
@@ -1530,6 +1578,7 @@ function clearSearch(){
   if(inp)inp.focus();
 }
 function matchesSearch(t){
+  if(urgFilter!=='all'&&t.urg!==urgFilter)return false;
   if(!searchQuery)return true;
   return (t.desc&&t.desc.toLowerCase().includes(searchQuery))||
          (t.pid&&t.pid.toLowerCase().includes(searchQuery));
@@ -1537,13 +1586,24 @@ function matchesSearch(t){
 
 function setTab(t){
   curTab=t;
-  // Clear search on tab switch
+  // Reset filter on tab switch
+  urgFilter='all';
+  setUrgFilter('all');
   searchQuery='';
   var inp=document.getElementById('search-input');if(inp)inp.value='';
   var clr=document.getElementById('search-clear');if(clr)clr.style.display='none';
   // Show search only on active/done/team (not when no session)
   var sw=document.getElementById('search-wrap');
   if(sw)sw.style.display=(t==='active'||t==='done'||(t==='team'&&teamSession&&!wardTemplate))?'block':'none';
+  var uf=document.getElementById('urgency-filter-wrap');
+  if(uf){
+    if(t==='active'){
+      uf.style.display='flex';
+      initUrgencyFilterPills();
+    }else{
+      uf.style.display='none';
+    }
+  }
   // Clear list immediately so stale content never shows during transition
   var list=document.getElementById('list');
   if(list){list.innerHTML='';list.removeAttribute('style');}
@@ -1898,7 +1958,7 @@ function updateCounts(){
 }
 
 var _expandedGroups={};
-var _allCollapsed=false;
+var _allCollapsed=true;
 
 function toggleAllGroups(){
   _allCollapsed=!_allCollapsed;
@@ -1929,6 +1989,8 @@ function render(){
 
   if(curTab==='active'){
     list.innerHTML='';
+    // Rebuild filter pills with current state
+    initUrgencyFilterPills();
     // Group by patient ID — grouped patients first, then singles
     var groups={};
     var groupOrder=[];
@@ -1947,16 +2009,16 @@ function render(){
       return ORD[aUrg]-ORD[bUrg];
     });
     var hasGroups=groupOrder.some(function(k){return groups[k].length>1;});
-    if(hasGroups){
-      var toggleBar=document.createElement('div');
-      toggleBar.style.cssText='display:flex;justify-content:flex-end;padding:0 2px 8px';
+    // Add collapse/expand button inline with filter pills
+    var uf2=document.getElementById('urgency-filter-wrap');
+    if(hasGroups&&uf2){
+      var spacer=document.createElement('div');spacer.style.cssText='flex:1;min-width:8px';
       var toggleBtn=document.createElement('button');
       toggleBtn.id='toggle-all-groups-btn';
       toggleBtn.textContent=_allCollapsed?'Expand all':'Collapse all';
-      toggleBtn.style.cssText='background:none;border:none;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:4px 8px;border-radius:8px;background:var(--surface2)';
+      toggleBtn.style.cssText='background:var(--surface2);border:1.5px solid var(--border-mid);font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0';
       toggleBtn.onclick=toggleAllGroups;
-      toggleBar.appendChild(toggleBtn);
-      list.appendChild(toggleBar);
+      uf2.appendChild(spacer);uf2.appendChild(toggleBtn);
     }
     groupOrder.forEach(function(key){
       var jobs=groups[key];
@@ -1966,7 +2028,7 @@ function render(){
       if(hasPid&&jobs.length>1){
         // Grouped collapsible
         var gid='grp-'+key.replace(/\s+/g,'-');
-        var isOpen=_expandedGroups[gid]!==false; // open by default
+        var isOpen=_expandedGroups[gid]===true; // collapsed by default
         var grp=document.createElement('div');
         grp.className='pt-group'+(isOpen?' open':'');
         grp.id=gid;
@@ -3611,6 +3673,13 @@ function startApp(){
   })();
 
   render();tick();setInterval(tick,15000);
+  // Show search and filter on initial active tab
+  var sw=document.getElementById('search-wrap');
+  if(sw)sw.style.display='block';
+  var uf=document.getElementById('urgency-filter-wrap');
+  if(uf)uf.style.display='flex';
+
+  initUrgencyFilterPills();
   // Save current session to recents (in case browser closed without leaving)
   if(teamSession){
     saveRecentSession(teamSession,myName);
