@@ -533,10 +533,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     Add job
   </button>
   <button id="select-fab" class="icon-btn" onclick="enterSelectMode()" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:8px 10px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:10px;font-weight:600;font-family:'DM Sans',sans-serif;border-radius:14px;min-width:52px">
-    <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="10" r="2.5"/><polyline points="11,7 19,7"/><polyline points="11,13 19,13"/><polyline points="4,4 4,4"/></svg>
     Select
   </button>
-
   <button class="icon-btn handover-btn" onclick="openHandover()">
     <svg viewBox="0 0 20 20"><path d="M3 10 L3 16 L17 16 L17 10"/><polyline points="7,6 10,3 13,6"/><line x1="10" y1="3" x2="10" y2="13"/></svg>
     Handover
@@ -598,6 +596,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
       <button class="ub" id="ub-u" onclick="setUrg('u')"><span class="ub-icon urg"></span>Urgent</button>
       <button class="ub sel-r" id="ub-r" onclick="setUrg('r')"><span class="ub-icon rtn"></span>Routine</button>
     </div>
+    <div class="f-label" style="margin-bottom:8px;margin-top:14px">Job type <span style="color:var(--dim);font-weight:400;font-size:11px">optional</span></div>
+    <div id="tag-picker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
     <button class="submit-btn" id="add-sheet-submit" onclick="addTask()">Add job</button>
   </div>
 
@@ -661,6 +661,8 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <button class="ub" id="eub-u" onclick="setEditUrg('u')"><span class="ub-icon urg"></span>Urgent</button>
     <button class="ub sel-r" id="eub-r" onclick="setEditUrg('r')"><span class="ub-icon rtn"></span>Routine</button>
   </div>
+  <div class="f-label" style="margin-bottom:8px;margin-top:14px">Job type <span style="color:var(--dim);font-weight:400;font-size:11px">optional</span></div>
+  <div id="edit-tag-picker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
   <div class="edit-actions">
     <button class="submit-btn" onclick="saveEdit()">Save changes</button>
     <button id="add-another-job-btn" onclick="addAnotherJobForPatient()" style="width:100%;padding:15px;background:var(--surface2);color:var(--text);border:none;border-radius:16px;font-size:15px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer">+ Add another job for this patient</button>
@@ -874,6 +876,17 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
       <button onclick="changePassword()" style="width:100%;padding:14px;background:var(--surface2);color:var(--text);border:none;border-radius:16px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;margin-top:8px">Update password</button>
     </div>
 
+    <!-- Job tags -->
+    <div class="f-group">
+      <div class="f-label">My job tags</div>
+      <div id="tag-manager-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="tag-new-input" placeholder="Add a custom tag…" maxlength="30" autocomplete="off" style="flex:1">
+        <button onclick="addUserTag()" style="padding:0 16px;background:var(--team);color:#fff;border:none;border-radius:16px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;flex-shrink:0">Add</button>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px">Default tags (Bloods, Imaging etc.) are always available. Your custom tags are synced to your account.</div>
+    </div>
+
     <button class="submit-btn" onclick="signOut()" style="background:var(--imm-bg);color:var(--imm);box-shadow:none">Sign out</button>
   </div>
 </div>
@@ -980,7 +993,7 @@ function initFirebase(){
         localStorage.setItem('wj_uid',user.uid);
       }
       updateAuthUI();
-      if(currentUser){syncSessionStart();syncFromCloud();pullWardTemplatesFromCloud();}
+      if(currentUser){syncSessionStart();syncFromCloud();pullWardTemplatesFromCloud();pullTagsFromCloud();}
     });
   }catch(e){console.warn('Firebase init failed:',e);}
 }
@@ -1029,6 +1042,7 @@ function openAuthSheet(){
     // Clear password fields and messages
     ['auth-new-password','auth-confirm-password'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
     ['auth-name-msg','auth-pw-msg'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+    renderTagManager();
   }else{
     out.style.display='block';inn.style.display='none';
     authMode='signin';updateAuthModeUI();
@@ -1207,7 +1221,8 @@ function checkVerification(){
   user.reload().then(function(){
     if(user.emailVerified){
       currentUser=user;
-      updateAuthUI();syncFromCloud();
+      updateAuthUI();syncFromCloud();pullTagsFromCloud();
+      renderTagManager();
       document.getElementById('auth-verification-pending').style.display='none';
       closeSheet();
       showBanner('Email verified \u2014 sync enabled','var(--rtn)');
@@ -1532,6 +1547,7 @@ document.getElementById('backdrop').addEventListener('click',closeSheet);
   onEnter('team-name-input',function(){if(_teamMode==='create')createSession();else joinSession();});
   onEnter('join-code-input',joinSession);
   onEnter('ward-name-input',saveWardTemplate);
+  onEnter('tag-new-input',addUserTag);
   onEnter('auth-email',authAction);
   onEnter('auth-password',authAction);
   onEnter('bulk-pid',function(){var i=document.getElementById('bulk-input');if(i)i.focus();});
@@ -1539,11 +1555,182 @@ document.getElementById('backdrop').addEventListener('click',closeSheet);
 
 /* Tabs */
 var searchQuery='';
+var _selectedTag=null; // currently selected tag in add sheet
+var _groupByTag=false; // toggle group mode
+
+var DEFAULT_TAGS=['Discharge summary','Prescription','Review','Bloods','Imaging','Specialty referral','Cannula','Drug chart','Consult','Results','Fluids','ECG'];
+var hiddenDefaultTags=[];
+var userTags=[];
+
+function loadTags(){
+  try{userTags=JSON.parse(localStorage.getItem('wj_user_tags')||'[]');}catch(e){userTags=[];}
+  try{hiddenDefaultTags=JSON.parse(localStorage.getItem('wj_hidden_tags')||'[]');}catch(e){hiddenDefaultTags=[];}
+}
+function saveTags(){
+  try{localStorage.setItem('wj_user_tags',JSON.stringify(userTags));}catch(e){}
+  pushTagsToCloud();
+}
+function pushTagsToCloud(){
+  if(!currentUser)return;
+  currentUser.getIdToken().then(function(token){
+    fetch(DB+'/users/'+currentUser.uid+'/tags.json?auth='+token,{
+      method:'PUT',body:JSON.stringify(userTags),headers:{'Content-Type':'application/json'}
+    }).catch(function(){});
+  });
+}
+function pullTagsFromCloud(){
+  if(!currentUser)return;
+  currentUser.getIdToken().then(function(token){
+    fetch(DB+'/users/'+currentUser.uid+'/tags.json?auth='+token)
+      .then(function(r){return r.json();})
+      .then(function(data){
+        if(Array.isArray(data)&&data.length){
+          userTags=data;
+          try{localStorage.setItem('wj_user_tags',JSON.stringify(userTags));}catch(e){}
+          renderTagManager();
+          renderTagPicker();
+        }
+      }).catch(function(){});
+  });
+}
+function renderTagManager(){
+  var wrap=document.getElementById('tag-manager-list');
+  if(!wrap)return;
+  wrap.innerHTML='';
+  if(!userTags.length){
+    var empty=document.createElement('span');
+    empty.style.cssText='font-size:12px;color:var(--dim);font-style:italic';
+    empty.textContent='No custom tags yet';
+    wrap.appendChild(empty);return;
+  }
+  userTags.forEach(function(tag,i){
+    var chip=document.createElement('div');
+    chip.style.cssText='display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:20px;background:var(--team-bg);border:1.5px solid var(--team)';
+    var lbl=document.createElement('span');
+    lbl.style.cssText='font-size:12px;font-weight:600;color:var(--team)';
+    lbl.textContent=tag;
+    var del=document.createElement('button');
+    del.textContent='×';
+    del.style.cssText='background:none;border:none;cursor:pointer;color:var(--team);font-size:14px;font-weight:700;padding:0 0 0 2px;line-height:1;font-family:DM Sans,sans-serif';
+    del.onclick=function(){
+      userTags.splice(i,1);
+      saveTags();
+      renderTagManager();
+      renderTagPicker();
+    };
+    chip.appendChild(lbl);chip.appendChild(del);
+    wrap.appendChild(chip);
+  });
+}
+function addUserTag(){
+  var inp=document.getElementById('tag-new-input');
+  if(!inp)return;
+  var name=inp.value.trim();
+  if(!name)return;
+  if(DEFAULT_TAGS.concat(userTags).map(function(t){return t.toLowerCase();}).includes(name.toLowerCase())){
+    inp.value='';return;
+  }
+  userTags.push(name);
+  inp.value='';
+  saveTags();
+  renderTagManager();
+  renderTagPicker();
+}
+function allTags(){return DEFAULT_TAGS.filter(function(t){return !hiddenDefaultTags.includes(t);}).concat(userTags);}
+
+function renderTagPicker(containerId, selectedRef, onSelect){
+  containerId=containerId||'tag-picker';
+  var wrap=document.getElementById(containerId);
+  if(!wrap)return;
+  wrap.innerHTML='';
+  wrap.style.cssText='display:flex;flex-direction:column;gap:8px;margin-bottom:14px';
+
+  // Scrollable pills row
+  var row=document.createElement('div');
+  row.style.cssText='display:flex;flex-wrap:wrap;gap:6px';
+
+  allTags().forEach(function(tag){
+    var isDefault=DEFAULT_TAGS.includes(tag)&&!hiddenDefaultTags.includes(tag);
+    var isSelected=(selectedRef?selectedRef.val:_selectedTag)===tag;
+    var chip=document.createElement('div');
+    chip.style.cssText='display:inline-flex;align-items:center;border-radius:20px;overflow:hidden;border:1.5px solid '+(isSelected?'var(--team)':'var(--border-mid)')+';background:'+(isSelected?'var(--team)':'var(--surface2)')+';flex-shrink:0';
+
+    var btn=document.createElement('button');
+    btn.textContent=tag;
+    btn.style.cssText='padding:6px 8px 6px 12px;border:none;background:transparent;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;color:'+(isSelected?'#fff':'var(--text)');
+    btn.onclick=function(){
+      var newVal=isSelected?null:tag;
+      if(selectedRef)selectedRef.val=newVal; else _selectedTag=newVal;
+      if(onSelect)onSelect(newVal);
+      renderTagPicker(containerId,selectedRef,onSelect);
+    };
+
+    var del=document.createElement('button');
+    del.innerHTML='<svg width="10" height="10" viewBox="0 0 10 10" fill="none"><line x1="2" y1="2" x2="8" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="2" x2="2" y2="8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+    del.style.cssText='padding:6px 8px;border:none;background:transparent;cursor:pointer;color:'+(isSelected?'rgba(255,255,255,0.7)':'var(--dim)')+';display:flex;align-items:center;line-height:1;border-left:1px solid '+(isSelected?'rgba(255,255,255,0.2)':'var(--border-mid)');
+    del.onclick=function(e){
+      e.stopPropagation();
+      if(isDefault){
+        hiddenDefaultTags.push(tag);
+        try{localStorage.setItem('wj_hidden_tags',JSON.stringify(hiddenDefaultTags));}catch(ex){}
+      }else{
+        userTags=userTags.filter(function(t){return t!==tag;});
+        saveTags();renderTagManager();
+      }
+      if(_selectedTag===tag)_selectedTag=null;
+      if(selectedRef&&selectedRef.val===tag)selectedRef.val=null;
+      renderTagPicker(containerId,selectedRef,onSelect);
+    };
+
+    chip.appendChild(btn);chip.appendChild(del);
+    row.appendChild(chip);
+  });
+
+  // + Custom button
+  var addBtn=document.createElement('button');
+  addBtn.textContent='+ Add tag';
+  addBtn.style.cssText='padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:1.5px dashed var(--border-mid);background:transparent;color:var(--dim);flex-shrink:0';
+  addBtn.onclick=function(){
+    var inp=document.getElementById('tag-inline-inp-'+containerId);
+    if(inp){inp.focus();return;}
+    // Inline input row at bottom of picker
+    var inpRow=document.createElement('div');
+    inpRow.style.cssText='display:flex;gap:6px';
+    var input=document.createElement('input');
+    input.id='tag-inline-inp-'+containerId;
+    input.type='text';input.placeholder='New tag name…';input.maxLength=30;input.autocomplete='off';
+    input.style.cssText='flex:1;padding:8px 12px;border-radius:14px;border:1.5px solid var(--team);background:var(--surface);color:var(--text);font-size:13px;font-family:DM Sans,sans-serif;outline:none';
+    var ok=document.createElement('button');
+    ok.textContent='Add';
+    ok.style.cssText='padding:8px 14px;border-radius:14px;background:var(--team);color:#fff;border:none;font-size:13px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;flex-shrink:0';
+    var submit=function(){
+      var name=input.value.trim();
+      if(!name){inpRow.remove();return;}
+      // Restore hidden default if matches
+      var hiddenIdx=hiddenDefaultTags.indexOf(name);
+      if(hiddenIdx>-1){
+        hiddenDefaultTags.splice(hiddenIdx,1);
+        try{localStorage.setItem('wj_hidden_tags',JSON.stringify(hiddenDefaultTags));}catch(ex){}
+      }else if(!allTags().map(function(t){return t.toLowerCase();}).includes(name.toLowerCase())){
+        userTags.push(name);saveTags();renderTagManager();
+      }
+      if(selectedRef)selectedRef.val=name; else _selectedTag=name;
+      if(onSelect)onSelect(name);
+      inpRow.remove();
+      renderTagPicker(containerId,selectedRef,onSelect);
+    };
+    ok.onclick=submit;
+    input.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();submit();}if(e.key==='Escape'){inpRow.remove();}});
+    inpRow.appendChild(input);inpRow.appendChild(ok);
+    wrap.appendChild(inpRow);
+    setTimeout(function(){input.focus();},50);
+  };
+  row.appendChild(addBtn);
+  wrap.appendChild(row);
+}
 var urgFilter='all';
 
 function initUrgencyFilterPills(){
-  // Called from render - the toggle button is added by render after this
-  // So just rebuild pills only
   var uf=document.getElementById('urgency-filter-wrap');
   if(!uf)return;
   uf.innerHTML='';
@@ -1558,6 +1745,13 @@ function initUrgencyFilterPills(){
   uf.appendChild(pill('uf-i','Immediate'));
   uf.appendChild(pill('uf-u','Urgent'));
   uf.appendChild(pill('uf-r','Routine'));
+  // Group by tag toggle
+  var gt=document.createElement('button');
+  gt.id='uf-group-toggle';
+  gt.textContent=_groupByTag?'Group: Tag ✓':'Group: Tag';
+  gt.style.cssText='padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:1.5px solid '+(_groupByTag?'var(--team)':'var(--border-mid)')+';background:'+(_groupByTag?'var(--team-bg)':'transparent')+';color:'+(_groupByTag?'var(--team)':'var(--muted)')+';transition:all 0.15s;margin-left:4px';
+  gt.onclick=function(){_groupByTag=!_groupByTag;render();};
+  uf.appendChild(gt);
   applyUrgFilterStyles();
 }
 
@@ -1605,7 +1799,8 @@ function matchesSearch(t){
   if(urgFilter!=='all'&&t.urg!==urgFilter)return false;
   if(!searchQuery)return true;
   return (t.desc&&t.desc.toLowerCase().includes(searchQuery))||
-         (t.pid&&t.pid.toLowerCase().includes(searchQuery));
+         (t.pid&&t.pid.toLowerCase().includes(searchQuery))||
+         (t.tag&&t.tag.toLowerCase().includes(searchQuery));
 }
 
 function setTab(t){
@@ -1693,6 +1888,8 @@ function openAddSheet(){
   if(tb){tb.style.background='transparent';tb.style.color='var(--muted)';}
   var sub=document.getElementById('add-sheet-submit');
   if(sub){sub.onclick=addTask;sub.textContent='Add job';}
+  _selectedTag=null;
+  renderTagPicker('tag-picker');
   openSheet('add-sheet');
   setTimeout(function(){var d=document.getElementById('f-desc');if(d)d.focus();},320);
 }
@@ -1836,8 +2033,8 @@ function addTask(){
   var pid=document.getElementById('f-pid').value.trim();
   var desc=document.getElementById('f-desc').value.trim();
   if(!desc){var el=document.getElementById('f-desc');el.style.borderColor='var(--imm)';setTimeout(function(){el.style.borderColor='';},700);el.focus();return;}
-  if(addDest==='team'&&teamSession){addTeamJob(pid,desc,selUrg);document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';closeSheet();setTab('team');return;}
-  tasks.unshift({id:''+Date.now()+Math.random(),pid:pid,desc:desc,urg:selUrg,added:Date.now(),done:false,completed:null});
+  if(addDest==='team'&&teamSession){addTeamJob(pid,desc,selUrg,_selectedTag);document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';closeSheet();setTab('team');return;}
+  tasks.unshift({id:''+Date.now()+Math.random(),pid:pid,desc:desc,urg:selUrg,tag:_selectedTag||null,added:Date.now(),done:false,completed:null});
   save();document.getElementById('f-desc').value='';document.getElementById('f-pid').value='';
   closeSheet();if(curTab!=='active')setTab('active');else render();
 }
@@ -1890,8 +2087,22 @@ function openDetail(id){
   if(addAnotherBtn)addAnotherBtn.style.display=t.done?'none':'block';
   var moveBtn=document.getElementById('move-to-team-btn');
   if(moveBtn)moveBtn.style.display=(teamSession&&!t.teamJobId&&!t.done)?'block':'none';
+  // Tag picker
+  var editTagRef={val:t.tag||null};
+  window._editTagRef=editTagRef;
+  renderTagPicker('edit-tag-picker',editTagRef,null);
   openSheet('detail-sheet');
   setTimeout(function(){document.getElementById('edit-desc').focus();},320);
+}
+function setEditUrg(u){editUrg=u;['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:'');});}
+function saveEdit(){
+  var t=tasks.find(function(x){return x.id===editId;});if(!t)return;
+  var nd=document.getElementById('edit-desc').value.trim();
+  var np=document.getElementById('edit-pid').value.trim();
+  if(!nd)return;
+  t.desc=nd;t.pid=np;t.urg=editUrg;
+  t.tag=(window._editTagRef&&window._editTagRef.val)||null;
+  save();closeSheet();render();
 }
 function addAnotherJobForPatient(){
   var t=tasks.find(function(x){return x.id===editId;});
@@ -1906,15 +2117,6 @@ function addAnotherJobForPatient(){
       if(descEl)descEl.focus();
     },320);
   },50);
-}
-function setEditUrg(u){editUrg=u;['i','u','r'].forEach(function(x){document.getElementById('eub-'+x).className='ub'+(x===u?' sel-'+x:'');});}
-function saveEdit(){
-  var t=tasks.find(function(x){return x.id===editId;});if(!t)return;
-  var nd=document.getElementById('edit-desc').value.trim();
-  var np=document.getElementById('edit-pid').value.trim();
-  if(!nd)return;
-  t.desc=nd;t.pid=np;t.urg=editUrg;
-  save();closeSheet();render();
 }
 function moveToTeam(){
   var t=tasks.find(function(x){return x.id===editId;});if(!t||!teamSession)return;
@@ -2097,6 +2299,59 @@ function render(){
     list.innerHTML='';
     // Rebuild filter pills with current state
     initUrgencyFilterPills();
+
+    if(_groupByTag){
+      // Group by tag
+      var tagGroups={};var tagOrder=[];
+      show.forEach(function(t){
+        var key=t.tag||'__untagged__';
+        if(!tagGroups[key]){tagGroups[key]=[];tagOrder.push(key);}
+        tagGroups[key].push(t);
+      });
+      // Sort: tagged groups first (by urgency), untagged last
+      tagOrder.sort(function(a,b){
+        if(a==='__untagged__')return 1;if(b==='__untagged__')return -1;
+        var aUrg=tagGroups[a].reduce(function(best,t){return ORD[t.urg]<ORD[best]?t.urg:best;},'r');
+        var bUrg=tagGroups[b].reduce(function(best,t){return ORD[t.urg]<ORD[best]?t.urg:best;},'r');
+        return ORD[aUrg]-ORD[bUrg];
+      });
+      tagOrder.forEach(function(key){
+        var jobs=tagGroups[key];
+        var label=key==='__untagged__'?'No tag':key;
+        var topUrg=jobs.reduce(function(best,t){return ORD[t.urg]<ORD[best]?t.urg:best;},'r');
+        var urgCol=topUrg==='i'?'var(--imm)':topUrg==='u'?'var(--urg)':'var(--rtn)';
+        var gid='tag-grp-'+key.replace(/\s+/g,'-');
+        var isOpen=_expandedGroups[gid]!==false;
+        var grp=document.createElement('div');
+        grp.className='pt-group'+(isOpen?' open':'');grp.id=gid;
+        var hdr=document.createElement('div');hdr.className='pt-group-hdr';
+        var dot=document.createElement('div');dot.style.cssText='width:8px;height:8px;border-radius:50%;background:'+urgCol+';flex-shrink:0';
+        var pid=document.createElement('div');pid.className='pt-group-pid';pid.textContent=label;
+        var meta=document.createElement('div');meta.className='pt-group-meta';
+        var cnt=document.createElement('div');cnt.className='pt-group-count';
+        cnt.textContent=jobs.length+' job'+(jobs.length!==1?'s':'');
+        var chev=document.createElement('div');chev.className='pt-group-chevron';
+        chev.innerHTML='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="4,6 8,10 12,6"/></svg>';
+        meta.appendChild(cnt);meta.appendChild(chev);
+        hdr.appendChild(dot);hdr.appendChild(pid);hdr.appendChild(meta);
+        hdr.addEventListener('click',function(){var open=grp.classList.toggle('open');_expandedGroups[gid]=open;});
+        grp.appendChild(hdr);
+        var jobsWrap=document.createElement('div');jobsWrap.className='pt-group-jobs';
+        jobs.forEach(function(t){jobsWrap.innerHTML+=cardHtml(t);});
+        grp.appendChild(jobsWrap);
+        list.appendChild(grp);
+        jobs.forEach(function(t){
+          var w=jobsWrap.querySelector('[data-wrap="'+t.id+'"]');
+          if(w){if(!window._renderedIds||!window._renderedIds.has(t.id)){w.classList.add('card-new');}
+            if(_selectMode){w.addEventListener('click',function(){toggleSelect(t.id);});}
+            else{initSwipe(w,t.id);}
+          }
+        });
+      });
+      window._renderedIds=new Set(show.map(function(t){return t.id;}));
+      return;
+    }
+
     // Group by patient ID — grouped patients first, then singles
     var groups={};
     var groupOrder=[];
@@ -2253,6 +2508,7 @@ function cardHtml(t){
   var teamBadge=isTeamJob?'<span class="team-badge"><span style="width:6px;height:6px;border-radius:50%;background:var(--team);display:inline-block;margin-right:3px;vertical-align:middle"></span>Team</span>':'';
   var pidMeta='<span class="cmeta-time">'+meta+'</span>'+(t.pid?'<span class="cmeta-sep"> – </span><span class="cpid">'+esc(t.pid)+'</span>':'')+teamBadge;
   var chaseBadge='';
+  var tagBadge=t.tag?'<span style="display:inline-block;padding:1px 7px;border-radius:8px;font-size:10px;font-weight:600;background:var(--team-bg);color:var(--team);margin-left:6px;vertical-align:middle">'+esc(t.tag)+'</span>':'';
   var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
   var returnIcon='<svg viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4H6a3 3 0 0 0 0 6h7"/><polyline points="10,11 13,14 10,17" transform="translate(0,-3)"/></svg>';
   var chkContent=t.done?returnIcon:tick;
@@ -2267,9 +2523,9 @@ function cardHtml(t){
     +'<div class="card-delete-bg"><svg viewBox="0 0 18 18"><line x1="2" y1="2" x2="16" y2="16"/><line x1="16" y1="2" x2="2" y2="16"/></svg></div>'))
     +'<div class="card '+cls+'" data-id="'+t.id+'" style="position:relative;'+(isSelected?'background:var(--rtn-bg);border-left:3px solid var(--rtn);':'')+'">'
     +(_selectMode?'':('<div class="chk-wrap" onclick="complete(\''+t.id+'\')" title="'+(t.done?'Return to active':'Mark done')+'"><div class="chk">'+chkContent+'</div></div>'))
-    +'<div class="cbody" style="cursor:pointer"><div class="cleft">'
+    +'<div class="cbody" onclick="'+(_selectMode?'toggleSelect(\''+t.id+'\')':'openDetail(\''+t.id+'\')')+'" style="cursor:pointer"><div class="cleft">'
     +'<div class="cmeta">'+pidMeta+'</div>'
-    +'<div class="cdesc">'+esc(t.desc)+chaseBadge+'</div>'
+    +'<div class="cdesc">'+esc(t.desc)+chaseBadge+tagBadge+'</div>'
     +'</div></div>'
     +(_selectMode?selectCb:chaseBtn)
     +(_selectMode?'':('<div class="del-wrap"><button class="del" onclick="confirmDel(\''+t.id+'\')" aria-label="Delete"><svg viewBox="0 0 15 15"><line x1="2" y1="2" x2="13" y2="13"/><line x1="13" y1="2" x2="2" y2="13"/></svg></button></div>'))
@@ -2561,7 +2817,7 @@ function joinSessionByCode(code,name){
   }).then(function(data){
     teamJobs=(data&&data.jobs)||{};teamMembers=(data&&data.members)||{};
     teamCreatorId=(data&&data.createdBy)||null;
-    if(data&&data.created)window.teamSessionCreated=data.created;
+    if(data&&data.created){window.teamSessionCreated=data.created;try{localStorage.setItem('wj_team_created',data.created);}catch(e){}}
     if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
     // Pick up ward template from session
     if(data&&data.ward){
@@ -2685,6 +2941,8 @@ function leaveSession(){
   saveRecentSession(leftCode,myName);
   teamSession=null;teamJobs={};teamMembers={};teamCreatorId=null;
   localStorage.removeItem('wj_team');
+  localStorage.removeItem('wj_team_created');
+  window.teamSessionCreated=0;
   localStorage.setItem('wj_team_left_code',leftCode);
   var tl=document.getElementById('tab-team-label');if(tl)tl.textContent='Team';
   var ld=document.getElementById('team-live-dot');if(ld)ld.style.display='none';
@@ -2856,8 +3114,9 @@ function renderTeamTab(){
 
   // Session time bar
   var barPct=100,timeLabel='Session active';
-  if(window.teamSessionCreated){
-    var elapsed=Date.now()-window.teamSessionCreated;
+  if(window.teamSessionCreated||localStorage.getItem('wj_team_created')){
+    var created=window.teamSessionCreated||parseInt(localStorage.getItem('wj_team_created')||'0');
+    var elapsed=Date.now()-created;
     var remaining=Math.max(0,TEAM_SESSION_MS-elapsed);
     barPct=Math.round((remaining/TEAM_SESSION_MS)*100);
     var h=Math.floor(remaining/3600000),mn=Math.floor((remaining%3600000)/60000);
@@ -3815,6 +4074,14 @@ function submitBulkAdd(){
   }
 }
 
+function openMoreDrawer(){
+  var d=document.getElementById('more-drawer');
+  if(d){d.style.display='flex';}
+}
+function closeMoreDrawer(){
+  var d=document.getElementById('more-drawer');
+  if(d)d.style.display='none';
+}
 function showBanner(msg,bg){
   var banner=document.createElement('div');
   banner.style.cssText='position:fixed;top:calc(var(--safe-top) + 12px);left:50%;transform:translateX(-50%);background:'+bg+';color:#fff;font-size:13px;font-weight:600;padding:11px 20px;border-radius:24px;z-index:100;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.15);font-family:DM Sans,sans-serif';
@@ -3824,6 +4091,7 @@ function showBanner(msg,bg){
 
 function startApp(){
   load();
+  loadTags();
   loadWardTemplates();
   var sw=document.getElementById('search-wrap');
   if(sw)sw.style.display='block';
@@ -3855,6 +4123,9 @@ function startApp(){
   })();
 
   render();tick();setInterval(tick,15000);
+  // Restore team session created time immediately from localStorage
+  var storedCreated=parseInt(localStorage.getItem('wj_team_created')||'0');
+  if(storedCreated&&teamSession)window.teamSessionCreated=storedCreated;
   // Show search and filter on initial active tab
   var sw=document.getElementById('search-wrap');
   if(sw)sw.style.display='block';
