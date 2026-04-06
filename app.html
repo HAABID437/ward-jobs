@@ -2241,7 +2241,7 @@ function enterSelectMode(){
 function exitSelectMode(){
   _selectMode=false;_selectedIds.clear();
   var sb=document.getElementById('select-mode-bar');if(sb)sb.style.display='none';
-  var uf=document.getElementById('urgency-filter-wrap');if(uf)uf.style.display='flex';
+  var uf=document.getElementById('urgency-filter-wrap');if(uf)uf.style.display=curTab==='active'?'flex':'none';
   var sf=document.getElementById('select-fab');
   if(sf){sf.textContent='Select';sf.style.color='var(--muted)';sf.onclick=enterSelectMode;}
   var mb=document.getElementById('multi-complete-bar');if(mb)mb.style.display='none';
