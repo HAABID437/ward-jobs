@@ -1298,11 +1298,18 @@ function pollUserTasks(){
       applyTheme(_theme);
     }
 
-    // Always sync session start — independent of whether tasks changed
+    // Sync session start — but only if cloud session is NOT expired
     if(data.sessionStart){
       var localStart=parseInt(localStorage.getItem('wj_start')||'0');
-      if(!localStart||data.sessionStart<localStart){
-        localStorage.setItem('wj_start',''+data.sessionStart);
+      var cloudExpired=Date.now()-data.sessionStart>SHIFT_MS;
+      if(!cloudExpired){
+        if(!localStart||data.sessionStart<localStart){
+          localStorage.setItem('wj_start',''+data.sessionStart);
+          updateSessionBar();
+        }
+      }else if(!localStart||Date.now()-localStart>SHIFT_MS){
+        // Both expired — reset shift start now
+        localStorage.setItem('wj_start',''+Date.now());
         updateSessionBar();
       }
     }
@@ -1315,8 +1322,15 @@ function pollUserTasks(){
     if(hash===_lastUserHash)return;
     _lastUserHash=hash;
 
-    // Cloud is source of truth for deletions.
-    // Local only contributes tasks added AFTER the last cloud write (not yet pushed).
+    // Don't restore cloud tasks from a previous expired session
+    var cloudSessionExpired=data.sessionStart&&(Date.now()-data.sessionStart>SHIFT_MS);
+    if(cloudSessionExpired){
+      // Cloud data is from an old shift — ignore tasks, just update cloud with empty
+      _lastUserHash=hash;
+      syncToCloud();
+      return;
+    }
+
     var cloudIds=new Set(cloudTasks.map(function(t){return t.id;}));
     var localOnly=tasks.filter(function(t){
       return !t.teamJobId && !cloudIds.has(t.id) && (t.added||0)>cloudSaved;
