@@ -1346,7 +1346,7 @@ function pollUserTasks(){
         }
         teamSession=cloudTeamCode;
         teamCreatorId=sess.createdBy||null;
-        if(sess.created)window.teamSessionCreated=sess.created;
+        if(sess.created){window.teamSessionCreated=sess.created;try{localStorage.setItem('wj_team_created',sess.created);}catch(e){}}
         teamJobs=sess.jobs||{};teamMembers=sess.members||{};
         if(teamMembers[myId]&&teamMembers[myId].color){myColor=teamMembers[myId].color;localStorage.setItem('wj_color',myColor);}
         localStorage.setItem('wj_team',cloudTeamCode);
@@ -2310,12 +2310,10 @@ function updateSessionBar(){
       if(start){
         var rem=Math.max(0,SHIFT_MS-(Date.now()-start));
         if(rem<=0){
-          // Shift expired — auto-reset the clock silently
-          localStorage.setItem('wj_start',''+Date.now());
           at.textContent='';
         }else{
           var h=Math.floor(rem/3600000),m=Math.floor((rem%3600000)/60000);
-          at.textContent=h>0?'clears in '+h+'h '+m+'m':'clears in '+m+'m';
+          at.textContent=h>0?h+'h '+m+'m left':m+'m left';
         }
       }
     }
@@ -2324,11 +2322,11 @@ function updateSessionBar(){
     var tt=document.getElementById('tab-team-time');
     if(tt){
       if(teamSession){
-        var created=window.teamSessionCreated||0;
+        var created=window.teamSessionCreated||parseInt(localStorage.getItem('wj_team_created')||'0');
         if(created){
           var trem=Math.max(0,TEAM_SESSION_MS-(Date.now()-created));
           var th=Math.floor(trem/3600000),tm=Math.floor((trem%3600000)/60000);
-          tt.textContent=trem<=0?'':th>0?'clears in '+th+'h '+tm+'m':'clears in '+tm+'m';
+          tt.textContent=trem<=0?'expired':th>0?th+'h '+tm+'m left':tm+'m left';
         }else{
           tt.textContent='';
         }
@@ -2385,7 +2383,7 @@ function fetchTeamData(){
     _lastTeamHash=newHash;
     teamJobs=data.jobs||{};teamMembers=members;
     teamCreatorId=data.createdBy||teamCreatorId;
-    if(data.created)window.teamSessionCreated=data.created;
+    if(data.created){window.teamSessionCreated=data.created;try{localStorage.setItem("wj_team_created",data.created);}catch(e){}}
     if(changed){
       if(curTab==='team')renderTeamTab();
       updateCounts();
@@ -2555,7 +2553,7 @@ function joinSession(){
 }
 function joinSessionByCode(code,name){
   stopTeamPoll();teamSession=code;
-  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);localStorage.removeItem('wj_team_left_code');
+  localStorage.setItem('wj_team',code);localStorage.setItem('wj_name',name);localStorage.removeItem('wj_team_left_code');localStorage.removeItem('wj_team_created');
   // Always register presence first — before polling starts so membership check never fails
   var md={};md[myId]={name:name,color:myColor,joined:Date.now()};
   dbUpdate('/sessions/'+code+'/members',md).then(function(){
