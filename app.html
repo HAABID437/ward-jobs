@@ -121,7 +121,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .tc{display:none}
 
 /* List */
-.list{padding:2px 14px 160px}
+.list{padding:2px 14px calc(180px + var(--safe-bot))}
 .sec-hdr{font-family:'DM Serif Display',serif;font-size:13px;font-weight:400;font-style:italic;padding:12px 4px 5px;display:flex;align-items:center;gap:10px;letter-spacing:0.01em}
 .sec-hdr::after{content:'';flex:1;height:1px}
 .sec-hdr.i{color:var(--imm)}.sec-hdr.i::after{background:var(--imm-bd)}
@@ -171,6 +171,7 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .pt-group-jobs .card-wrap{margin-bottom:0;border-radius:0;border-top:1px solid var(--border)}
 .pt-group-jobs .card-wrap:first-child{border-top:none}
 .pt-group-jobs .card-wrap .card{border-radius:0}
+.pt-group-jobs .card-wrap:last-child .card{border-radius:0 0 14px 14px}
 .pt-group-jobs .card-wrap{overflow:hidden}
 /* Hide pid in meta when inside group */
 .pt-group-jobs .cpid{display:none}
@@ -521,7 +522,7 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
     <div id="select-mode-bar" style="display:none;padding:0 14px 8px;align-items:center;justify-content:flex-end">
       <span id="select-count-label" style="font-size:13px;font-weight:600;color:var(--muted)">Tap jobs to select</span>
     </div>
-    <div id="urgency-filter-wrap" style="display:none;gap:6px;padding:0 14px 8px;flex-wrap:nowrap;align-items:center">
+    <div id="urgency-filter-wrap" style="display:none;gap:6px;padding:0 14px 8px;flex-wrap:nowrap;align-items:center;overflow-x:auto">
     </div>
     <div class="list" id="list"></div>
   </div>
@@ -1748,25 +1749,46 @@ function initUrgencyFilterPills(){
   var uf=document.getElementById('urgency-filter-wrap');
   if(!uf)return;
   uf.innerHTML='';
-  var pill=function(id,label){
+
+  // Segmented control for urgency
+  var seg=document.createElement('div');
+  seg.style.cssText='display:flex;background:var(--surface2);border-radius:20px;padding:3px;gap:2px;flex:1;min-width:0';
+  ['all','i','u','r'].forEach(function(x){
+    var labels={all:'All',i:'Imm',u:'Urg',r:'Rtn'};
     var b=document.createElement('button');
-    b.id=id;b.textContent=label;
-    b.style.cssText='padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:1.5px solid var(--border-mid);background:transparent;color:var(--muted);transition:all 0.15s';
-    b.onclick=function(){setUrgFilter(b.id.replace('uf-',''));};
-    return b;
-  };
-  uf.appendChild(pill('uf-all','All'));
-  uf.appendChild(pill('uf-i','Immediate'));
-  uf.appendChild(pill('uf-u','Urgent'));
-  uf.appendChild(pill('uf-r','Routine'));
-  // Group by tag toggle
+    b.id='uf-'+x;b.textContent=labels[x];
+    b.style.cssText='flex:1;padding:5px 4px;border-radius:16px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all 0.15s;white-space:nowrap';
+    b.onclick=function(){setUrgFilter(x);};
+    seg.appendChild(b);
+  });
+  uf.appendChild(seg);
+
+  // Group by tag toggle — small text button
   var gt=document.createElement('button');
   gt.id='uf-group-toggle';
-  gt.textContent=_groupByTag?'Group: Tag ✓':'Group: Tag';
-  gt.style.cssText='padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:1.5px solid '+(_groupByTag?'var(--team)':'var(--border-mid)')+';background:'+(_groupByTag?'var(--team-bg)':'transparent')+';color:'+(_groupByTag?'var(--team)':'var(--muted)')+';transition:all 0.15s;margin-left:4px';
+  gt.textContent=_groupByTag?'Tag ✓':'Tag';
+  gt.style.cssText='padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;font-family:DM Sans,sans-serif;cursor:pointer;border:1.5px solid '+(_groupByTag?'var(--team)':'var(--border-mid)')+';background:'+(_groupByTag?'var(--team-bg)':'transparent')+';color:'+(_groupByTag?'var(--team)':'var(--muted)')+';white-space:nowrap;flex-shrink:0';
   gt.onclick=function(){_groupByTag=!_groupByTag;render();};
   uf.appendChild(gt);
+
   applyUrgFilterStyles();
+}
+
+function applyUrgFilterStyles(){
+  var cols={i:'var(--imm)',u:'var(--urg)',r:'var(--rtn)'};
+  var bgs={i:'var(--imm-bg)',u:'var(--urg-bg)',r:'var(--rtn-bg)'};
+  ['all','i','u','r'].forEach(function(x){
+    var btn=document.getElementById('uf-'+x);
+    if(!btn)return;
+    var isActive=x===urgFilter;
+    if(isActive){
+      btn.style.background=x==='all'?'var(--text)':bgs[x];
+      btn.style.color=x==='all'?'var(--bg)':cols[x];
+    }else{
+      btn.style.background='transparent';
+      btn.style.color='var(--muted)';
+    }
+  });
 }
 
 function applyUrgFilterStyles(){
@@ -2282,7 +2304,7 @@ function toggleAllGroups(){
     else{g.classList.add('open');_expandedGroups[g.id]=true;}
   });
   var btn=document.getElementById('toggle-all-groups-btn');
-  if(btn)btn.textContent=_allCollapsed?'Expand all':'Collapse all';
+  if(btn)btn.textContent=_allCollapsed?'↕ Expand':'↕ Collapse';
 }
 
 function render(){
@@ -2387,13 +2409,12 @@ function render(){
     // Add collapse/expand button inline with filter pills
     var uf2=document.getElementById('urgency-filter-wrap');
     if(hasGroups&&uf2){
-      var spacer=document.createElement('div');spacer.style.cssText='flex:1;min-width:8px';
       var toggleBtn=document.createElement('button');
       toggleBtn.id='toggle-all-groups-btn';
-      toggleBtn.textContent=_allCollapsed?'Expand all':'Collapse all';
-      toggleBtn.style.cssText='background:var(--surface2);border:1.5px solid var(--border-mid);font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0';
+      toggleBtn.textContent=_allCollapsed?'↕ Expand':'↕ Collapse';
+      toggleBtn.style.cssText='background:transparent;border:1.5px solid var(--border-mid);font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;font-family:DM Sans,sans-serif;padding:5px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0';
       toggleBtn.onclick=toggleAllGroups;
-      uf2.appendChild(spacer);uf2.appendChild(toggleBtn);
+      uf2.appendChild(toggleBtn);
     }
     groupOrder.forEach(function(key){
       var jobs=groups[key];
@@ -2526,7 +2547,9 @@ function cardHtml(t){
   var tick='<svg viewBox="0 0 17 17"><polyline points="3,9 7,13 14,4"/></svg>';
   var returnIcon='<svg viewBox="0 0 17 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4H6a3 3 0 0 0 0 6h7"/><polyline points="10,11 13,14 10,17" transform="translate(0,-3)"/></svg>';
   var chkContent=t.done?returnIcon:tick;
-  var chaseBtn=(!t.done&&!t.chase)?'<button onclick="markChase(\''+t.id+'\')" style="padding:6px 11px;background:transparent;color:#f0a500;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px">Chase</button>':(!t.done?'<button onclick="markChase(\''+t.id+'\')" style="padding:6px 11px;background:#f0a500;color:#fff;border:2px solid #f0a500;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px">Chasing ✕</button>':'');
+  var chaseBtn=(!t.done&&!t.chase)
+    ?'<button onclick="markChase(\''+t.id+'\')" style="padding:5px 10px;background:transparent;color:#f0a500;border:1.5px solid #f0a500;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px;white-space:nowrap">Chase</button>'
+    :(!t.done?'<button onclick="markChase(\''+t.id+'\')" style="padding:5px 10px;background:#fff8e6;color:#c47f00;border:1.5px solid #f0a500;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;flex-shrink:0;margin-right:6px;white-space:nowrap">Chasing</button>':'');
   var isSelected=_selectMode&&_selectedIds.has(t.id);
   var selectCb=_selectMode
     ?'<div data-cb onclick="event.stopPropagation();toggleSelect(\''+t.id+'\')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);z-index:5;cursor:pointer;width:22px;height:22px;border-radius:50%;border:2px solid '+(isSelected?'var(--rtn)':'var(--border-mid)')+';background:'+(isSelected?'var(--rtn)':'transparent')+';display:flex;align-items:center;justify-content:center;transition:all 0.15s">'
