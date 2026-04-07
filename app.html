@@ -1775,40 +1775,16 @@ function initUrgencyFilterPills(){
 }
 
 function applyUrgFilterStyles(){
-  var cols={i:'var(--imm)',u:'var(--urg)',r:'var(--rtn)'};
-  var bgs={i:'var(--imm-bg)',u:'var(--urg-bg)',r:'var(--rtn-bg)'};
+  var solidBgs={i:'#c0392b',u:'#e67e00',r:'#2d7a55'};
   ['all','i','u','r'].forEach(function(x){
     var btn=document.getElementById('uf-'+x);
     if(!btn)return;
     var isActive=x===urgFilter;
-    if(isActive){
-      btn.style.background=x==='all'?'var(--text)':bgs[x];
-      btn.style.color=x==='all'?'var(--bg)':cols[x];
-    }else{
-      btn.style.background='transparent';
-      btn.style.color='var(--muted)';
-    }
+    btn.style.background=isActive?(x==='all'?'#1c1917':solidBgs[x]):'transparent';
+    btn.style.color=isActive?'#fff':'var(--muted)';
   });
 }
 
-function applyUrgFilterStyles(){
-  var cols={i:'var(--imm)',u:'var(--urg)',r:'var(--rtn)'};
-  var bgs={i:'var(--imm-bg)',u:'var(--urg-bg)',r:'var(--rtn-bg)'};
-  ['all','i','u','r'].forEach(function(x){
-    var btn=document.getElementById('uf-'+x);
-    if(!btn)return;
-    var isActive=x===urgFilter;
-    if(isActive){
-      btn.style.background=x==='all'?'var(--text)':bgs[x];
-      btn.style.color=x==='all'?'var(--bg)':cols[x];
-      btn.style.borderColor=x==='all'?'var(--text)':cols[x];
-    }else{
-      btn.style.background='transparent';
-      btn.style.color='var(--muted)';
-      btn.style.borderColor='var(--border-mid)';
-    }
-  });
-}
 function setUrgFilter(f){
   urgFilter=f;
   applyUrgFilterStyles();
