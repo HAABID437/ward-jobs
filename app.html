@@ -3573,7 +3573,28 @@ function renderBayBuilder(){
     row.appendChild(presets);
 
     var bedsRow=document.createElement('div');bedsRow.className='bay-beds-row';
-    bedsRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center';
+    bedsRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:36px;padding:4px;border-radius:10px;transition:background 0.15s';
+
+    // Allow dropping onto the bay's bed area (for cross-bay moves to end of list)
+    bedsRow.addEventListener('dragover',function(e){
+      if(e.dataTransfer.types.includes('bed-idx')){e.preventDefault();bedsRow.style.background='var(--team-bg)';}
+    });
+    bedsRow.addEventListener('dragleave',function(e){
+      if(!bedsRow.contains(e.relatedTarget))bedsRow.style.background='';
+    });
+    bedsRow.addEventListener('drop',function(e){
+      bedsRow.style.background='';
+      if(!e.dataTransfer.types.includes('bed-idx'))return;
+      // Only handle if dropped directly on bedsRow not on a chip
+      if(e.target!==bedsRow&&e.target.closest('.bay-bed-chip'))return;
+      e.preventDefault();e.stopPropagation();
+      var fromBay=parseInt(e.dataTransfer.getData('bed-bay'));
+      var fromIdx=parseInt(e.dataTransfer.getData('bed-idx'));
+      if(fromBay===bi&&fromIdx===_builderBays[bi].beds.length-1)return;
+      var moved=_builderBays[fromBay].beds.splice(fromIdx,1)[0];
+      _builderBays[bi].beds.push(moved);
+      renderBayBuilder();
+    });
     bay.beds.forEach(function(bed,bedi){
       var chip=document.createElement('div');chip.className='bay-bed-chip';
       chip.setAttribute('draggable','true');
