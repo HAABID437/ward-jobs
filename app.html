@@ -196,10 +196,15 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .ward-bed.has-urg .ward-bed-dot{background:var(--urg)}
 .ward-bed.has-rtn .ward-bed-dot{background:var(--rtn)}
 /* Builder */
-.bay-builder-row{background:var(--surface2);border-radius:14px;padding:12px 14px;margin-bottom:8px}
-.bay-beds-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.bay-bed-chip{display:flex;align-items:center;gap:4px;background:var(--surface3);border-radius:10px;padding:4px 10px;font-size:12px;font-weight:600;color:var(--text)}
-.bay-bed-chip button{background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;line-height:1;padding:0 0 0 2px}
+.bay-builder-row{background:var(--surface);border:1.5px solid var(--border-mid);border-radius:16px;padding:14px;margin-bottom:10px;transition:box-shadow 0.2s}
+.bay-builder-row.dragging{opacity:0.4;box-shadow:none}
+.bay-builder-row.drag-over{border-color:var(--team);border-style:dashed}
+.bay-beds-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:36px;padding:6px;border-radius:10px;transition:background 0.15s}
+.bay-beds-row.drag-over{background:var(--team-bg)}
+.bay-bed-chip{display:inline-flex;align-items:center;gap:3px;background:var(--surface2);border:1.5px solid var(--border-mid);border-radius:10px;padding:5px 8px 5px 10px;font-size:13px;font-weight:600;color:var(--text);user-select:none;cursor:grab;touch-action:none}
+.bay-bed-chip.dragging{opacity:0.3}
+.bay-bed-chip.drag-over{border-color:var(--team);background:var(--team-bg)}
+.bay-bed-chip button{background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;padding:0 0 0 2px;font-weight:700}
 /* Auth */
 .auth-avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0}
 .auth-input-wrap{margin-bottom:12px}
@@ -3517,127 +3522,103 @@ function renderBayBuilder(){
   wrap.innerHTML='';
   _builderBays.forEach(function(bay,bi){
     var row=document.createElement('div');row.className='bay-builder-row';
-    row.setAttribute('draggable','true');
-    row.dataset.bayIdx=bi;
-
-    // Bay drag handle + header
-    var nameRow=document.createElement('div');nameRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:4px';
+    var nameRow=document.createElement('div');nameRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:10px';
     var handle=document.createElement('div');
-    handle.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="3.5" r="1" fill="currentColor"/><circle cx="9" cy="3.5" r="1" fill="currentColor"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="9" cy="7" r="1" fill="currentColor"/><circle cx="5" cy="10.5" r="1" fill="currentColor"/><circle cx="9" cy="10.5" r="1" fill="currentColor"/></svg>';
-    handle.style.cssText='cursor:grab;color:var(--dim);padding:4px;flex-shrink:0;touch-action:none';
+    handle.innerHTML='<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor" opacity="0.4"><circle cx="4" cy="3" r="1.5"/><circle cx="8" cy="3" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="13" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>';
+    handle.style.cssText='cursor:grab;color:var(--muted);padding:4px 6px;flex-shrink:0;display:flex;align-items:center';
+    initBayDrag(handle,row,bi,wrap);
     var inp=document.createElement('input');
-    inp.type='text';inp.placeholder='Bay name (e.g. Bay 1, Side rooms)';
-    inp.value=bay.name;inp.maxLength=30;inp.autocomplete='off';
-    inp.style.cssText='flex:1;padding:9px 12px;font-size:14px';
+    inp.type='text';inp.placeholder='Bay / zone name';inp.value=bay.name;inp.maxLength=30;inp.autocomplete='off';
+    inp.style.cssText='flex:1;padding:8px 12px;font-size:14px;font-weight:600';
     inp.oninput=function(){_builderBays[bi].name=inp.value;};
     var del=document.createElement('button');
-    del.textContent='✕';del.style.cssText='background:var(--imm-bg);color:var(--imm);border:none;border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:DM Sans,sans-serif';
+    del.innerHTML='<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>';
+    del.style.cssText='background:var(--imm-bg);color:var(--imm);border:none;border-radius:10px;padding:8px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center';
     del.onclick=function(){_builderBays.splice(bi,1);renderBayBuilder();};
     nameRow.appendChild(handle);nameRow.appendChild(inp);nameRow.appendChild(del);row.appendChild(nameRow);
-
-    // Bay drag events
-    row.addEventListener('dragstart',function(e){
-      e.dataTransfer.setData('bay-idx',bi);
-      row.style.opacity='0.4';
-    });
-    row.addEventListener('dragend',function(){row.style.opacity='1';});
-    row.addEventListener('dragover',function(e){
-      if(e.dataTransfer.types.includes('bay-idx')){e.preventDefault();row.style.borderTop='2px solid var(--team)';}
-    });
-    row.addEventListener('dragleave',function(){row.style.borderTop='';});
-    row.addEventListener('drop',function(e){
-      row.style.borderTop='';
-      if(!e.dataTransfer.types.includes('bay-idx'))return;
-      e.preventDefault();
-      var from=parseInt(e.dataTransfer.getData('bay-idx'));
-      var to=bi;
-      if(from===to)return;
-      var moved=_builderBays.splice(from,1)[0];
-      _builderBays.splice(to,0,moved);
-      renderBayBuilder();
-    });
-
     var presets=document.createElement('div');presets.style.cssText='display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px';
-    [[4,'4 beds'],[6,'6 beds'],[2,'2 side rooms']].forEach(function(p){
-      var pb=document.createElement('button');
-      pb.textContent='+'+p[1];
-      pb.style.cssText='padding:4px 10px;background:var(--surface3);border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
+    [[4,'4 beds'],[6,'6 beds'],[2,'Side rooms']].forEach(function(p){
+      var pb=document.createElement('button');pb.textContent='+'+p[1];
+      pb.style.cssText='padding:4px 10px;background:var(--surface2);border:1px solid var(--border-mid);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
       pb.onclick=function(){
-        var prefix=p[0]===2?'SR ':'Bed ';
-        var start=_builderBays[bi].beds.length+1;
-        for(var i=0;i<p[0];i++)_builderBays[bi].beds.push(prefix+(start+i));
-        renderBayBuilder();
-      };
-      presets.appendChild(pb);
-    });
-    row.appendChild(presets);
-
-    var bedsRow=document.createElement('div');bedsRow.className='bay-beds-row';
-    bedsRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:36px;padding:4px;border-radius:10px;transition:background 0.15s';
-
-    // Allow dropping onto the bay's bed area (for cross-bay moves to end of list)
-    bedsRow.addEventListener('dragover',function(e){
-      if(e.dataTransfer.types.includes('bed-idx')){e.preventDefault();bedsRow.style.background='var(--team-bg)';}
-    });
-    bedsRow.addEventListener('dragleave',function(e){
-      if(!bedsRow.contains(e.relatedTarget))bedsRow.style.background='';
-    });
-    bedsRow.addEventListener('drop',function(e){
-      bedsRow.style.background='';
-      if(!e.dataTransfer.types.includes('bed-idx'))return;
-      // Only handle if dropped directly on bedsRow not on a chip
-      if(e.target!==bedsRow&&e.target.closest('.bay-bed-chip'))return;
-      e.preventDefault();e.stopPropagation();
-      var fromBay=parseInt(e.dataTransfer.getData('bed-bay'));
-      var fromIdx=parseInt(e.dataTransfer.getData('bed-idx'));
-      if(fromBay===bi&&fromIdx===_builderBays[bi].beds.length-1)return;
-      var moved=_builderBays[fromBay].beds.splice(fromIdx,1)[0];
-      _builderBays[bi].beds.push(moved);
-      renderBayBuilder();
-    });
+        var prefix=p[0]===2?'SR ':'Bed ';var start=_builderBays[bi].beds.length+1;
+        for(var i=0;i<p[0];i++)_builderBays[bi].beds.push(prefix+(start+i));renderBayBuilder();
+      };presets.appendChild(pb);
+    });row.appendChild(presets);
+    var bedsRow=document.createElement('div');bedsRow.className='bay-beds-row';bedsRow._bayIdx=bi;
     bay.beds.forEach(function(bed,bedi){
       var chip=document.createElement('div');chip.className='bay-bed-chip';
-      chip.setAttribute('draggable','true');
-      chip.dataset.bedIdx=bedi;
-      chip.style.cursor='grab';
-
-      // Bed drag events
-      chip.addEventListener('dragstart',function(e){
-        e.stopPropagation();
-        e.dataTransfer.setData('bed-bay',bi);
-        e.dataTransfer.setData('bed-idx',bedi);
-        chip.style.opacity='0.4';
-      });
-      chip.addEventListener('dragend',function(){chip.style.opacity='1';});
-      chip.addEventListener('dragover',function(e){
-        if(e.dataTransfer.types.includes('bed-idx')){e.preventDefault();chip.style.outline='2px solid var(--team)';}
-      });
-      chip.addEventListener('dragleave',function(){chip.style.outline='';});
-      chip.addEventListener('drop',function(e){
-        chip.style.outline='';
-        if(!e.dataTransfer.types.includes('bed-idx'))return;
-        e.preventDefault();e.stopPropagation();
-        var fromBay=parseInt(e.dataTransfer.getData('bed-bay'));
-        var fromIdx=parseInt(e.dataTransfer.getData('bed-idx'));
-        if(fromBay===bi&&fromIdx===bedi)return;
-        var moved=_builderBays[fromBay].beds.splice(fromIdx,1)[0];
-        _builderBays[bi].beds.splice(bedi,0,moved);
-        renderBayBuilder();
-      });
-
-      var lbl=document.createElement('span');
-      lbl.contentEditable=true;lbl.textContent=bed;lbl.style.cssText='outline:none;min-width:20px';
+      var lbl=document.createElement('span');lbl.contentEditable=true;lbl.textContent=bed;lbl.style.cssText='outline:none;min-width:20px';
       lbl.oninput=function(){_builderBays[bi].beds[bedi]=lbl.textContent.trim();};
-      var rm=document.createElement('button');rm.textContent='×';rm.title='Remove';
-      rm.onclick=function(){_builderBays[bi].beds.splice(bedi,1);renderBayBuilder();};
-      chip.appendChild(lbl);chip.appendChild(rm);bedsRow.appendChild(chip);
+      lbl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();lbl.blur();}});
+      var rm=document.createElement('button');rm.textContent='×';rm.title='Remove';rm.style.cssText='color:var(--muted);font-size:14px;font-weight:700';
+      rm.onclick=function(e){e.stopPropagation();_builderBays[bi].beds.splice(bedi,1);renderBayBuilder();};
+      chip.appendChild(lbl);chip.appendChild(rm);initBedDrag(chip,bi,bedi);bedsRow.appendChild(chip);
     });
-    var addBed=document.createElement('button');
-    addBed.textContent='+ bed';
-    addBed.style.cssText='background:var(--surface);border:1px dashed var(--border-mid);border-radius:10px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
+    var addBed=document.createElement('button');addBed.textContent='+ bed';
+    addBed.style.cssText='background:transparent;border:1px dashed var(--border-mid);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
     addBed.onclick=function(){_builderBays[bi].beds.push('Bed '+(_builderBays[bi].beds.length+1));renderBayBuilder();};
-    bedsRow.appendChild(addBed);
-    row.appendChild(bedsRow);wrap.appendChild(row);
+    bedsRow.appendChild(addBed);row.appendChild(bedsRow);wrap.appendChild(row);
+  });
+}
+
+var _draggingBed=null;
+var _draggingBayEl=null;
+function initBedDrag(chip,bi,bedi){
+  chip.addEventListener('pointerdown',function(e){
+    if(e.target.tagName==='BUTTON'||e.target.tagName==='SPAN')return;
+    e.preventDefault();_draggingBed={fromBay:bi,fromIdx:bedi};chip.classList.add('dragging');chip.setPointerCapture(e.pointerId);
+  });
+  chip.addEventListener('pointermove',function(e){
+    if(!_draggingBed)return;
+    document.querySelectorAll('.bay-beds-row').forEach(function(br){
+      var r=br.getBoundingClientRect();
+      if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){br.classList.add('drag-over');}else{br.classList.remove('drag-over');}
+    });
+  });
+  chip.addEventListener('pointerup',function(e){
+    if(!_draggingBed)return;
+    chip.classList.remove('dragging');
+    document.querySelectorAll('.bay-beds-row').forEach(function(br){br.classList.remove('drag-over');});
+    var targetBay=null,targetIdx=null;
+    document.querySelectorAll('.bay-bed-chip:not(.dragging)').forEach(function(c){
+      var r=c.getBoundingClientRect();
+      if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){
+        var br=c.closest('.bay-beds-row');if(br){targetBay=br._bayIdx;var chips=Array.from(br.querySelectorAll('.bay-bed-chip:not(.dragging)'));targetIdx=chips.indexOf(c);}
+      }
+    });
+    if(targetBay===null){
+      document.querySelectorAll('.bay-beds-row').forEach(function(br){
+        var r=br.getBoundingClientRect();if(e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){targetBay=br._bayIdx;targetIdx=_builderBays[br._bayIdx].beds.length;}
+      });
+    }
+    if(targetBay!==null&&!(targetBay===_draggingBed.fromBay&&targetIdx===_draggingBed.fromIdx)){
+      var moved=_builderBays[_draggingBed.fromBay].beds.splice(_draggingBed.fromIdx,1)[0];
+      _builderBays[targetBay].beds.splice(targetIdx!==null?targetIdx:_builderBays[targetBay].beds.length,0,moved);
+      renderBayBuilder();
+    }
+    _draggingBed=null;
+  });
+}
+function initBayDrag(handle,row,bi,wrap){
+  handle.addEventListener('pointerdown',function(e){
+    e.preventDefault();_draggingBayEl={fromIdx:bi};row.classList.add('dragging');handle.setPointerCapture(e.pointerId);
+  });
+  handle.addEventListener('pointermove',function(e){
+    if(!_draggingBayEl)return;
+    wrap.querySelectorAll('.bay-builder-row:not(.dragging)').forEach(function(r){
+      var rect=r.getBoundingClientRect();r.classList.toggle('drag-over',e.clientY>=rect.top&&e.clientY<=rect.bottom);
+    });
+  });
+  handle.addEventListener('pointerup',function(e){
+    if(!_draggingBayEl)return;row.classList.remove('dragging');
+    var targetIdx=null;
+    wrap.querySelectorAll('.bay-builder-row').forEach(function(r,i){
+      r.classList.remove('drag-over');var rect=r.getBoundingClientRect();
+      if(e.clientY>=rect.top&&e.clientY<=rect.bottom&&i!==_draggingBayEl.fromIdx)targetIdx=i;
+    });
+    if(targetIdx!==null){var moved=_builderBays.splice(_draggingBayEl.fromIdx,1)[0];_builderBays.splice(targetIdx,0,moved);renderBayBuilder();}
+    _draggingBayEl=null;
   });
 }
 
