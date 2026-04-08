@@ -3520,77 +3520,114 @@ function openWardSetup(){openWardBuilder(wardTemplate||null);}
 function renderBayBuilder(){
   var wrap=document.getElementById('ward-bays-builder');
   wrap.innerHTML='';
-  _builderBays.forEach(function(bay,bi){
-    var row=document.createElement('div');row.className='bay-builder-row';
 
-    // Header
-    var nameRow=document.createElement('div');nameRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:10px';
-    var bayArrows=document.createElement('div');bayArrows.style.cssText='display:flex;flex-direction:column;gap:2px;flex-shrink:0';
-    var upB=document.createElement('button');upB.textContent='↑';
-    upB.style.cssText='background:var(--surface2);border:none;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;color:var(--muted);font-family:DM Sans,sans-serif;line-height:1';
-    upB.disabled=bi===0;upB.style.opacity=bi===0?'0.3':'1';
-    upB.onclick=function(){if(bi===0)return;var t=_builderBays[bi];_builderBays[bi]=_builderBays[bi-1];_builderBays[bi-1]=t;renderBayBuilder();};
-    var dnB=document.createElement('button');dnB.textContent='↓';
-    dnB.style.cssText='background:var(--surface2);border:none;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;color:var(--muted);font-family:DM Sans,sans-serif;line-height:1';
-    dnB.disabled=bi===_builderBays.length-1;dnB.style.opacity=bi===_builderBays.length-1?'0.3':'1';
-    dnB.onclick=function(){if(bi===_builderBays.length-1)return;var t=_builderBays[bi];_builderBays[bi]=_builderBays[bi+1];_builderBays[bi+1]=t;renderBayBuilder();};
-    bayArrows.appendChild(upB);bayArrows.appendChild(dnB);
+  // Flat list of all beds with bay separators
+  _builderBays.forEach(function(bay,bi){
+    // Bay header row
+    var bayHdr=document.createElement('div');
+    bayHdr.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px;margin-top:'+(bi===0?'0':'14px');
+
+    var bayArrows=document.createElement('div');bayArrows.style.cssText='display:flex;gap:3px;flex-shrink:0';
+    var upBay=document.createElement('button');upBay.textContent='↑';
+    upBay.style.cssText='padding:3px 8px;border:none;border-radius:6px;background:var(--surface2);font-size:11px;cursor:pointer;color:var(--muted);opacity:'+(bi===0?'0.3':'1');
+    upBay.disabled=bi===0;
+    upBay.onclick=function(){var t=_builderBays[bi];_builderBays[bi]=_builderBays[bi-1];_builderBays[bi-1]=t;renderBayBuilder();};
+    var dnBay=document.createElement('button');dnBay.textContent='↓';
+    dnBay.style.cssText='padding:3px 8px;border:none;border-radius:6px;background:var(--surface2);font-size:11px;cursor:pointer;color:var(--muted);opacity:'+(bi===_builderBays.length-1?'0.3':'1');
+    dnBay.disabled=bi===_builderBays.length-1;
+    dnBay.onclick=function(){var t=_builderBays[bi];_builderBays[bi]=_builderBays[bi+1];_builderBays[bi+1]=t;renderBayBuilder();};
+    bayArrows.appendChild(upBay);bayArrows.appendChild(dnBay);
 
     var inp=document.createElement('input');
-    inp.type='text';inp.placeholder='Bay / zone name';inp.value=bay.name;inp.maxLength=30;inp.autocomplete='off';
-    inp.style.cssText='flex:1;padding:8px 12px;font-size:14px;font-weight:600';
+    inp.type='text';inp.placeholder='Bay name';inp.value=bay.name;inp.maxLength=30;inp.autocomplete='off';
+    inp.style.cssText='flex:1;padding:7px 12px;font-size:14px;font-weight:700;background:var(--surface2);border:none;border-radius:12px;color:var(--text);font-family:DM Sans,sans-serif';
     inp.oninput=function(){_builderBays[bi].name=inp.value;};
-    var del=document.createElement('button');
-    del.innerHTML='<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>';
-    del.style.cssText='background:var(--imm-bg);color:var(--imm);border:none;border-radius:10px;padding:8px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center';
-    del.onclick=function(){_builderBays.splice(bi,1);renderBayBuilder();};
-    nameRow.appendChild(bayArrows);nameRow.appendChild(inp);nameRow.appendChild(del);
-    row.appendChild(nameRow);
 
-    // Presets
-    var presets=document.createElement('div');presets.style.cssText='display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px';
-    [[4,'4 beds'],[6,'6 beds'],[2,'Side rooms']].forEach(function(p){
+    var addPresets=document.createElement('div');addPresets.style.cssText='display:flex;gap:4px';
+    [[4,'4'],[6,'6'],[2,'SR']].forEach(function(p){
       var pb=document.createElement('button');pb.textContent='+'+p[1];
-      pb.style.cssText='padding:4px 10px;background:var(--surface2);border:1px solid var(--border-mid);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
+      pb.style.cssText='padding:5px 9px;background:var(--surface2);border:1px solid var(--border-mid);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
       pb.onclick=function(){
-        var prefix=p[0]===2?'SR ':'Bed ';var start=_builderBays[bi].beds.length+1;
+        var prefix=p[0]===2?'SR ':'Bed ';var start=bay.beds.length+1;
         for(var i=0;i<p[0];i++)_builderBays[bi].beds.push(prefix+(start+i));renderBayBuilder();
-      };presets.appendChild(pb);
-    });row.appendChild(presets);
+      };addPresets.appendChild(pb);
+    });
 
-    // Beds
-    var bedsRow=document.createElement('div');bedsRow.className='bay-beds-row';
+    var delBay=document.createElement('button');
+    delBay.innerHTML='<svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>';
+    delBay.style.cssText='background:var(--imm-bg);color:var(--imm);border:none;border-radius:8px;padding:7px;cursor:pointer;flex-shrink:0;display:flex;align-items:center';
+    delBay.onclick=function(){_builderBays.splice(bi,1);renderBayBuilder();};
+
+    bayHdr.appendChild(bayArrows);bayHdr.appendChild(inp);bayHdr.appendChild(addPresets);bayHdr.appendChild(delBay);
+    wrap.appendChild(bayHdr);
+
+    // Vertical list of beds in this bay
+    var bedList=document.createElement('div');
+    bedList.style.cssText='display:flex;flex-direction:column;gap:4px;margin-bottom:4px;padding-left:4px';
+
     bay.beds.forEach(function(bed,bedi){
-      var chip=document.createElement('div');chip.className='bay-bed-chip';
-      chip.style.cssText='display:inline-flex;align-items:center;gap:3px;background:var(--surface2);border:1.5px solid var(--border-mid);border-radius:10px;padding:4px 4px 4px 10px;font-size:13px;font-weight:600;color:var(--text)';
+      // Total position across all bays
+      var globalIdx=0;for(var x=0;x<bi;x++)globalIdx+=_builderBays[x].beds.length;globalIdx+=bedi;
+      var totalBeds=0;_builderBays.forEach(function(b){totalBeds+=b.beds.length;});
+      var isFirst=globalIdx===0;
+      var isLast=globalIdx===totalBeds-1;
+
+      var bedRow=document.createElement('div');
+      bedRow.style.cssText='display:flex;align-items:center;gap:6px;background:var(--surface);border:1.5px solid var(--border-mid);border-radius:12px;padding:8px 10px';
 
       var lbl=document.createElement('span');lbl.contentEditable=true;lbl.textContent=bed;
-      lbl.style.cssText='outline:none;min-width:20px';
+      lbl.style.cssText='flex:1;outline:none;font-size:13px;font-weight:600;color:var(--text);min-width:30px';
       lbl.oninput=function(){_builderBays[bi].beds[bedi]=lbl.textContent.trim();};
       lbl.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();lbl.blur();}});
 
-      // ← → arrows for bed
-      var lArr=document.createElement('button');lArr.textContent='←';
-      lArr.style.cssText='background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:2px 4px;line-height:1;opacity:'+(bedi===0?'0.3':'1');
-      lArr.disabled=bedi===0;
-      lArr.onclick=function(e){e.stopPropagation();if(bedi===0)return;var t=_builderBays[bi].beds[bedi];_builderBays[bi].beds[bedi]=_builderBays[bi].beds[bedi-1];_builderBays[bi].beds[bedi-1]=t;renderBayBuilder();};
+      // Move up
+      var up=document.createElement('button');
+      up.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,9 7,5 11,9"/></svg>';
+      up.style.cssText='background:none;border:none;cursor:pointer;color:'+(isFirst?'var(--border-mid)':'var(--muted)')+';padding:4px;border-radius:6px;display:flex;align-items:center;flex-shrink:0';
+      up.disabled=isFirst;
+      up.onclick=function(){
+        // Move up: if first in bay and not first bay → move to end of prev bay
+        if(bedi===0&&bi>0){
+          var b=_builderBays[bi].beds.splice(bedi,1)[0];
+          _builderBays[bi-1].beds.push(b);
+        }else if(bedi>0){
+          var t=_builderBays[bi].beds[bedi];_builderBays[bi].beds[bedi]=_builderBays[bi].beds[bedi-1];_builderBays[bi].beds[bedi-1]=t;
+        }
+        renderBayBuilder();
+      };
 
-      var rArr=document.createElement('button');rArr.textContent='→';
-      rArr.style.cssText='background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:2px 4px;line-height:1;opacity:'+(bedi===bay.beds.length-1?'0.3':'1');
-      rArr.disabled=bedi===bay.beds.length-1;
-      rArr.onclick=function(e){e.stopPropagation();if(bedi===bay.beds.length-1)return;var t=_builderBays[bi].beds[bedi];_builderBays[bi].beds[bedi]=_builderBays[bi].beds[bedi+1];_builderBays[bi].beds[bedi+1]=t;renderBayBuilder();};
+      // Move down
+      var dn=document.createElement('button');
+      dn.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 7,9 11,5"/></svg>';
+      dn.style.cssText='background:none;border:none;cursor:pointer;color:'+(isLast?'var(--border-mid)':'var(--muted)')+';padding:4px;border-radius:6px;display:flex;align-items:center;flex-shrink:0';
+      dn.disabled=isLast;
+      dn.onclick=function(){
+        // Move down: if last in bay and not last bay → move to start of next bay
+        if(bedi===bay.beds.length-1&&bi<_builderBays.length-1){
+          var b=_builderBays[bi].beds.splice(bedi,1)[0];
+          _builderBays[bi+1].beds.unshift(b);
+        }else if(bedi<bay.beds.length-1){
+          var t=_builderBays[bi].beds[bedi];_builderBays[bi].beds[bedi]=_builderBays[bi].beds[bedi+1];_builderBays[bi].beds[bedi+1]=t;
+        }
+        renderBayBuilder();
+      };
 
+      // Delete
       var rm=document.createElement('button');rm.textContent='×';
-      rm.style.cssText='background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;font-weight:700;padding:2px 4px;line-height:1';
-      rm.onclick=function(e){e.stopPropagation();_builderBays[bi].beds.splice(bedi,1);renderBayBuilder();};
+      rm.style.cssText='background:none;border:none;cursor:pointer;color:var(--dim);font-size:16px;font-weight:700;padding:2px 4px;line-height:1;flex-shrink:0';
+      rm.onclick=function(){_builderBays[bi].beds.splice(bedi,1);renderBayBuilder();};
 
-      chip.appendChild(lbl);chip.appendChild(lArr);chip.appendChild(rArr);chip.appendChild(rm);
-      bedsRow.appendChild(chip);
+      bedRow.appendChild(lbl);bedRow.appendChild(up);bedRow.appendChild(dn);bedRow.appendChild(rm);
+      bedList.appendChild(bedRow);
     });
-    var addBed=document.createElement('button');addBed.textContent='+ bed';
-    addBed.style.cssText='background:transparent;border:1px dashed var(--border-mid);border-radius:10px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted)';
+
+    // Add bed button
+    var addBed=document.createElement('button');addBed.textContent='+ Add bed';
+    addBed.style.cssText='width:100%;padding:8px;background:transparent;border:1px dashed var(--border-mid);border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;font-family:DM Sans,sans-serif;color:var(--muted);text-align:left;padding-left:14px';
     addBed.onclick=function(){_builderBays[bi].beds.push('Bed '+(_builderBays[bi].beds.length+1));renderBayBuilder();};
-    bedsRow.appendChild(addBed);row.appendChild(bedsRow);wrap.appendChild(row);
+    bedList.appendChild(addBed);
+
+    wrap.appendChild(bedList);
   });
 }
 
