@@ -1513,7 +1513,7 @@ function encodeHandover(){
   var active=tasks.filter(function(x){return!x.done;});
   if(!active.length)return null;
   return PREFIX2+active.map(function(t){
-    return (t.pid||'').replace(/[|~]/g,' ')+'|'+(t.desc||'').replace(/[|~]/g,' ')+'|'+t.urg;
+    return (t.pid||'').replace(/[|~]/g,' ')+'|'+(t.desc||'').replace(/[|~]/g,' ')+'|'+t.urg+'|'+(t.tag||'').replace(/[|~]/g,' ');
   }).join('~');
 }
 function decodeHandover(code){
@@ -1523,7 +1523,7 @@ function decodeHandover(code){
       return str.slice(PREFIX2.length).split('~').filter(Boolean).map(function(item){
         var p=item.split('|');
         if(p.length<3||!['i','u','r'].includes(p[2]))return null;
-        return{id:''+Date.now()+Math.random(),pid:p[0]||'',desc:p[1]||'',urg:p[2],added:Date.now(),done:false,completed:null};
+        return{id:''+Date.now()+Math.random(),pid:p[0]||'',desc:p[1]||'',urg:p[2],tag:p[3]||null,added:Date.now(),done:false,completed:null};
       }).filter(Boolean);
     }
     if(str.startsWith(PREFIX)){
@@ -1906,10 +1906,8 @@ function openAddSheet(){
   setTimeout(function(){var d=document.getElementById('f-desc');if(d)d.focus();},320);
 }
 function openHandover(){
-  hoTab='send';
-  document.getElementById('ho-tab-send').className='ho-tab on';
-  document.getElementById('ho-tab-recv').className='ho-tab';
   renderSendPanel();renderRecvPanel();
+  hoSetTab('send');
   openSheet('ho-sheet');
 }
 function openAbout(){openSheet('about-sheet');}
@@ -2025,7 +2023,7 @@ function previewImport(){
   if(!result){fb.innerHTML='<div class="import-err"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><line x1="8" y1="5" x2="8" y2="8.5"/><circle cx="8" cy="11" r="0.8" fill="currentColor"/></svg> Invalid code &mdash; check it was copied in full.</div>';btn.style.display='none';return;}
   importParsed=result;
   var show=result.slice(0,5);
-  var rows=show.map(function(t){return '<div class="preview-item"><div class="prev-dot '+t.urg+'"></div><div class="prev-body">'+(t.pid?'<div class="prev-pid">'+esc(t.pid)+'</div>':'')+'<div class="prev-desc">'+esc(t.desc)+'</div></div></div>';}).join('');
+  var rows=show.map(function(t){return '<div class="preview-item"><div class="prev-dot '+t.urg+'"></div><div class="prev-body">'+(t.pid?'<div class="prev-pid">'+esc(t.pid)+'</div>':'')+'<div class="prev-desc">'+esc(t.desc)+(t.tag?'<span style="display:inline-block;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:600;background:var(--team-bg);color:var(--team);margin-left:5px;vertical-align:middle">'+esc(t.tag)+'</span>':'')+'</div></div></div>';}).join('');
   var extra=result.length>5?'<div class="preview-more">+'+( result.length-5)+' more</div>':'';
   fb.innerHTML='<div class="f-label" style="margin-bottom:8px">'+result.length+' job'+(result.length!==1?'s':'')+' to import</div><div class="import-preview">'+rows+extra+'</div>';
   btn.textContent='Import '+result.length+' job'+(result.length!==1?'s':'');
@@ -3519,7 +3517,14 @@ function renderBayBuilder(){
   wrap.innerHTML='';
   _builderBays.forEach(function(bay,bi){
     var row=document.createElement('div');row.className='bay-builder-row';
+    row.setAttribute('draggable','true');
+    row.dataset.bayIdx=bi;
+
+    // Bay drag handle + header
     var nameRow=document.createElement('div');nameRow.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:4px';
+    var handle=document.createElement('div');
+    handle.innerHTML='<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="5" cy="3.5" r="1" fill="currentColor"/><circle cx="9" cy="3.5" r="1" fill="currentColor"/><circle cx="5" cy="7" r="1" fill="currentColor"/><circle cx="9" cy="7" r="1" fill="currentColor"/><circle cx="5" cy="10.5" r="1" fill="currentColor"/><circle cx="9" cy="10.5" r="1" fill="currentColor"/></svg>';
+    handle.style.cssText='cursor:grab;color:var(--dim);padding:4px;flex-shrink:0;touch-action:none';
     var inp=document.createElement('input');
     inp.type='text';inp.placeholder='Bay name (e.g. Bay 1, Side rooms)';
     inp.value=bay.name;inp.maxLength=30;inp.autocomplete='off';
@@ -3528,7 +3533,30 @@ function renderBayBuilder(){
     var del=document.createElement('button');
     del.textContent='✕';del.style.cssText='background:var(--imm-bg);color:var(--imm);border:none;border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;font-family:DM Sans,sans-serif';
     del.onclick=function(){_builderBays.splice(bi,1);renderBayBuilder();};
-    nameRow.appendChild(inp);nameRow.appendChild(del);row.appendChild(nameRow);
+    nameRow.appendChild(handle);nameRow.appendChild(inp);nameRow.appendChild(del);row.appendChild(nameRow);
+
+    // Bay drag events
+    row.addEventListener('dragstart',function(e){
+      e.dataTransfer.setData('bay-idx',bi);
+      row.style.opacity='0.4';
+    });
+    row.addEventListener('dragend',function(){row.style.opacity='1';});
+    row.addEventListener('dragover',function(e){
+      if(e.dataTransfer.types.includes('bay-idx')){e.preventDefault();row.style.borderTop='2px solid var(--team)';}
+    });
+    row.addEventListener('dragleave',function(){row.style.borderTop='';});
+    row.addEventListener('drop',function(e){
+      row.style.borderTop='';
+      if(!e.dataTransfer.types.includes('bay-idx'))return;
+      e.preventDefault();
+      var from=parseInt(e.dataTransfer.getData('bay-idx'));
+      var to=bi;
+      if(from===to)return;
+      var moved=_builderBays.splice(from,1)[0];
+      _builderBays.splice(to,0,moved);
+      renderBayBuilder();
+    });
+
     var presets=document.createElement('div');presets.style.cssText='display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px';
     [[4,'4 beds'],[6,'6 beds'],[2,'2 side rooms']].forEach(function(p){
       var pb=document.createElement('button');
@@ -3543,9 +3571,39 @@ function renderBayBuilder(){
       presets.appendChild(pb);
     });
     row.appendChild(presets);
+
     var bedsRow=document.createElement('div');bedsRow.className='bay-beds-row';
+    bedsRow.style.cssText='display:flex;flex-wrap:wrap;gap:6px;align-items:center';
     bay.beds.forEach(function(bed,bedi){
       var chip=document.createElement('div');chip.className='bay-bed-chip';
+      chip.setAttribute('draggable','true');
+      chip.dataset.bedIdx=bedi;
+      chip.style.cursor='grab';
+
+      // Bed drag events
+      chip.addEventListener('dragstart',function(e){
+        e.stopPropagation();
+        e.dataTransfer.setData('bed-bay',bi);
+        e.dataTransfer.setData('bed-idx',bedi);
+        chip.style.opacity='0.4';
+      });
+      chip.addEventListener('dragend',function(){chip.style.opacity='1';});
+      chip.addEventListener('dragover',function(e){
+        if(e.dataTransfer.types.includes('bed-idx')){e.preventDefault();chip.style.outline='2px solid var(--team)';}
+      });
+      chip.addEventListener('dragleave',function(){chip.style.outline='';});
+      chip.addEventListener('drop',function(e){
+        chip.style.outline='';
+        if(!e.dataTransfer.types.includes('bed-idx'))return;
+        e.preventDefault();e.stopPropagation();
+        var fromBay=parseInt(e.dataTransfer.getData('bed-bay'));
+        var fromIdx=parseInt(e.dataTransfer.getData('bed-idx'));
+        if(fromBay===bi&&fromIdx===bedi)return;
+        var moved=_builderBays[fromBay].beds.splice(fromIdx,1)[0];
+        _builderBays[bi].beds.splice(bedi,0,moved);
+        renderBayBuilder();
+      });
+
       var lbl=document.createElement('span');
       lbl.contentEditable=true;lbl.textContent=bed;lbl.style.cssText='outline:none;min-width:20px';
       lbl.oninput=function(){_builderBays[bi].beds[bedi]=lbl.textContent.trim();};
