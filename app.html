@@ -80,12 +80,12 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .safe-top-fill{position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);background:transparent;z-index:100;pointer-events:none}
 .safe-bot-fill{position:fixed;bottom:0;left:0;right:0;height:env(safe-area-inset-bottom,0px);background:transparent;z-index:100;pointer-events:none}
 /* Header */
-.hdr{padding:16px 20px 12px;background:var(--bg);position:sticky;top:0;z-index:20}
-.hdr-row{display:flex;align-items:flex-start;justify-content:space-between}
+.hdr{padding:10px 16px;background:var(--bg);position:sticky;top:0;z-index:20}
+.hdr-row{display:flex;align-items:center;justify-content:space-between}
 .brand{}
-.brand-name{font-family:'DM Serif Display',serif;font-size:28px;font-weight:400;letter-spacing:-0.02em;color:var(--text);line-height:1;margin-bottom:3px}
-.brand-sub{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0.01em}
-.hdr-clock{font-family:'DM Serif Display',serif;font-size:26px;font-weight:400;color:var(--muted);letter-spacing:-0.02em;margin-top:2px}
+.brand-name{font-family:'DM Serif Display',serif;font-size:22px;font-weight:400;letter-spacing:-0.02em;color:var(--text);line-height:1;vertical-align:middle}
+.brand-sub{display:none}
+.hdr-clock{font-family:'DM Serif Display',serif;font-size:20px;font-weight:400;color:var(--muted);letter-spacing:-0.02em}
 .sub-hdr{padding:8px 20px 10px;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px}
 .notice{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
 .notice-dot{width:5px;height:5px;border-radius:50%;background:var(--accent);flex-shrink:0;opacity:0.7}
@@ -98,8 +98,8 @@ body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sy
 .pn{font-family:'DM Serif Display',serif;font-size:15px;font-weight:400;line-height:1}
 
 /* Tabs */
-.tabs{display:flex;padding:6px 14px 10px;gap:6px;background:var(--bg);position:sticky;top:72px;z-index:19}
-.tab{flex:1;padding:10px 8px;font-size:12px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:16px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:all 0.2s;background:var(--surface2);min-height:54px;border:1.5px solid var(--border-mid)}
+.tabs{display:flex;padding:2px 14px 6px;gap:6px;background:var(--bg);position:sticky;top:50px;z-index:19}
+.tab{flex:1;padding:8px 6px;font-size:11px;font-weight:600;color:var(--muted);text-align:center;cursor:pointer;border-radius:14px;user-select:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:all 0.2s;background:var(--surface2);min-height:46px;border:1.5px solid var(--border-mid)}
 .tab.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow);border-color:var(--border-mid)}
 @keyframes pulse-dot{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:0.6}}
 @keyframes team-attract{0%,100%{transform:translateY(0);opacity:0.6}50%{transform:translateY(-2px);opacity:1}}
@@ -458,18 +458,17 @@ input::placeholder,textarea::placeholder{color:var(--dim);font-weight:500}
   <div class="hdr">
     <div class="hdr-row">
       <div class="brand" onclick="openAbout()" style="cursor:pointer">
-        <div style="display:flex;align-items:center;gap:9px;margin-bottom:3px">
+        <div style="display:flex;align-items:center;gap:7px">
           <div class="brand-name">Axonal</div>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="opacity:0.3;flex-shrink:0;margin-top:4px"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><line x1="7" y1="6" x2="7" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="4" r="0.7" fill="currentColor"/></svg>
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style="opacity:0.3;flex-shrink:0"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><line x1="7" y1="6" x2="7" y2="10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="7" cy="4" r="0.7" fill="currentColor"/></svg>
         </div>
-        <div class="brand-sub">Shift task manager</div>
       </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button id="theme-btn" onclick="toggleTheme()" data-tip="Switch to dark mode" class="tip" style="background:var(--surface2);border:2px solid var(--border-mid);cursor:pointer;padding:6px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.15s;width:36px;height:36px;flex-shrink:0" aria-label="Toggle dark mode">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button id="theme-btn" onclick="toggleTheme()" data-tip="Switch to dark mode" class="tip" style="background:var(--surface2);border:1.5px solid var(--border-mid);cursor:pointer;padding:6px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.15s;width:32px;height:32px;flex-shrink:0" aria-label="Toggle dark mode">
           <svg id="theme-icon-moon" width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M17.5 11.5A7.5 7.5 0 0 1 8.5 2.5a7.5 7.5 0 1 0 9 9z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
           <svg id="theme-icon-sun" width="20" height="20" viewBox="0 0 20 20" fill="none" style="display:none"><circle cx="10" cy="10" r="4" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="2" x2="10" y2="4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10" y1="16" x2="10" y2="18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2" y1="10" x2="4" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="16" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="14.36" y1="14.36" x2="15.78" y2="15.78" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="4.22" y1="15.78" x2="5.64" y2="14.36" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="14.36" y1="5.64" x2="15.78" y2="4.22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
-        <button id="auth-btn" onclick="openAuthSheet()" data-tip="Sign in" class="tip" style="background:var(--team-bg);border:2px solid var(--team);cursor:pointer;padding:6px;color:var(--team);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.15s;width:36px;height:36px;flex-shrink:0" aria-label="Sign in">
+        <button id="auth-btn" onclick="openAuthSheet()" data-tip="Sign in" class="tip" style="background:var(--surface2);border:1.5px solid var(--border-mid);cursor:pointer;padding:6px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all 0.15s;width:32px;height:32px;flex-shrink:0" aria-label="Sign in">
           <svg id="auth-icon" width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="8" r="3.5" stroke="currentColor" stroke-width="1.5"/><path d="M4 18c0-3.314 3.134-6 7-6s7 2.686 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         </button>
         <div class="hdr-clock" id="clock">--:--</div>
